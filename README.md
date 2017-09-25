@@ -25,8 +25,7 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
 
 3- enable the daemon and start it
 
-/etc/init.d/wwanHotspot enable
-/etc/init.d/wwanHotspot start
+/etc/init.d/wwanHotspot enable ; /etc/init.d/wwanHotspot start
 
 # Operation
 
