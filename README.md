@@ -34,7 +34,7 @@ When the daemon starts will look once for a HotSpot.
 
 Automatically receives an scan signal when the HotSpot is disconnected and deactivates the interface.
 
-ScanAuto is not recommended because overloads the wifi interface, so we must issue the following command when a HotSpot is activated:
+ScanAuto is not recommended because overloads the wifi interface, so we must issue the following command when a HotSpot becomes available:
 
 /etc/init.d/wwanHotspot scan
 
