@@ -1,0 +1,62 @@
+#!/bin/sh /etc/rc.common
+
+START=99
+USE_PROCD=1
+EXTRA_COMMANDS="scan"
+EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"
+
+NAME="wwanHotspot"
+PROG="/usr/sbin/${NAME}"
+INIT="/etc/init.d/${NAME}"
+PIDFILE="/var/run/${NAME}.pid"
+
+service_running() {
+	local pid
+
+	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
+	grep -Fqse "${PROG}" "/proc/${pid}/cmdline" && \
+	echo "${pid}"
+}
+
+start_service() {
+	service_running > /dev/null && \
+		echo "Warning: Daemon is already running." >&2 || \
+		echo "Info: Starting Daemon..." >&2
+	procd_open_instance
+	procd_set_param command "${PROG}" "start"
+	procd_set_param pidfile "${PIDFILE}"
+	procd_close_instance
+}
+
+service_triggers() {
+	local interface="$(uci -q get wireless.@wifi-iface[1].network)"
+
+	procd_open_trigger
+	procd_add_config_trigger "config.change" "${NAME}" "${INIT}" reload
+	procd_add_interface_trigger "interface.*" "${interface}" "${INIT}" scan
+	procd_close_trigger
+}
+
+reload_service() {
+	local pid
+
+	if pid="$(service_running)"; then
+		echo "Info: Reloading Daemon config." >&2
+		kill -HUP $pid || :
+	else
+		echo "Error: Daemon is not running." >&2
+		return 1
+	fi
+}
+
+scan() {
+	local pid
+
+	if pid="$(service_running)"; then
+		echo "Info: Requesting Daemon to scan." >&2
+		kill -USR1 $pid || :
+	else
+		echo "Error: Daemon is not running." >&2
+		return 1
+	fi
+}
