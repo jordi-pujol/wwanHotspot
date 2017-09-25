@@ -1,7 +1,6 @@
 # wwanHotspot
-OpenWrt daemon to maintain allways up a dual wifi config: Access Point and HotSpot client
 
-It is designed to connect an OpenWrt router to devices that share the Internet connection through a Hotspot, such as mobile phones. In one place there may be several Hotspots that will be available or not according to the comings and goings of their owners; we will enter the parameters of each one of them in the configuration file; then wwanHotspot will connect and disconnect the OpenWrt router to them as they become available
+It is designed to connect an OpenWrt router to devices that share the Internet connection through a wifi Hotspot, such as mobile phones. In one place there may be several Hotspots that will be available or not according to the comings and goings of their owners; we will enter the parameters of each one of them in the configuration file therefore wwanHotspot will connect and disconnect the OpenWrt HotSpot client to one of them as they become available.
 
 # Installation
 Configure wifi interfaces according to the OpenWrt wiki.
@@ -29,15 +28,18 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
 
 # Operation
 
-When the daemon starts will look once for a HotSpot.
+At start the daemon will look once for a HotSpot.
+After HotSpot disconnection will look for availability of an other.
 
 Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the interface and maintains AP allways up.
 
-ScanAuto is not recommended because overloads the wifi interface, so we must issue the following command when a HotSpot becomes available:
+The ScanAuto method is not recommended because overloads the wifi interface, so it's preferred that we request a HotSpot scan issuing the following command when a HotSpot becomes available:
 
 /etc/init.d/wwanHotspot scan
 
-Daemon reload is automatic if we edit the config file while the daemon is running.
+After changing the config file we must not reload the Daemon because reload is automatic if we update the config file while the daemon is running.
+
+/etc/init.d/wwanHotspot reload # not required
 
 # Comments
 
