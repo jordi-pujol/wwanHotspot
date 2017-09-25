@@ -32,7 +32,7 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
 
 When the daemon starts will look once for a HotSpot.
 
-Automatically receives an scan signal when the HotSpot is disconnected and deactivates the interface.
+Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the interface and maintains AP allways up.
 
 ScanAuto is not recommended because overloads the wifi interface, so we must issue the following command when a HotSpot becomes available:
 
