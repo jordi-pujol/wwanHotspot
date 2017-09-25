@@ -140,6 +140,7 @@ WifiStatus() {
 				logger -t "${NAME}" \
 					"Disabling wireless device for Hotspot."
 				Status=1
+				ScanRequest=1
 			fi
 			_sleep 5
 		fi
