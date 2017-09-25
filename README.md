@@ -35,7 +35,9 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
 # Operation
 
 When the daemon starts will look once for a HotSpot.
+
 Automatically receives an scan signal when the HotSpot is disconnected and deactivates the interface.
+
 ScanAuto is not recommended because overloads the wifi interface, so we must issue the following command when a HotSpot is activated:
 
 /etc/init.d/wwanHotspot scan
