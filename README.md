@@ -42,4 +42,4 @@ ScanAuto is not recommended because overloads the wifi interface, so we must iss
 
 /etc/init.d/wwanHotspot scan
 
-Daemon reload is automatic if we edit the config file while the daemon is started.
+Daemon reload is automatic if we edit the config file while the daemon is running.
