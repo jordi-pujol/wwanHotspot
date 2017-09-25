@@ -30,7 +30,7 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
 # Operation
 
 At start the daemon will look once for a HotSpot.
-After HotSpot disconnection will look for availability of an other.
+Also will look for availability of another HotSpot after disconnection.
 
 Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the interface and maintains AP allways up.
 
