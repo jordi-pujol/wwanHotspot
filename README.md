@@ -5,7 +5,7 @@ Fix loss of AP when WWAN (Hotspot client) mode fails by disabling the WWAN clien
 
 Configuration contains a list of Hotspots to connect, will re-enable the WWAN client when one becomes available. Also will look periodically for a Hotspot if ScanAuto is not null or else when a scan request is received.
 
-Note: ScanAuto is not recommended because overloads the wifi interface, is better request an scan to the daemon via ssh or telnet.
+Note: ScanAuto is not recommended because overloads the wifi interface, requesting an scan to the daemon via ssh or telnet is better.
 
 # Installation
 Configure wifi interfaces according to the OpenWrt wiki.
@@ -13,6 +13,7 @@ Configure wifi interfaces according to the OpenWrt wiki.
 https://wiki.openwrt.org/doc/recipes/ap_sta
 
 and install wwanHotspot via ssh or telnet,
+
 1- copy the files
 
 cp files/wwanHotspot.config /etc/config/wwanHotspot
