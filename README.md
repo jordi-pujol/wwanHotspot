@@ -20,7 +20,7 @@ and install wwanHotspot via ssh or telnet,
    ```
    vi /etc/config/wwanHotspot
    ```
-Multiple HotSpots are allowed, the daemon will try to connect to any of them by rotation.
+multiple HotSpots are allowed, wwanHotspot will try to connect to any of them by rotation. If the list is not populated then wwanHotspot will use the interface's current configuration.
 
 3- enable the daemon and start it
    ```
@@ -29,7 +29,7 @@ Multiple HotSpots are allowed, the daemon will try to connect to any of them by 
    ```
 # Operation
 
-At start the daemon will look once for a HotSpot.
+At start wwanHotspot will look once for a HotSpot.
 Also will look for availability of another HotSpot after disconnection.
 
 Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the interface and maintains AP allways up.
@@ -38,7 +38,7 @@ The ScanAuto method is not recommended because overloads the wifi interface, so 
    ```
    /etc/init.d/wwanHotspot scan
    ```
-After changing the config file we must not reload the Daemon because reload is automatic if we update the config file while the daemon is running.
+After changing the config file we must not reload the daemon because reload is automatic if we update the config file while wwanHotspot is running.
    ```
    /etc/init.d/wwanHotspot reload # not required
    ```
