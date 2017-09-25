@@ -12,8 +12,11 @@ and install wwanHotspot via ssh or telnet,
 1- copy the files
 
 cp files/wwanHotspot.config /etc/config/wwanHotspot
+
 cp files/wwanHotspot.init /etc/init.d/wwanHotspot
+
 cp files/wwanHotspot.sh /usr/sbin/wwanHotspot
+
 chmod a+x /etc/init.d/wwanHotspot /usr/sbin/wwanHotspot
 
 2- edit the config file and set your HotSpots parameters.
