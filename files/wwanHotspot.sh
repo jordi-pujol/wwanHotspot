@@ -17,7 +17,12 @@ SleepScanAuto="$((${Sleep}*10))"
 
 _sleep() {
 	local s="${1:-"${Slp}"}"
-	sleep "${s}" &
+	( set +x
+	while [ ${s} -gt 0 ]; do
+		sleep 1
+		printf '%s' "." >&2
+		s=$((${s}-1))
+	done ) &
 	PidSleep="${!}"
 	wait "${PidSleep}" || :
 	PidSleep=""
