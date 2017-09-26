@@ -98,20 +98,20 @@ DoScan() {
 
 	i=${n}
 	while :; do
-		eval ssid=\"\$net${n}_ssid\" && \
+		eval ssid=\"\$net${i}_ssid\" && \
 		[ -n "${ssid}" ] || \
 			return 1
 
 		if printf '%s\n' "${scanned}" | \
 		grep -qsxe "${ssid}"; then
-			printf '%s:%s\n' "${n}" "${ssid}"
+			printf '%s:%s\n' "${i}" "${ssid}"
 			return 0
 		fi
 
-		[ ${n} -lt ${CfgSsidsCnt} ] && \
-			n=$((${n}+1)) || \
-			n=1
-		[ ${n} -ne ${i} ] || \
+		[ ${i} -lt ${CfgSsidsCnt} ] && \
+			i=$((${i}+1)) || \
+			i=1
+		[ ${i} -ne ${n} ] || \
 			return 1
 	done
 }
