@@ -20,32 +20,37 @@ and install wwanHotspot via ssh or telnet,
    ```
    vi /etc/config/wwanHotspot
    ```
-multiple HotSpots are allowed, wwanHotspot will try to connect to any of them by rotation. If the list is not populated then wwanHotspot will use the interface's current configuration.
 
 3- enable the daemon and start it
    ```
    /etc/init.d/wwanHotspot enable
    /etc/init.d/wwanHotspot start
    ```
+# Configuration
+
+Variables named Debug and ScanAuto are indicators, value is false when null or not set, true when they have any value.
+
+Debug enabled will send a shell command log to the file "/var/log/wwanHotspot".
+
+We can enable ScanAuto to look periodically for a Hotspot only when the Wan interface is disconnected, the time interval is stored in variable Sleep. Setting ScanAuto to the special value "allways" makes wwanHotspot not care of the Wan interface status and will scan periodically, but is better request an scan to the daemon via ssh or telnet. ScanAuto "allways" is not recommended because overloads too much the wifi interface, to avoid this the program increases the time between scans; the value of the large time lapsus is SleepScanAuto.
+
+Set the list of network values for your Hotspots. Multiple HotSpots are allowed, wwanHotspot will try to connect to any of them by rotation. If the list is not populated then wwanHotspot will use the current configuration for this interface.
+
+After changing the config file we must reload the daemon.
+
 # Operation
 
 At start wwanHotspot will look once for a HotSpot.
 Also will look for availability of another HotSpot after disconnection.
 
-Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the interface and maintains AP allways up.
+Automatically receives an scan signal when the HotSpot is disconnected, wwanHotspot deactivates the Hotspot client interface and maintains AP allways up.
 
-The ScanAuto method is not recommended because overloads the wifi interface, so it's preferred that we request a HotSpot scan issuing the following command when a HotSpot becomes available:
+When the Hotspot client is disconnected we can request a wifi scan issuing the following command when we know that a HotSpot is available:
    ```
    /etc/init.d/wwanHotspot scan
    ```
-After changing the config file we must not reload the daemon because reload is automatic if we update the config file while wwanHotspot is running.
+If we update the config file while wwanHotspot is running we must reload the daemon, because the change is not detected if this application was not installed by a package.
    ```
    /etc/init.d/wwanHotspot reload # not required
    ```
-# Comments
-
-It fixes loss of AP when WWAN (Hotspot client) mode fails by disabling the WWAN client.
-
-Configuration contains a list of Hotspots to connect, will re-enable the WWAN client when one becomes available. Also will look periodically for a Hotspot if ScanAuto is not null or else when a scan request is received.
-
-ScanAuto is not recommended because overloads the wifi interface, is better request an scan to the daemon via ssh or telnet.
+A log is written to the file "/var/log/wwanHotspot".
