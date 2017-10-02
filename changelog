@@ -1,0 +1,15 @@
+wwanHotspot v1.1
+
+  * new script to build package into an ipk file.
+  * Installing from ipk file.
+  * daemon loop: while sleep.
+  * solved a bug that didn't allow connecting to the actually configured
+    Hotspot when the list was not populated.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 01 Oct 2017 14:59:25 +0200
+
+wwanHotspot v1.0
+
+  * initial release
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 28 Sep 2017 10:30:10 +0200
