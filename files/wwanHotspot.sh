@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.0 $
+#  $Revision: 1.1 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -135,6 +135,11 @@ DoScan() {
 	n="$(printf '%s\n' "${CfgSsids}" | \
 	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
 	END{exit rc+1}')"; then
+		if [ ${n} = 1 -a ${CfgSsidsCnt} = 1 ] && \
+		printf '%s\n' "${scanned}" | grep -qsxe "${WwanSsid}"; then
+			printf '%s:%s\n' "1" "${WwanSsid}"
+			return 0
+		fi
 		[ ${n} -lt ${CfgSsidsCnt} ] && \
 			n=$((${n}+1)) || \
 			n=1
@@ -177,8 +182,7 @@ WifiStatus() {
 	trap 'LoadConfig' HUP
 	trap 'ScanRequested' USR1
 
-	while :; do
-		_sleep
+	while [ ${Status} = 0 ] || _sleep; do
 		if iwinfo | grep -qsre "wlan0[[:blank:]]*ESSID: unknown"; then
 			uci set wireless.@wifi-iface[1].disabled=1
 			uci commit wireless
@@ -230,10 +234,10 @@ WifiStatus() {
 				Slp=5
 			fi
 			WwanErr=$((${WwanErr}+1))
-			if [ ${WwanErr} -ge ${CfgSsidsCnt} ] && \
+			if [ ${WwanErr} -gt ${CfgSsidsCnt} ] && \
 			[ ${Status} != 3 ]; then
 				ScanRequest=0
-				[ "${ScanAuto}" = "allways" ] || \
+				[ "${ScanAuto}" != "allways" ] || \
 					Slp=${SleepScanAuto}
 				_log "Error: can't connect to Hotspots, probably configuration is not correct."
 				Status=3
