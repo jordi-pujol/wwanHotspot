@@ -1,0 +1,13 @@
+Package: wwanHotspot
+Version: 1.1
+Section: net
+Priority: optional
+Maintainer: Jordi Pujol <jordipujolp AT gmail DOT com>
+License: GPL-v3
+Architecture: all
+OE: wwanHotspot
+Homepage: https://github.com/jordi-pujol/wwanHotspot
+Depends: iwinfo
+Source:  N/A
+Description: OpenWrt daemon to maintain allways up a dual wifi config:
+ Access Point and HotSpot client.
