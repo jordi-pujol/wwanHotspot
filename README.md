@@ -7,14 +7,11 @@ Configure wifi interfaces according to the OpenWrt wiki.
 
 https://wiki.openwrt.org/doc/recipes/ap_sta
 
-and install wwanHotspot via ssh or telnet,
+and install the package wwanHotspot via ssh or telnet,
 
-1- copy the files
+1- Install the ipk:
    ```
-   cp files/wwanHotspot.config /etc/config/wwanHotspot
-   cp files/wwanHotspot.init /etc/init.d/wwanHotspot
-   cp files/wwanHotspot.sh /usr/sbin/wwanHotspot
-   chmod a+x /etc/init.d/wwanHotspot /usr/sbin/wwanHotspot
+   opkg install wwanHotspot_VERSION_all.ipk
    ```
 2- edit the config file and set your HotSpots parameters.
    ```
@@ -24,7 +21,7 @@ and install wwanHotspot via ssh or telnet,
 3- enable the daemon and start it
    ```
    /etc/init.d/wwanHotspot enable
-   /etc/init.d/wwanHotspot start
+   /etc/init.d/wwanHotspot restart
    ```
 # Configuration
 
@@ -49,8 +46,8 @@ When the Hotspot client is disconnected we can request a wifi scan issuing the f
    ```
    /etc/init.d/wwanHotspot scan
    ```
-If we update the config file while wwanHotspot is running we must reload the daemon, because the change is not detected if this application was not installed by a package.
+If we update the config file while wwanHotspot is running we must reload the daemon, the change is not detected in my actual version of OpenWrt.
    ```
-   /etc/init.d/wwanHotspot reload # not required
+   /etc/init.d/wwanHotspot reload # maybe required or not
    ```
 A log is written to the file "/var/log/wwanHotspot".
