@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.0 $
+#  $Revision: 1.1 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -65,6 +65,7 @@ reload_service() {
 
 	if pid="$(service_running)"; then
 		echo "Info: Reloading Daemon config." >&2
+		#procd_send_signal "${NAME}"
 		kill -HUP $pid || :
 	else
 		echo "Error: Daemon is not running." >&2
@@ -76,7 +77,8 @@ scan() {
 	local pid
 
 	if pid="$(service_running)"; then
-		echo "Info: Requesting Daemon to scan." >&2
+		echo "Info: Requesting an scan to daemon." >&2
+		#procd_send_signal "${NAME}" "*" "USR1"
 		kill -USR1 $pid || :
 	else
 		echo "Error: Daemon is not running." >&2
