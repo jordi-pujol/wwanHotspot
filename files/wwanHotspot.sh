@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.1 $
+#  $Revision: 1.2 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -94,11 +94,13 @@ LoadConfig() {
 	done
 	WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
 	[ -n "${CfgSsids}" ] || \
-		CfgSsids="${WwanSsid}"
-	if [ -z "${CfgSsids}" ]; then
-		_log "Invalid configuration."
-		exit 1
-	fi
+		if [ -n "${WwanSsid}" ]; then
+			CfgSsids="${WwanSsid}"
+			net1_ssid="${WwanSsid}"
+		else
+			_log "Invalid configuration."
+			exit 1
+		fi
 	CfgSsidsCnt="$(printf '%s\n' "${CfgSsids}" | wc -l)"
 
 	ScanRequest=1
@@ -135,11 +137,6 @@ DoScan() {
 	n="$(printf '%s\n' "${CfgSsids}" | \
 	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
 	END{exit rc+1}')"; then
-		if [ ${n} = 1 -a ${CfgSsidsCnt} = 1 ] && \
-		printf '%s\n' "${scanned}" | grep -qsxe "${WwanSsid}"; then
-			printf '%s:%s\n' "1" "${WwanSsid}"
-			return 0
-		fi
 		[ ${n} -lt ${CfgSsidsCnt} ] && \
 			n=$((${n}+1)) || \
 			n=1
@@ -206,31 +203,33 @@ WifiStatus() {
 				Status=2
 			fi
 		elif ssid="$(DoScan)"; then
-			local n wifi_change=""
+			local n wifi_disabled=""
 			n="$(printf '%s\n' "${ssid}" | \
 				cut -f 1 -s -d ':')"
 			ssid="$(printf '%s\n' "${ssid}" | \
 				cut -f 2- -s -d ':')"
+			wifi_disabled="$(uci -q get wireless.@wifi-iface[1].disabled)"
 			if [ "${ssid}" != "${WwanSsid}" ]; then
 				eval encrypt=\"\$net${n}_encrypt\"
 				eval key=\"\$net${n}_key\"
 				WwanErr=0
-				wifi_change=y
 				_log "${ssid} network found. Applying settings.."
 				uci set wireless.@wifi-iface[1].ssid="${ssid}"
 				uci set wireless.@wifi-iface[1].encryption="${encrypt}"
 				uci set wireless.@wifi-iface[1].key="${key}"
 				WwanSsid="${ssid}"
-			fi
-			if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
+				[ "${wifi_disabled}" != 1 ] || \
+					uci set wireless.@wifi-iface[1].disabled=0
+				uci commit wireless
+				/etc/init.d/network restart
+				_log "Connecting to '${WwanSsid}'..."
+				Slp=5
+			elif [ "${wifi_disabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
-				wifi_change=y
-			fi
-			if [ -n "${wifi_change}" ]; then
 				uci commit wireless
 				wifi down
 				wifi up
-				_log "Connecting to '${WwanSsid}'..."
+				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
 				Slp=5
 			fi
 			WwanErr=$((${WwanErr}+1))
