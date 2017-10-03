@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.1 $
+#  $Revision: 1.2 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -37,15 +37,21 @@ _package_attrs() {
 	PKG="$(_control_value "Package:")"
 	PKG_VERSION="$(_control_value "Version:")"
 	PKG_ARCH="$(_control_value "Architecture:")"
+	PKG_IPK="${PKG}_${PKG_VERSION}_${PKG_ARCH}.ipk"
 }
 
 case "${1}" in
 all|build)
 	_package_attrs
-	if [ -s "${PKG}_${PKG_VERSION}_${PKG_ARCH}.ipk" ]; then
+	if [ -s "${PKG_IPK}" ]; then
 		echo "Nothing to do" >&2
 		exit 0
 	fi
+	# checking syntaxis
+	for f in ../files/* postinst prerm; do
+		busybox sh -n "${f}"
+	done
+	# fill package directories
 	rm -rf ./ipk
 	mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin
 	cp ../files/${PKG}.config ./ipk/etc/config/${PKG}
@@ -54,12 +60,13 @@ all|build)
 	chmod a+x ./ipk/etc/init.d/${PKG} ./ipk/usr/sbin/${PKG}
 	echo "2.0" > ./debian-binary
 	chmod a+x ./postinst ./prerm
+	# compress package files
 	tar --owner=0 --group=0 -czvf control.tar.gz control conffiles \
 		postinst prerm
 	#cd ./ipk; tar --owner=0 --group=0 -czvf ../data.tar.gz *; cd ..
 	tar --owner=0 --group=0 --transform 's|^.*ipk/||' --show-stored-names \
 		-czvf data.tar.gz ipk/*
-	tar --owner=0 --group=0 -czvf ${PKG}_${PKG_VERSION}_${PKG_ARCH}.ipk \
+	tar --owner=0 --group=0 -czvf "${PKG_IPK}" \
 		control.tar.gz data.tar.gz debian-binary
 	;;
 clean)
@@ -68,7 +75,7 @@ clean)
 	rm -f ./control.tar.gz \
 		./data.tar.gz \
 		./debian-binary \
-		./${PKG}_${PKG_VERSION}_${PKG_ARCH}.ipk
+		./"${PKG_IPK}"
 	;;
 *)
 	echo "Usage '$0' all|build|clean" >&2
