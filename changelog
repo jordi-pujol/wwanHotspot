@@ -1,3 +1,11 @@
+wwanHotspot v1.2
+
+  * make-package.sh:
+    check scripts syntaxis before building the package.
+  * reload network after changing Hotspot client parameters.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 03 Oct 2017 13:34:32 +0200
+
 wwanHotspot v1.1
 
   * new script to build package into an ipk file.
