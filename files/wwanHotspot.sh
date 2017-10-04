@@ -30,7 +30,7 @@ _log() {
 
 _sleep() {
 	local s
-	[ "${ScanAuto}" = "y" ] && \
+	[ "${ScanAuto}" = "y" -o ${ScanRequest} -gt 0 ] && \
 		s=${Sleep} || \
 		s=${SleepScanAuto}
 	( set +x
