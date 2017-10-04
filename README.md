@@ -46,7 +46,7 @@ When the Hotspot client is disconnected we can request a wifi scan issuing the f
    ```
    /etc/init.d/wwanHotspot scan
    ```
-If we update the config file while wwanHotspot is running we must reload the daemon, the change is not detected in my actual version of OpenWrt.
+If we update the config file while wwanHotspot is running we must reload the daemon, the change is not detected in my current version of OpenWrt.
    ```
    /etc/init.d/wwanHotspot reload # maybe required or not
    ```
