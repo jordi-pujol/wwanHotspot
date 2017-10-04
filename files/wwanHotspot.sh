@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.2 $
+#  $Revision: 1.3 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -29,7 +29,10 @@ _log() {
 }
 
 _sleep() {
-	local s="${1:-"${Slp}"}"
+	local s
+	[ "${ScanAuto}" = "y" ] && \
+		s=${Sleep} || \
+		s=${SleepScanAuto}
 	( set +x
 	printf '%s' "." >&2
 	while [ ${s} -gt 0 ]; do
@@ -72,8 +75,7 @@ LoadConfig() {
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
 
-	rm -f "/var/log/${NAME}"
-	exec > "/var/log/${NAME}" 2>&1
+	exec >> "/var/log/${NAME}" 2>&1
 	[ -n "${Debug}" ] && \
 		set -x || \
 		set +x
@@ -104,7 +106,6 @@ LoadConfig() {
 	CfgSsidsCnt="$(printf '%s\n' "${CfgSsids}" | wc -l)"
 
 	ScanRequest=1
-	Slp=${Sleep}
 	WwanErr=0
 	Status=0
 }
@@ -167,13 +168,14 @@ DoScan() {
 WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt ssid WwanSsid
-	local ScanRequest Slp WwanErr Status
+	local ScanRequest WwanErr Status
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local IfaceWan="$(uci -q get network.wan.ifname)" || :
 
 	trap '_exit' EXIT
 
+	rm -f "/var/log/${NAME}"
 	LoadConfig || exit 1
 
 	trap 'LoadConfig' HUP
@@ -184,7 +186,6 @@ WifiStatus() {
 			uci set wireless.@wifi-iface[1].disabled=1
 			uci commit wireless
 			/etc/init.d/network restart
-			Slp=${Sleep}
 			if [ ${Status} != 1 ]; then
 				_log "Disabling wireless device for Hotspot."
 				Status=1
@@ -197,7 +198,6 @@ WifiStatus() {
 		grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${WwanSsid}"'"'; then
 			ScanRequest=0
 			WwanErr=0
-			Slp=${Sleep}
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot ${WwanSsid} is connected."
 				Status=2
@@ -223,31 +223,25 @@ WifiStatus() {
 				uci commit wireless
 				/etc/init.d/network restart
 				_log "Connecting to '${WwanSsid}'..."
-				Slp=5
 			elif [ "${wifi_disabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
 				wifi down
 				wifi up
 				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
-				Slp=5
 			fi
 			WwanErr=$((${WwanErr}+1))
 			if [ ${WwanErr} -gt ${CfgSsidsCnt} ] && \
 			[ ${Status} != 3 ]; then
 				ScanRequest=0
-				[ "${ScanAuto}" != "allways" ] || \
-					Slp=${SleepScanAuto}
 				_log "Error: can't connect to Hotspots, probably configuration is not correct."
 				Status=3
 			fi
 		else
 			WwanErr=0
-			Slp=${Sleep}
 			if [ ${Status} != 4 ]; then
 				_log "A Hotspot is not available."
 				Status=4
-				Slp=5
 			fi
 		fi
 		[ ${ScanRequest} -eq 0 ] || \
