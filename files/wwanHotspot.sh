@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.3 $
+#  $Revision: 1.4 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -28,20 +28,21 @@ _log() {
 		"$(echo "${@}")" >&2
 }
 
-_sleep() {
-	local s
-	[ "${ScanAuto}" = "y" -o ${ScanRequest} -gt 0 ] && \
+_sleeping() {
+	[ "${Status}" -ne 2 -a \
+	\( "${ScanAuto}" = "y" -o ${ScanRequest} -gt 0 \) ] && \
 		s=${Sleep} || \
 		s=${SleepScanAuto}
-	( set +x
-	printf '%s' "." >&2
 	while [ ${s} -gt 0 ]; do
 		sleep 1
 		s=$((${s}-1))
-	done ) &
+	done
+}
+
+_sleep() {
+	_sleeping > /dev/null 2>&1 &
 	PidSleep="${!}"
 	wait "${PidSleep}" || :
-	echo >&2
 	PidSleep=""
 }
 
@@ -55,8 +56,8 @@ ScanRequested() {
 }
 
 _exit() {
-	_log "Exit."
-	kill -TERM $(ps --no-headers --ppid "${PidDaemon}" -o pid) || :
+	_log "Exiting."
+	kill -TERM $(ps --no-headers --ppid "${PidDaemon}" -o pid) > /dev/null 2>&1 &
 	wait || :
 }
 
@@ -129,8 +130,7 @@ DoScan() {
 		return 1
 
 	scanned="$(iw wlan0 scan | \
-		awk '$1 == "SSID:" {print}' | \
-		cut -f 2- -s -d ' ')"
+		sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')"
 	[ -n "${scanned}" ] || \
 		return 1
 
