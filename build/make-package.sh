@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.3 $
+#  $Revision: 1.4 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -40,6 +40,14 @@ _package_attrs() {
 	PKG_IPK="${PKG}_${PKG_VERSION}_${PKG_ARCH}.ipk"
 }
 
+_check_syntax() {
+	local f rc=0
+	for f in ../files/* postinst prerm; do
+		busybox sh -n "${f}" || rc=1
+	done
+	return "${rc}"
+}
+
 case "${1}" in
 all|build)
 	_package_attrs
@@ -47,10 +55,8 @@ all|build)
 		echo "Nothing to do" >&2
 		exit 0
 	fi
-	# checking syntaxis
-	for f in ../files/* postinst prerm; do
-		busybox sh -n "${f}"
-	done
+	# check syntax
+	_check_syntax || exit 1
 	# fill package directories
 	rm -rf ./ipk
 	mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin
