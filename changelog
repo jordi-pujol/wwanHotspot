@@ -1,3 +1,15 @@
+wwanHotspot v1.4
+
+  * files/wwanHotspot.sh:
+    sleeping short time lapse when scanrequest is active
+    and long time when Hotspot is connected.
+  * files/wwanHotspot.init:
+    trigger scan for changes in wan and wwan interfaces.
+  * build/make-package.sh:
+    check syntax of all scripts and return result.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 05 Oct 2017 03:55:46 +0200
+
 wwanHotspot v1.3
 
   * files/wwanHotspot.sh, files/wwanHotspot.config:
