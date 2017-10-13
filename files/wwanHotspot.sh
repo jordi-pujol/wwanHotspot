@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.4 $
+#  $Revision: 1.5 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -22,10 +22,14 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
+_applog() {
+	printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" \
+		"$(echo "${@}")" >> "/var/log/${NAME}"
+}
+
 _log() {
 	logger -t "${NAME}" "${@}"
-	printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" \
-		"$(echo "${@}")" >&2
+	_applog "${@}"
 }
 
 _sleeping() {
@@ -33,17 +37,26 @@ _sleeping() {
 	\( "${ScanAuto}" = "y" -o ${ScanRequest} -gt 0 \) ] && \
 		s=${Sleep} || \
 		s=${SleepScanAuto}
-	while [ ${s} -gt 0 ]; do
-		sleep 1
-		s=$((${s}-1))
-	done
+	[ -z "${Debug}" ] || \
+		_applog "sleeping ${s} seconds" 
+	sleep ${s}
 }
 
 _sleep() {
 	_sleeping > /dev/null 2>&1 &
 	PidSleep="${!}"
 	wait "${PidSleep}" || :
+	[ -z "${Debug}" ] || \
+		_applog "sleeping ended" 
 	PidSleep=""
+}
+
+_ps_children() {
+	local p
+	for p in $(ps --no-headers --ppid "${1}" -o pid); do
+		echo "${p}"
+		_ps_children "${p}"
+	done
 }
 
 ScanRequested() {
@@ -51,14 +64,18 @@ ScanRequested() {
 		return 0
 	_log "Scan requested."
 	WwanErr=0
+	Status=0
 	ScanRequest=${CfgSsidsCnt}
-	kill -TERM "${PidSleep}" || :
+	kill -TERM "${PidSleep}" $(_ps_children "${PidSleep}") || :
 }
 
 _exit() {
 	_log "Exiting."
-	kill -TERM $(ps --no-headers --ppid "${PidDaemon}" -o pid) > /dev/null 2>&1 &
-	wait || :
+	pids="$(_ps_children "${PidDaemon}")"
+	if [ -n "${pids}" ]; then
+		kill -TERM ${pids} > /dev/null 2>&1 &
+		wait || :
+	fi
 }
 
 LoadConfig() {
@@ -76,10 +93,13 @@ LoadConfig() {
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
 
-	exec >> "/var/log/${NAME}" 2>&1
-	[ -n "${Debug}" ] && \
-		set -x || \
+	if [ -n "${Debug}" ]; then
+		exec >> "/var/log/${NAME}.xtrace" 2>&1
+		set -x
+	else
+		exec >> "/var/log/${NAME}" 2>&1
 		set +x
+	fi
 
 	CfgSsids=""
 	while true; do
@@ -94,21 +114,23 @@ LoadConfig() {
 		else
 			CfgSsids="${CfgSsids}"$'\n'"${ssid}"
 		fi
+		CfgSsidsCnt="${n}"
 	done
 	WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
 	[ -n "${CfgSsids}" ] || \
 		if [ -n "${WwanSsid}" ]; then
 			CfgSsids="${WwanSsid}"
 			net1_ssid="${WwanSsid}"
+			CfgSsidsCnt=1
 		else
 			_log "Invalid configuration."
 			exit 1
 		fi
-	CfgSsidsCnt="$(printf '%s\n' "${CfgSsids}" | wc -l)"
 
-	ScanRequest=1
 	WwanErr=0
 	Status=0
+	ScanRequest=0
+	ScanRequested
 }
 
 MustScan() {
@@ -175,7 +197,8 @@ WifiStatus() {
 
 	trap '_exit' EXIT
 
-	rm -f "/var/log/${NAME}"
+	rm -f "/var/log/${NAME}" \
+		"/var/log/${NAME}.xtrace"
 	LoadConfig || exit 1
 
 	trap 'LoadConfig' HUP
@@ -223,19 +246,19 @@ WifiStatus() {
 				uci commit wireless
 				/etc/init.d/network restart
 				_log "Connecting to '${WwanSsid}'..."
+				Status=3
 			elif [ "${wifi_disabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
 				wifi down
 				wifi up
 				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
-			fi
-			WwanErr=$((${WwanErr}+1))
-			if [ ${WwanErr} -gt ${CfgSsidsCnt} ] && \
-			[ ${Status} != 3 ]; then
-				ScanRequest=0
-				_log "Error: can't connect to Hotspots, probably configuration is not correct."
 				Status=3
+			fi
+			if [ $((WwanErr++)) -gt ${CfgSsidsCnt} ]; then
+				ScanRequest=0
+				_log "Error: can't connect to Hotspots," \
+					"probably configuration is not correct."
 			fi
 		else
 			WwanErr=0
