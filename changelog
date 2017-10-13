@@ -1,3 +1,19 @@
+wwanHotspot v1.5
+
+  * files/wwanHotspot.sh:
+    - separate log messages in one log file
+    and another file for debug tracing.
+    - terminate all children processes at exit.
+  * files/wwanHotspot.init:
+    - implement stop_service that
+    terminates all children processes and
+    sends a SIGINT to all of them if they have not finished
+    when SERVICE_STOP_TIME expired.
+  * build/control:
+    add dependency on procps-ng-ps.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 08 Oct 2017 09:04:23 +0200
+
 wwanHotspot v1.4
 
   * files/wwanHotspot.sh:
@@ -42,3 +58,4 @@ wwanHotspot v1.0
   * initial release
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 28 Sep 2017 10:30:10 +0200
+ 
