@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.4 $
+#  $Revision: 1.5 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -33,6 +33,14 @@ PROG="/usr/sbin/${NAME}"
 INIT="/etc/init.d/${NAME}"
 PIDFILE="/var/run/${NAME}.pid"
 
+_ps_children() {
+	local p
+	for p in $(ps --no-headers --ppid "${1}" -o pid); do
+		echo "${p}"
+		_ps_children "${p}"
+	done
+}
+
 service_running() {
 	local pid
 
@@ -51,6 +59,27 @@ start_service() {
 	procd_close_instance
 }
 
+stop_service() {
+	local pid
+
+	if ! pid="$(service_running)"; then
+		echo "Error: Daemon is not running." >&2
+		return 1
+	fi
+	echo "Info: Stopping Daemon..." >&2
+	local pids="${pid} $(_ps_children "${pid}")"
+	kill -TERM ${pids} > /dev/null 2>&1 &
+	wait ${pids} &
+	local try=0
+	while kill -0 ${!} > /dev/null 2>&1 && \
+	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do                            
+		sleep 1
+	done
+	! kill -0 ${pids} > /dev/null 2>&1 || \
+		kill -INT ${pids} > /dev/null 2>&1 &
+	wait || :
+}
+
 service_triggers() {                                          
 	local ifaces="wan $(uci -q get wireless.@wifi-iface[1].network)"
 	local n                                                          
@@ -66,27 +95,25 @@ service_triggers() {
 reload_service() {
 	local pid
 
-	if pid="$(service_running)"; then
-		echo "Info: Reloading Daemon config." >&2
-		#procd_send_signal "${NAME}"
-		kill -HUP $pid || :
-	else
+	if ! pid="$(service_running)"; then
 		echo "Error: Daemon is not running." >&2
 		return 1
 	fi
+	echo "Info: Reloading Daemon config." >&2
+	#procd_send_signal "${NAME}"
+	kill -HUP $pid || :
 }
 
 scan() {
 	local pid
 
-	if pid="$(service_running)"; then
-		echo "Info: Requesting an scan to daemon." >&2
-		#procd_send_signal "${NAME}" "*" "USR1"
-		kill -USR1 $pid || :
-	else
+	if ! pid="$(service_running)"; then
 		echo "Error: Daemon is not running." >&2
 		return 1
 	fi
+	echo "Info: Requesting an scan to daemon." >&2
+	#procd_send_signal "${NAME}" "*" "USR1"
+	kill -USR1 $pid || :
 }
 
 status() {
