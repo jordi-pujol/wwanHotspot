@@ -278,6 +278,7 @@ start)
 	WifiStatus
 	;;
 *)
-	echo "Wrong arguments"
+	echo "Wrong arguments" >&2
+	exit 1
 	;;
 esac
