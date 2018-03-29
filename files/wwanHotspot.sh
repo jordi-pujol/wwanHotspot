@@ -53,7 +53,7 @@ _sleep() {
 
 _ps_children() {
 	local p
-	for p in $(ps --no-headers --ppid "${1}" -o pid); do
+	for p in $(pgrep -P "${1}"); do
 		echo "${p}"
 		_ps_children "${p}"
 	done
