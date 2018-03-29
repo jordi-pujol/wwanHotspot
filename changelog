@@ -1,3 +1,14 @@
+wwanHotspot v1.6
+
+  * files/wwanHotspot.sh:
+    files/wwanHotspot.init:
+    - change function _ps_children to use pgrep instead of ps.
+      because in OpenWrt pgrep is a built-in applet of busybox.
+  * build/control:
+    remove dependency on procps-ng-ps.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 28 Mar 2018 11:02:14 +0200
+
 wwanHotspot v1.5
 
   * files/wwanHotspot.sh:
