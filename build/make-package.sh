@@ -67,13 +67,15 @@ all|build)
 	echo "2.0" > ./debian-binary
 	chmod a+x ./postinst ./prerm
 	# compress package files
-	tar --owner=0 --group=0 -czvf control.tar.gz control conffiles \
-		postinst prerm
+	tar --owner=0 --group=0 --format=gnu -czvpf control.tar.gz \
+		./control ./conffiles \
+		./postinst ./prerm
 	#cd ./ipk; tar --owner=0 --group=0 -czvf ../data.tar.gz *; cd ..
-	tar --owner=0 --group=0 --transform 's|^.*ipk/||' --show-stored-names \
-		-czvf data.tar.gz ipk/*
-	tar --owner=0 --group=0 -czvf "${PKG_IPK}" \
-		control.tar.gz data.tar.gz debian-binary
+	tar --owner=0 --group=0 --format=gnu --transform 's|^.*ipk/|./|' \
+		--show-stored-names \
+		-czvpf data.tar.gz ipk/*
+	tar --owner=0 --group=0 --format=gnu -czvf "${PKG_IPK}" \
+		./debian-binary ./data.tar.gz ./control.tar.gz
 	;;
 clean)
 	_package_attrs
