@@ -2,7 +2,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.5 $
+#  $Revision: 1.7 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -21,26 +21,22 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
-# Makefile for OpenWrt, in development
+# Makefile for OpenWrt, in development, has not been tested
 
-include $(TOPDIR)/rules.mk
-
-PKG_INSTALL:=1
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwanHotspot
-PKG_VERSION:=1.5
+PKG_VERSION:=1.7
 PKG_RELEASE:=1
 
 PKG_SOURCE_URL:=https://github.com/jordi-pujol/wwanHotspot
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_HASH:=26013???
-PKG_MD5SUM:=9b7dc???
-PKG_CAT:=zcat
 
 MAINTAINER:=Jordi Pujol <jordipujolp AT gmail DOT com>
 PKG_LICENSE:=GPLv3
 PKG_LICENSE_FILES:=LICENSE
+
+PKG_BUILD_DIR := $(BUILD_DIR)/$(PKG_NAME)
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -49,10 +45,22 @@ define Package/wwanHotspot
 	CATEGORY:=Network
 	TITLE:=wwanHotspot OpenWrt daemon to maintain allways up a dual wifi config.
 	URL:=https://github.com/jordi-pujol/wwanHotspot/
+	DEPENDS:=+iwinfo
+	PKGARCH:=all
 endef
 
 define Package/wwanHotspot/description
-	wwanHotspot is an OpenWrt daemon to maintain allways up a dual wifi config: Access Point and HotSpot client.
+	wwanHotspot is an OpenWrt daemon to maintain allways up a dual wifi config:
+	Access Point and HotSpot client.
+endef
+
+define Build/Prepare
+endef
+
+define Build/Configure
+endef
+
+define Build/Compile
 endef
 
 define Package/wwanHotspot/conffiles
