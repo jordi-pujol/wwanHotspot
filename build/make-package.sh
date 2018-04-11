@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.5 $
+#  $Revision: 1.7 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -68,12 +68,10 @@ all|build)
 	chmod a+x ./postinst ./prerm
 	# compress package files
 	tar --owner=0 --group=0 --format=gnu -czvpf control.tar.gz \
-		./control ./conffiles \
-		./postinst ./prerm
+		./control ./conffiles ./postinst ./prerm
 	#cd ./ipk; tar --owner=0 --group=0 -czvf ../data.tar.gz *; cd ..
 	tar --owner=0 --group=0 --format=gnu --transform 's|^.*ipk/|./|' \
-		--show-stored-names \
-		-czvpf data.tar.gz ipk/*
+		--show-stored-names -czvpf data.tar.gz ipk/*
 	tar --owner=0 --group=0 --format=gnu -czvf "${PKG_IPK}" \
 		./debian-binary ./data.tar.gz ./control.tar.gz
 	;;
