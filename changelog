@@ -1,3 +1,10 @@
+wwanHotspot v1.7
+
+  * build/make-package.sh:
+    compress the package using command parameters copied from Openwrt tools.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 11 Apr 2018 10:10:15 +0200
+
 wwanHotspot v1.6
 
   * files/wwanHotspot.sh:
