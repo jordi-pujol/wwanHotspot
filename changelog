@@ -1,3 +1,22 @@
+wwanHotspot v1.8
+
+  * For better routing add Dependencies that force installation of
+    other IP related packages.
+    - iproute will set one default route for each WAN interface
+      that is enabled.
+    - conntrack ensures that the delivery of IP packets is done correctly
+      when multiple default routes are enabled.
+    - as an extra bonus, iptables-mod-ipopt allows to create rules based
+      on MAC.
+  * files/wwanHotspot.sh:
+    A great improvement for smooth operation when disabling Hotspot's wireless
+    device:
+    - don't restart network 
+    - wait some seconds while the wifi interface is enabled,
+    - therefore continue trying to connect to another Hotspot.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 06 Jun 2018 15:25:42 +0200
+
 wwanHotspot v1.7
 
   * build/make-package.sh:
