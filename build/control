@@ -1,5 +1,5 @@
 Package: wwanHotspot
-Version: 1.7
+Version: 1.8
 Section: net
 Priority: optional
 Maintainer: Jordi Pujol <jordipujolp AT gmail DOT com>
@@ -8,6 +8,8 @@ Architecture: all
 OE: wwanHotspot
 Homepage: https://github.com/jordi-pujol/wwanHotspot
 Depends: iwinfo,
+ ip, ipset, iptables, iptables-mod-conntrack-extra,
+ iptables-mod-ipopt,
 Source:  N/A
 Description: OpenWrt daemon to maintain allways up a dual wifi config:
  Access Point and HotSpot client.
