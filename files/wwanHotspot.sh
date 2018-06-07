@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.7 $
+#  $Revision: 1.8 $
 #
 #  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -101,6 +101,8 @@ LoadConfig() {
 		set +x
 	fi
 
+	IfaceWan="$(uci -q get network.wan.ifname)" || :
+
 	CfgSsids=""
 	while true; do
 		n=$((${n}+1))
@@ -148,8 +150,14 @@ MustScan() {
 DoScan() {
 	local ssid scanned n i
 
-	MustScan || \
+	if ! MustScan; then
+		[ -z "${Debug}" ] || \
+			_applog "Must not scan" 
 		return 1
+	fi
+
+	[ -z "${Debug}" ] || \
+		_applog "Scanning" 
 
 	scanned="$(iw wlan0 scan | \
 		sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')"
@@ -189,11 +197,10 @@ DoScan() {
 
 WifiStatus() {
 	# internal variables, daemon scope
-	local CfgSsids CfgSsidsCnt ssid WwanSsid
+	local CfgSsids CfgSsidsCnt ssid IfaceWan WwanSsid WwanDisabled
 	local ScanRequest WwanErr Status
 	local PidDaemon="${$}"
 	local PidSleep=""
-	local IfaceWan="$(uci -q get network.wan.ifname)" || :
 
 	trap '_exit' EXIT
 
@@ -205,49 +212,71 @@ WifiStatus() {
 	trap 'ScanRequested' USR1
 
 	while [ ${Status} = 0 ] || _sleep; do
-		if iwinfo | grep -qsre "wlan0[[:blank:]]*ESSID: unknown"; then
+		WwanDisabled="$(uci -q get wireless.@wifi-iface[1].disabled)" || :
+		if [ "${WwanDisabled}" != 1 ] && \
+		iwinfo | grep -qsre "wlan0[[:blank:]]*ESSID: unknown"; then
 			uci set wireless.@wifi-iface[1].disabled=1
+			WwanDisabled=1
 			uci commit wireless
-			/etc/init.d/network restart
+			wifi down
+			wifi up
 			if [ ${Status} != 1 ]; then
-				_log "Disabling wireless device for Hotspot."
+				_log "Disabling wireless device for Hotspot"
 				Status=1
 				ScanRequest=1
+			else
+				[ -z "${Debug}" ] || \
+					_applog "Disabling wireless device for Hotspot" 
 			fi
-			continue
+			local ApSsid ApDisabled
+			ApSsid="$(uci -q get wireless.@wifi-iface[0].ssid)" || :
+			ApDisabled="$(uci -q get wireless.@wifi-iface[0].disabled)" || :
+			local c=10
+			while [ ${c} -gt 0 ]; do
+				sleep 1
+				[ "${ApDisabled}" != 1 ] || \
+					break
+				! iwinfo | grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${ApSsid}"'"' || \
+					break
+				c=$((${c}-1))
+			done
 		fi
 		WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
-		if iwinfo | \
-		grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${WwanSsid}"'"'; then
+		if [ "${WwanDisabled}" != 1 ] && \
+		iwinfo | grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${WwanSsid}"'"'; then
 			ScanRequest=0
 			WwanErr=0
 			if [ ${Status} != 2 ]; then
-				_log "Hotspot ${WwanSsid} is connected."
+				_log "Hotspot is connected to ${WwanSsid}"
 				Status=2
+			else
+				[ -z "${Debug}" ] || \
+					_applog "Hotspot is already connected to ${WwanSsid}" 
 			fi
 		elif ssid="$(DoScan)"; then
-			local n wifi_disabled=""
+			[ -z "${Debug}" ] || \
+				_applog "DoScan selected ${ssid}" 
+			local n
 			n="$(printf '%s\n' "${ssid}" | \
 				cut -f 1 -s -d ':')"
 			ssid="$(printf '%s\n' "${ssid}" | \
 				cut -f 2- -s -d ':')"
-			wifi_disabled="$(uci -q get wireless.@wifi-iface[1].disabled)"
 			if [ "${ssid}" != "${WwanSsid}" ]; then
 				eval encrypt=\"\$net${n}_encrypt\"
 				eval key=\"\$net${n}_key\"
 				WwanErr=0
-				_log "${ssid} network found. Applying settings.."
+				_log "Hotspot ${ssid} found. Applying settings.."
 				uci set wireless.@wifi-iface[1].ssid="${ssid}"
 				uci set wireless.@wifi-iface[1].encryption="${encrypt}"
 				uci set wireless.@wifi-iface[1].key="${key}"
 				WwanSsid="${ssid}"
-				[ "${wifi_disabled}" != 1 ] || \
+				[ "${WwanDisabled}" != 1 ] || \
 					uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
 				/etc/init.d/network restart
 				_log "Connecting to '${WwanSsid}'..."
 				Status=3
-			elif [ "${wifi_disabled}" = 1 ]; then
+			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
 				wifi down
