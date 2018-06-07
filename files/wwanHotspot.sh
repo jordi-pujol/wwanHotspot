@@ -105,7 +105,7 @@ LoadConfig() {
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
 
-	if [ -n "${Debug}" ]; then
+	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
 		set -x
 	else
