@@ -28,7 +28,9 @@ and install the package wwanHotspot via ssh or telnet,
 Variables named Debug and ScanAuto are indicators, value is false when null or not set, true when they have any value.
 
 A log is written to the file "/var/log/wwanHotspot".
+
 Debug enabled will make a more verbose log to the file "/var/log/wwanHotspot".
+
 When Debug is set to xtrace will log shell commands to the file "/var/log/wwanHotspot.xtrace".
 
 We can enable ScanAuto to look periodically for a Hotspot only when the Wan interface is disconnected, the time interval is stored in variable Sleep. Setting ScanAuto to the special value "allways" makes wwanHotspot not care of the Wan interface status and will scan periodically, but is better request an scan to the daemon via ssh or telnet. ScanAuto "allways" is not recommended because overloads too much the wifi interface, to avoid this the program increases the time between scans; the value of the large time lapsus is SleepScanAuto.
