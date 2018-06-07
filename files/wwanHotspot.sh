@@ -251,15 +251,15 @@ WifiStatus() {
 			ScanRequest=0
 			WwanErr=0
 			if [ ${Status} != 2 ]; then
-				_log "Hotspot is connected to ${WwanSsid}"
+				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
 			else
 				[ -z "${Debug}" ] || \
-					_applog "Hotspot is already connected to ${WwanSsid}" 
+					_applog "Hotspot is already connected to '${WwanSsid}'" 
 			fi
 		elif ssid="$(DoScan)"; then
 			[ -z "${Debug}" ] || \
-				_applog "DoScan selected ${ssid}" 
+				_applog "DoScan selected '${ssid}'" 
 			local n
 			n="$(printf '%s\n' "${ssid}" | \
 				cut -f 1 -s -d ':')"
@@ -269,7 +269,7 @@ WifiStatus() {
 				eval encrypt=\"\$net${n}_encrypt\"
 				eval key=\"\$net${n}_key\"
 				WwanErr=0
-				_log "Hotspot ${ssid} found. Applying settings.."
+				_log "Hotspot '${ssid}' found. Applying settings..."
 				uci set wireless.@wifi-iface[1].ssid="${ssid}"
 				uci set wireless.@wifi-iface[1].encryption="${encrypt}"
 				uci set wireless.@wifi-iface[1].key="${key}"
