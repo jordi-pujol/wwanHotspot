@@ -33,8 +33,8 @@ _log() {
 }
 
 _sleeping() {
-	[ "${Status}" -ne 2 -a \
-	\( "${ScanAuto}" = "y" -o ${ScanRequest} -gt 0 \) ] && \
+	[ \( ${Status} = 1 -o ${Status} = 3 \) \
+	-a "${ScanAuto}" != "allways" ] && \
 		s=${Sleep} || \
 		s=${SleepScanAuto}
 	[ -z "${Debug}" ] || \
@@ -60,12 +60,19 @@ _ps_children() {
 }
 
 WatchWifi() {
-	local ssid="${1}" disabled="${2:-0}" c="${3:-10}"
+	local c="${1:-10}"
+	local iface
+	[ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ] && \
+		iface="wlan0" || \
+		iface="wlan0-1"
+	local ApSsid ApDisabled
+	ApSsid="$(uci -q get wireless.@wifi-iface[0].ssid)" || :
+	ApDisabled="$(uci -q get wireless.@wifi-iface[0].disabled)" || :
 	while [ $((c--)) -gt 0 ]; do
 		sleep 1
-		[ "${disabled}" != 1 ] || \
+		[ "${ApDisabled}" != 1 ] || \
 			break
-		! iwinfo | grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${ssid}"'"' || \
+		! iwinfo | grep -qsre "${iface}"'[[:blank:]]*ESSID: "'"${ApSsid}"'"' || \
 			break
 	done
 }
@@ -241,10 +248,8 @@ WifiStatus() {
 				[ -z "${Debug}" ] || \
 					_applog "Disabling wireless device for Hotspot" 
 			fi
-			local ApSsid ApDisabled
-			ApSsid="$(uci -q get wireless.@wifi-iface[0].ssid)" || :
-			ApDisabled="$(uci -q get wireless.@wifi-iface[0].disabled)" || :
-			WatchWifi "${ApSsid}" "${ApDisabled}"
+			WatchWifi
+			sleep 10
 		fi
 		WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
 		if [ "${WwanDisabled}" != 1 ] && \
@@ -281,7 +286,7 @@ WifiStatus() {
 				/etc/init.d/network restart
 				_log "Connecting to '${WwanSsid}'..."
 				Status=3
-				WatchWifi "${WwanSsid}" "" 20
+				WatchWifi 20
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
@@ -289,7 +294,7 @@ WifiStatus() {
 				wifi up
 				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
 				Status=3
-				WatchWifi "${WwanSsid}"
+				WatchWifi
 			fi
 			if [ $((WwanErr++)) -gt ${CfgSsidsCnt} ]; then
 				ScanRequest=0
