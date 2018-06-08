@@ -171,8 +171,14 @@ DoScan() {
 	[ -z "${Debug}" ] || \
 		_applog "Scanning" 
 
-	scanned="$(iw wlan0 scan | \
-		sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')"
+	i=5
+	while [ ${i} -gt 0 ]; do
+		sleep 1
+		! scanned="$(iw wlan0 scan | \
+			sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')" || \
+			break
+		i=$((${i}-1))
+	done
 	[ -n "${scanned}" ] || \
 		return 1
 
