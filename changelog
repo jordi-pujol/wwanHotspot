@@ -1,9 +1,9 @@
 wwanHotspot v1.8
 
-  * For better routing add Dependencies that force installation of
+  * For better routing add Dependencies shall force installation of
     other IP related packages.
-    - iproute will set one default route for each WAN interface
-      that is enabled.
+    - the iproute package (named only ip) will set one default route for each
+      WAN interface that is enabled.
     - conntrack ensures that the delivery of IP packets is done correctly
       when multiple default routes are enabled.
     - as an extra bonus, iptables-mod-ipopt allows to create rules based
@@ -12,10 +12,12 @@ wwanHotspot v1.8
     A great improvement for smooth operation when disabling or enabling Hotspot's
     wireless device.
     - When the Hotspot connection has been lost don't restart network, only
-      reset wifi and watch the wifi connection while it is enabled,
-      therefore continue trying to connect to another Hotspot.
+      reset wifi and watch for enabling the wifi connection,
+      therefore continue immediately trying to connect to another Hotspot.
     - Watch the wifi connection in every point where the wifi interface
       has been enabled or disabled.
+    - When scanning for available hotspots be sure of that iw obtains the list
+      without wifi network error.
   * files/wwanHotspot.config:
     Set Debug to "xtrace" to log shell commands on /var/log/wwanHotspot.xtrace
 
