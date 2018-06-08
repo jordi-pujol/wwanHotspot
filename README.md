@@ -56,3 +56,9 @@ If we update the config file while wwanHotspot is running we must reload the dae
    ```
    /etc/init.d/wwanHotspot reload # maybe required or not
    ```
+# Enhanced routing
+
+For better routing will force installation of other IP related packages, 
+iproute will set one default route for each WAN interface that is enabled
+and conntrack ensures that the delivery of IP packets is done correctly
+when multiple default routes are enabled..
