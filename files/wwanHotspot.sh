@@ -61,7 +61,7 @@ _ps_children() {
 
 WatchWifi() {
 	local ssid="${1}" disabled="${2:-0}" c="${3:-10}"
-	while [ $((c-1)) -gt 0 ]; do
+	while [ $((c--)) -gt 0 ]; do
 		sleep 1
 		[ "${disabled}" != 1 ] || \
 			break
