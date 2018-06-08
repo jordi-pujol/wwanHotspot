@@ -9,11 +9,13 @@ wwanHotspot v1.8
     - as an extra bonus, iptables-mod-ipopt allows to create rules based
       on MAC.
   * files/wwanHotspot.sh:
-    A great improvement for smooth operation when disabling Hotspot's wireless
-    device:
-    - don't restart network 
-    - wait some seconds while the wifi interface is enabled,
-    - therefore continue trying to connect to another Hotspot.
+    A great improvement for smooth operation when disabling or enabling Hotspot's
+    wireless device.
+    - When the Hotspot connection has been lost don't restart network, only
+      reset wifi and watch the wifi connection while it is enabled,
+      therefore continue trying to connect to another Hotspot.
+    - Watch the wifi connection in every point where the wifi interface
+      has been enabled or disabled.
   * files/wwanHotspot.config:
     Set Debug to "xtrace" to log shell commands on /var/log/wwanHotspot.xtrace
 
