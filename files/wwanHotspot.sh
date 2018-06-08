@@ -61,13 +61,12 @@ _ps_children() {
 
 WatchWifi() {
 	local ssid="${1}" disabled="${2:-0}" c="${3:-10}"
-	while [ ${c} -gt 0 ]; do
+	while [ $((c-1)) -gt 0 ]; do
 		sleep 1
 		[ "${disabled}" != 1 ] || \
 			break
 		! iwinfo | grep -qsre 'wlan0[[:blank:]]*ESSID: "'"${ssid}"'"' || \
 			break
-		c=$((${c}-1))
 	done
 }
 
@@ -117,8 +116,7 @@ LoadConfig() {
 
 	CfgSsids=""
 	while true; do
-		n=$((${n}+1))
-		[ "${n}" -le "99" ] || \
+		[ "$((n++))" -le "999" ] || \
 			return 1
 		eval ssid=\"\$net${n}_ssid\" && \
 		[ -n "${ssid}" ] || \
@@ -172,12 +170,11 @@ DoScan() {
 		_applog "Scanning" 
 
 	i=5
-	while [ ${i} -gt 0 ]; do
+	while [ $((i--)) -gt 0 ]; do
 		sleep 1
 		! scanned="$(iw wlan0 scan | \
 			sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')" || \
 			break
-		i=$((${i}-1))
 	done
 	[ -n "${scanned}" ] || \
 		return 1
@@ -186,8 +183,7 @@ DoScan() {
 	n="$(printf '%s\n' "${CfgSsids}" | \
 	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
 	END{exit rc+1}')"; then
-		[ ${n} -lt ${CfgSsidsCnt} ] && \
-			n=$((${n}+1)) || \
+		[ $((n++)) -lt ${CfgSsidsCnt} ] || \
 			n=1
 	else
 		n=1
@@ -205,8 +201,7 @@ DoScan() {
 			return 0
 		fi
 
-		[ ${i} -lt ${CfgSsidsCnt} ] && \
-			i=$((${i}+1)) || \
+		[ $((i++)) -lt ${CfgSsidsCnt} ] || \
 			i=1
 		[ ${i} -ne ${n} ] || \
 			return 1
