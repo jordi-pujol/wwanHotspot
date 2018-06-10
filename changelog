@@ -1,7 +1,6 @@
 wwanHotspot v1.8
 
-  * For better routing have added Dependencies that force installation of
-    other IP related packages.
+  * For better routing advising installation of other IP related packages.
     - the iproute package (formelly named only ip) will set one default route
       for each WAN interface that is enabled.
     - conntrack ensures that the delivery of IP packets is done correctly
