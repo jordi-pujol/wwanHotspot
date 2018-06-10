@@ -5,7 +5,7 @@
 #  Wireless WAN Hotspot management application for OpenWrt routers.
 #  $Revision: 1.8 $
 #
-#  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -158,6 +158,24 @@ MustScan() {
 	[ -n "${ScanAuto}" ] && ! IsWanConnected
 }
 
+Scanning() {
+	local err i=5
+	while [ $((i--)) -gt 0 ]; do
+		sleep 1
+		! err="$(iw wlan0 scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
+			return 0
+		[ ${i} -le 1 ] && \
+		echo "${err}" | grep -qse 'command failed: Network is down' || \
+			continue
+		[ -z "${Debug}" ] || \
+			_applog "A network restart is required to scan"
+		/etc/init.d/network restart
+		sleep 20
+	done
+	_log "Error: Can't scan wifi for access points"
+	return 1
+}
+
 DoScan() {
 	local ssid scanned n i
 
@@ -170,22 +188,10 @@ DoScan() {
 	[ -z "${Debug}" ] || \
 		_applog "Scanning" 
 
-	i=5
-	while [ $((i--)) -gt 0 ]; do
-		sleep 1
-		if scanned="$(iw wlan0 scan 2>&1)"; then
-			scanned="$(echo "${scanned}" | \
-			sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| s||\1|p')"
-			break
-		elif [ ${i} -le 1 ] && \
-		echo "${scanned}" | grep -qse 'command failed: Network is down'; then
-			[ -z "${Debug}" ] || \
-				_applog "'iw wlan0 scan' requires a network restart" 
-			/etc/init.d/network restart
-			sleep 20
-		fi
-	done
-	[ -n "${scanned}" ] || \
+	scanned="$(Scanning | \
+	sed -nre '\|^[[:blank:]]+SSID:[[:blank:]]+([^[:blank:]]+.*)$| {
+	s||\1|p;h}
+	${x;/./{q0};q1}')" || \
 		return 1
 
 	if [ -n "${WwanSsid}" ] && \
