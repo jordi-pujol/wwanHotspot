@@ -63,7 +63,7 @@ the change is not detected in my current version of OpenWrt.
    ```
 # Enhanced routing
 
-For better routing will force installation of other IP related packages, 
+Advising installation of other IP related packages for better routing,
 iproute will set one default route for each WAN interface that is enabled
 and conntrack ensures that the delivery of IP packets is done correctly
 when multiple default routes are enabled..
