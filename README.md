@@ -11,6 +11,10 @@ https://wiki.openwrt.org/doc/recipes/ap_sta
 
 and install the package wwanHotspot via ssh or telnet,
 
+0- for better routing, installation of the following packages is advised:
+   ```
+   opkg install ip ipset iptables iptables-mod-conntrack-extra iptables-mod-ipopt
+   ```
 1- Install the ipk:
    ```
    opkg install wwanHotspot_VERSION_all.ipk
