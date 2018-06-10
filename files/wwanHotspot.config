@@ -5,7 +5,7 @@
 #  Wireless WAN Hotspot management application for OpenWrt routers.
 #  $Revision: 1.8 $
 #
-#  Copyright (C) 2017-2017 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
