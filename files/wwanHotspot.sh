@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.9 $
+#  $Revision: 1.10 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -104,7 +104,10 @@ LoadConfig() {
 	ScanAuto="y"
 	Sleep=20
 	SleepScanAuto="$((${Sleep}*15))"
-	net1_ssid=""
+	BlackList=3
+	unset $(set | \
+		awk -F '=' \
+		'$1 ~ "^net[[:digit:]]+_(blacklist|ssid)$" {print $1}') 2> /dev/null || :
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
@@ -149,6 +152,8 @@ LoadConfig() {
 	NetworkRestarted=0
 	WwanErr=0
 	ScanRequest=${CfgSsidsCnt}
+	ConnectingTo=0
+	ConnAttempts=0
 	ScanRequested
 }
 
@@ -193,7 +198,7 @@ Scanning() {
 }
 
 DoScan() {
-	local ssid hidden scanned found_hidden n i
+	local ssid blacklist hidden scanned found_hidden n i
 
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
@@ -228,16 +233,17 @@ DoScan() {
 		[ -n "${ssid}" ] || \
 			break
 
-		eval hidden=\"\$net${i}_hidden\"
-
-		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
-		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
-			echo "${scanned}" | grep -qsxF "${hidden}" ) || \
-		echo "${scanned}" | grep -qsxF "${ssid}"; then
-			echo "${i}"
-			return 0
+		eval blacklist=\"\$net${i}_blacklist\"
+		if [ -z "${blacklist}" ]; then
+			eval hidden=\"\$net${i}_hidden\"
+			if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
+			( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
+				echo "${scanned}" | grep -qsxF "${hidden}" ) || \
+			echo "${scanned}" | grep -qsxF "${ssid}"; then
+				echo "${i}"
+				return 0
+			fi
 		fi
-
 		[ $((i++)) -lt ${CfgSsidsCnt} ] || \
 			i=1
 		[ ${i} -ne ${n} ] || \
@@ -252,6 +258,7 @@ WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
 	local ScanRequest WwanErr Status=0 Interval=1
+	local ConnectingTo ConnAttempts
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local NetworkRestarted=0
@@ -272,6 +279,7 @@ WifiStatus() {
 			NetworkRestarted=0
 			ScanRequest=0
 			WwanErr=0
+			ConnAttempts=0
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
@@ -290,8 +298,14 @@ WifiStatus() {
 			wifi down
 			wifi up
 			if [ ${Status} != 1 ]; then
-				[ ${Status} = 2 ] || \
-					_log "Unsuccessful connection to '${WwanSsid}'"
+				if [ ${Status} != 2 ]; then
+					_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
+					if [ ${BlackList} -gt 0 ] && \
+					[ $((ConnAttempts++)) -ge ${BlackList} ]; then
+						eval net${ConnectingTo}_blacklist=\"y\"
+						_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
+					fi
+				fi
 				_log "Disabling wireless device for Hotspot"
 				Status=1
 				ScanRequest=1
@@ -307,6 +321,10 @@ WifiStatus() {
 				_applog "DoScan selected '${n}'"
 			local ssid
 			eval ssid=\"\$net${n}_ssid\"
+			if [ ${ConnectingTo} -ne ${n} ]; then
+				ConnectingTo=${n}
+				ConnAttempts=1
+			fi
 			if [ "${ssid}" != "${WwanSsid}" ]; then
 				local encrypt key
 				eval encrypt=\"\$net${n}_encrypt\"
