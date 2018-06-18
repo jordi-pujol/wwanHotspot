@@ -39,11 +39,31 @@ Debug enabled will make a more verbose log to the file "/var/log/wwanHotspot".
 
 When Debug is set to xtrace will log shell commands to the file "/var/log/wwanHotspot.xtrace".
 
-We can enable ScanAuto to look periodically for a Hotspot only when the Wan interface is disconnected, the time interval is stored in variable Sleep. Setting ScanAuto to the special value "allways" makes wwanHotspot not care of the Wan interface status and will scan periodically, but is better request an scan to the daemon via ssh or telnet. ScanAuto "allways" is not recommended because overloads too much the wifi interface, to avoid this the program increases the time between scans; the value of the large time lapsus is SleepScanAuto.
+We can enable ScanAuto to look periodically for a Hotspot only when the Wan interface is disconnected, the time interval is stored in variable Sleep. Setting ScanAuto to the special value "allways" makes wwanHotspot not care of the Wan interface status and will scan periodically, but is better request an scan to the daemon via ssh or telnet. ScanAuto "allways" is not recommended because overloads too much the wifi interface, to avoid this the program increases the time between scans; the value of the large time lapsus is SleepScanAuto. Recommend values are:
+   ```
+   Sleep=20
+   SleepScanAuto="$(($Sleep*15))"
+   ```
 
 Set the list of network values for your Hotspots. Multiple Hotspots are allowed, wwanHotspot will try to connect to any of them by rotation. If the list is not populated then wwanHotspot will use the current configuration for this interface.
 
 After changing the config file we must reload the daemon.
+
+# Hidden SSIDs
+
+Each one of the Hotspots may have a variable "netX_hidden" with value:
+
+1- unset or no value when the SSID is not hidden, 
+
+2- "y" when the SSID is hidden and "iw wlan0 scan" doesn't show an SSID for this hotspot.
+   ```
+   netX_hidden="y"
+   ```
+
+3- "iw wlan0 scan" lists an SSID value that doesn't correspond to the hotspot's "netX_ssid"
+   ```
+   netX_hidden="\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+   ```
 
 # Operation
 
