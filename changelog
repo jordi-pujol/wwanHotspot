@@ -1,3 +1,10 @@
+wwanHotspot v1.10
+
+  * bug fix: remove readonly command in /etc/config/wwanHotspot
+  * Blacklist hotspots which connection fails repeatedly
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 18 Jun 2018 17:30:37 +0200
+
 wwanHotspot v1.9
 
   * Request an scan when the daemon starts or the configuration is reloaded.
