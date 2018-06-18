@@ -1,3 +1,14 @@
+wwanHotspot v1.9
+
+  * Request an scan when the daemon starts or the configuration is reloaded.
+  * Support hidden SSIDs.
+    Added the corresponding variable in the config file.
+    Try connecting to a hidden SSID when "iw wlan0 scan" lists some
+    Hotspots with no SSID or an SSID name that differs of the configured name.
+  * Improve code layout for better and smooth operation.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 18 Jun 2018 15:51:58 +0200
+
 wwanHotspot v1.8
 
   * For better routing advising installation of other IP related packages.
