@@ -44,7 +44,10 @@ We can enable ScanAuto to look periodically for a Hotspot only when the Wan inte
    Sleep=20
    SleepScanAuto="$(($Sleep*15))"
    ```
-
+The variable BlackList contains the number of failed consecutive connections to blacklist a hotspot. Blacklisting will be disabled when the variable BlackList is set to 0. The blacklist is reset when the configuration is reloaded.
+   ```
+   BlackList=3
+   ```
 Set the list of network values for your Hotspots. Multiple Hotspots are allowed, wwanHotspot will try to connect to any of them by rotation. If the list is not populated then wwanHotspot will use the current configuration for this interface.
 
 After changing the config file we must reload the daemon.
