@@ -100,7 +100,7 @@ LoadConfig() {
 	_log "Loading configuration."
 
 	# config variables, default values
-	Debug=""
+	Debug="y"
 	ScanAuto="y"
 	Sleep=20
 	SleepScanAuto="$((${Sleep}*15))"
