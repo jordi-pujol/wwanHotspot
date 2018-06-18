@@ -82,7 +82,7 @@ ScanRequested() {
 	_log "Scan requested."
 	WwanErr=0
 	ScanRequest=${CfgSsidsCnt}
-	kill -TERM "${PidSleep}" $(_ps_children "${PidSleep}") || :
+	kill -TERM "${PidSleep}" || :
 }
 
 _exit() {
