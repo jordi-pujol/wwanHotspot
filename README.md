@@ -44,7 +44,7 @@ We can enable ScanAuto to look periodically for a Hotspot only when the Wan inte
    Sleep=20
    SleepScanAuto="$(($Sleep*15))"
    ```
-The variable BlackList contains the number of failed consecutive connections to blacklist a hotspot. Blacklisting will be disabled when the variable BlackList is set to 0. The blacklist is reset when the configuration is reloaded.
+The variable BlackList contains the number of failed consecutive connections needed to blacklist a hotspot. Blacklisting will be disabled when the variable BlackList is set to 0. The current black list is reset when the configuration is reloaded.
    ```
    BlackList=3
    ```
