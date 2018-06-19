@@ -105,8 +105,7 @@ LoadConfig() {
 	Sleep=20
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
-	unset $(set | \
-		awk -F '=' \
+	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]+_(blacklist|ssid)$" {print $1}') 2> /dev/null || :
 
 	[ ! -s "/etc/config/${NAME}" ] || \
@@ -233,15 +232,18 @@ DoScan() {
 		[ -n "${ssid}" ] || \
 			break
 
-		eval blacklist=\"\$net${i}_blacklist\"
-		if [ -z "${blacklist}" ]; then
-			eval hidden=\"\$net${i}_hidden\"
-			if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
-			( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
-				echo "${scanned}" | grep -qsxF "${hidden}" ) || \
-			echo "${scanned}" | grep -qsxF "${ssid}"; then
+		eval hidden=\"\$net${i}_hidden\"
+		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
+		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
+			echo "${scanned}" | grep -qsxF "${hidden}" ) || \
+		echo "${scanned}" | grep -qsxF "${ssid}"; then
+			eval blacklist=\"\$net${i}_blacklist\"
+			if [ -z "${blacklist}" ]; then
 				echo "${i}"
 				return 0
+			else
+				[ -z "${Debug}" ] || \
+					_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
 			fi
 		fi
 		[ $((i++)) -lt ${CfgSsidsCnt} ] || \
@@ -279,7 +281,7 @@ WifiStatus() {
 			NetworkRestarted=0
 			ScanRequest=0
 			WwanErr=0
-			ConnAttempts=0
+			ConnAttempts=1
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
@@ -312,7 +314,7 @@ WifiStatus() {
 				Interval=${Sleep}
 			else
 				[ -z "${Debug}" ] || \
-					_applog "Disabling wireless device for Hotspot" 
+					_applog "Disabling wireless device for Hotspot, Again ?" 
 			fi
 			WatchWifi
 			continue
