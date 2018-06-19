@@ -1,7 +1,7 @@
 wwanHotspot v1.10
 
   * bug fix: remove readonly command in /etc/config/wwanHotspot
-  * Blacklist hotspots which connection fails repeatedly
+  * Blacklist a hotspot when the initial connection is not possible
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 18 Jun 2018 17:30:37 +0200
 
