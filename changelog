@@ -1,9 +1,12 @@
 wwanHotspot v1.11
 
   * list daemon status to /var/log/wwanHotspot:
-  - when issuing the command "/etc/init.d/wwanHotspot status"
-  - or when daemon is starting
-  - or when the config is reloaded
+    - when issuing the command "/etc/init.d/wwanHotspot status"
+    - or when daemon is starting
+    - or when the config is reloaded
+  * Optionally, verify reliability of the hotspot connection.
+    This is informative only, takes no action on enabling, disabling or
+    blacklisting the connection.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 22 Jun 2018 08:22:12 +0200
 
