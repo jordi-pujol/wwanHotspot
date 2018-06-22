@@ -216,6 +216,36 @@ Scanning() {
 	return 1
 }
 
+ActiveSsidNbr() {
+	echo "${CfgSsids}" | \
+	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
+	END{exit rc+1}'
+}
+
+VerifyConnection() {
+	local delay="${1:-"1"}" n
+	[ -n "${VerifyConnections}" ] || \
+		return 0
+	n="$(ActiveSsidNbr)" || \
+		return 0
+	local verify
+	eval verify=\"\$net${n}_verify\"
+	[ -n "${verify}" ] || \
+		return 0
+	while [ $((delay--)) -gt 0 ]; do
+		sleep 1
+		[ -n "$(ip -4 route show default dev wlan0)" ] || \
+			continue
+		if ping -c 3 -I wlan0 "${verify}"; then
+			_log "Connection ${n}:'${WwanSsid}' has been verified"
+		else
+			_log "Error: Connection ${n}:'${WwanSsid}' is not working"
+		fi
+		return 0
+	done
+	_log "Warning: Can't verify connection ${n}:'${WwanSsid}'"
+}
+
 DoScan() {
 	local ssid blacklist hidden scanned found_hidden n i
 
@@ -237,9 +267,7 @@ DoScan() {
 		echo "y")"
 
 	if [ -n "${WwanSsid}" ] && \
-	n="$(echo "${CfgSsids}" | \
-	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
-	END{exit rc+1}')"; then
+	n="$(ActiveSsidNbr)"; then
 		[ $((n++)) -lt ${CfgSsidsCnt} ] || \
 			n=1
 	else
@@ -307,9 +335,11 @@ WifiStatus() {
 				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
 				Interval=${SleepScanAuto}
+				VerifyConnection 20 &
 			else
 				[ -z "${Debug}" ] || \
 					_applog "Hotspot is already connected to '${WwanSsid}'" 
+				VerifyConnection &
 			fi
 		elif [ ${NetworkRestarted} -gt 0 ]; then
 			NetworkRestarted=$((${NetworkRestarted}-1))
