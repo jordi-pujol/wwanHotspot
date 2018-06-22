@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.10 $
+#  $Revision: 1.11 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -124,4 +124,5 @@ status() {
 		return 1
 	fi
 	echo "Daemon is running in process ${pid}." >&2
+	kill -USR2 $pid || :
 }
