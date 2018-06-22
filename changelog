@@ -4,9 +4,9 @@ wwanHotspot v1.11
     - when issuing the command "/etc/init.d/wwanHotspot status"
     - or when daemon is starting
     - or when the config is reloaded
-  * Optionally, verify reliability of the hotspot connection.
-    Will disable and blacklist the connection after trying the number
-    of BlackList attempts.
+  * Optionally, check if a hotspot connection is reliable.
+    Will disable and blacklist the connection after the number
+    of BlackList attempts have failed.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 22 Jun 2018 08:22:12 +0200
 
