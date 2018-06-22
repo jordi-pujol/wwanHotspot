@@ -219,31 +219,43 @@ Scanning() {
 ActiveSsidNbr() {
 	echo "${CfgSsids}" | \
 	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
-	END{exit rc+1}'
+	END{if (!rc) {print 0}; exit rc+1}'
 }
 
-VerifyConnection() {
-	local delay="${1:-"1"}" n
-	[ -n "${VerifyConnections}" ] || \
-		return 0
-	n="$(ActiveSsidNbr)" || \
-		return 0
-	local verify
-	eval verify=\"\$net${n}_verify\"
-	[ -n "${verify}" ] || \
-		return 0
-	while [ $((delay--)) -gt 0 ]; do
-		sleep 1
-		[ -n "$(ip -4 route show default dev wlan0)" ] || \
-			continue
-		if ping -c 3 -I wlan0 "${verify}"; then
-			_log "Connection ${n}:'${WwanSsid}' has been verified"
-		else
-			_log "Error: Connection ${n}:'${WwanSsid}' is not working"
-		fi
-		return 0
-	done
-	_log "Warning: Can't verify connection ${n}:'${WwanSsid}'"
+CheckConn() {
+	local delay=20 addr check
+	if [ "${ConnectingTo}" -gt 0 ] || \
+	ConnectingTo="$(ActiveSsidNbr)"; then
+		eval check=\"\$net${ConnectingTo}_check\"
+		[ -n "${check}" ] || \
+			return 0
+		while [ $((delay--)) -gt 0 ]; do
+			sleep 1
+			if echo "${check}" | \
+			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
+			[ -n "$(ip -4 route show default dev wlan0)" ]; then
+				addr="${check}"
+			else
+				addr="$(ip -4 route show dev wlan0 | \
+				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
+				s||\1|p;q0};${q1}')" || \
+					continue
+			fi
+			ping -c 3 -I wlan0 "${addr}" || \
+				break
+			if [ "${Status}" = 2 ]; then
+				[ -z "${Debug}" ] || \
+					_applog "Connection ${ConnectingTo}:'${WwanSsid}' has been verified"
+			else
+				_log "Connection ${ConnectingTo}:'${WwanSsid}' has been verified"
+			fi
+			return 0
+		done
+		_log "Error: Connection ${ConnectingTo}:'${WwanSsid}' is not working"
+	else
+		_applog "Error: Can't check connection '${WwanSsid}'"
+	fi
+	return 1
 }
 
 DoScan() {
@@ -304,11 +316,30 @@ DoScan() {
 	return 1
 }
 
+WwanDisable() {
+	_log "Disabling wireless device for Hotspot '${WwanSsid}'"
+	uci set wireless.@wifi-iface[1].disabled=1
+	WwanDisabled=1
+	uci commit wireless
+	wifi down
+	wifi up
+}
+
+HotspotBlackList() {
+	_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
+	if [ ${ConnectingTo} -gt 0 ] && \
+	[ ${BlackList} -gt 0 ] && \
+	[ $((ConnAttempts++)) -ge ${BlackList} ]; then
+		eval net${ConnectingTo}_blacklist=\"y\"
+		_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
+	fi
+}
+
 WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
 	local ScanRequest WwanErr Status=0 Interval=1
-	local ConnectingTo ConnAttempts
+	local ConnectingTo=0 ConnAttempts=1
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local NetworkRestarted=0
@@ -328,38 +359,34 @@ WifiStatus() {
 		WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
 		if IsWwanConnected; then
 			NetworkRestarted=0
-			ScanRequest=0
 			WwanErr=0
+			if ! CheckConn; then
+				WwanDisable
+				HotspotBlackList
+				Status=1
+				ScanRequest=1
+				Interval=${Sleep}
+				WatchWifi
+				continue
+			fi
+			ScanRequest=0
 			ConnAttempts=1
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
 				Interval=${SleepScanAuto}
-				VerifyConnection 20 &
 			else
 				[ -z "${Debug}" ] || \
 					_applog "Hotspot is already connected to '${WwanSsid}'" 
-				VerifyConnection &
 			fi
 		elif [ ${NetworkRestarted} -gt 0 ]; then
 			NetworkRestarted=$((${NetworkRestarted}-1))
 			continue
 		elif IsWwanConnected "unknown"; then
-			uci set wireless.@wifi-iface[1].disabled=1
-			WwanDisabled=1
-			uci commit wireless
-			wifi down
-			wifi up
+			WwanDisable
 			if [ ${Status} != 1 ]; then
-				if [ ${Status} != 2 ]; then
-					_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
-					if [ ${BlackList} -gt 0 ] && \
-					[ $((ConnAttempts++)) -ge ${BlackList} ]; then
-						eval net${ConnectingTo}_blacklist=\"y\"
-						_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
-					fi
-				fi
-				_log "Disabling wireless device for Hotspot"
+				[ ${Status} = 2 ] || \
+					HotspotBlackList
 				Status=1
 				ScanRequest=1
 				Interval=${Sleep}
