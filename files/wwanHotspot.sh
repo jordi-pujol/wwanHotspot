@@ -95,6 +95,7 @@ _exit() {
 }
 
 Status() {
+	local v
 	_applog "${NAME}" "Actual status:"
 	_applog
 	_applog "Debug=\"${Debug}\""
