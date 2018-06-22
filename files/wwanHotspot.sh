@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.10 $
+#  $Revision: 1.11 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -86,12 +86,31 @@ ScanRequested() {
 }
 
 _exit() {
-	trap - EXIT HUP USR1
+	trap - EXIT HUP USR1 USR2
 	_log "Exiting."
 	pids="$(_ps_children "${PidDaemon}")"
 	[ -z "${pids}" ] || \
 		kill -TERM ${pids} > /dev/null 2>&1 &
 	wait || :
+}
+
+Status() {
+	_applog "${NAME}" "Actual status:"
+	_applog
+	_applog "Debug=\"${Debug}\""
+	_applog "ScanAuto=\"${ScanAuto}\""
+	_applog "Sleep=\"${Sleep}\""
+	_applog "SleepScanAuto=\"${SleepScanAuto}\""
+	_applog "BlackList=\"${BlackList}\""
+	_applog
+	set | awk -F '=' \
+	'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null | sort | \
+	while read v; do
+		_applog "${v}"
+	done
+	_applog
+
+	ScanRequested
 }
 
 LoadConfig() {
@@ -153,7 +172,7 @@ LoadConfig() {
 	ScanRequest=${CfgSsidsCnt}
 	ConnectingTo=0
 	ConnAttempts=0
-	ScanRequested
+	Status
 }
 
 IsWanConnected() {
@@ -273,6 +292,7 @@ WifiStatus() {
 
 	trap 'LoadConfig' HUP
 	trap 'ScanRequested' USR1
+	trap 'Status' USR2
 
 	while _sleep; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[1].disabled)" || :
