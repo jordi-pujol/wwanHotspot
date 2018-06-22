@@ -126,7 +126,7 @@ LoadConfig() {
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
 	unset $(set | awk -F '=' \
-		'$1 ~ "^net[[:digit:]]+_(blacklist|ssid)$" {print $1}') 2> /dev/null || :
+		'$1 ~ "^net[[:digit:]]+_" {print $1}') 2> /dev/null || :
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
