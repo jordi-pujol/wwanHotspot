@@ -10,6 +10,7 @@ wwanHotspot v1.11
   * the variables netX_blacklist are renamed to netX_blacklisted
     to clarify their meaning and usage.
     When upgrading please check the config file.
+  * added the package "ip" to the list of installation dependencies.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 22 Jun 2018 08:22:12 +0200
 
