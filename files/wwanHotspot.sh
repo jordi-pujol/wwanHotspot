@@ -94,7 +94,7 @@ _exit() {
 	wait || :
 }
 
-Status() {
+ListStatus() {
 	local v
 	_applog "${NAME}" "Actual status:"
 	_applog
@@ -173,7 +173,7 @@ LoadConfig() {
 	ScanRequest=${CfgSsidsCnt}
 	ConnectingTo=0
 	ConnAttempts=0
-	Status
+	ListStatus
 }
 
 IsWanConnected() {
@@ -352,7 +352,7 @@ WifiStatus() {
 
 	trap 'LoadConfig' HUP
 	trap 'ScanRequested' USR1
-	trap 'Status' USR2
+	trap 'ListStatus' USR2
 
 	while _sleep; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[1].disabled)" || :
