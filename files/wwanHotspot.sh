@@ -259,7 +259,7 @@ CheckConn() {
 }
 
 DoScan() {
-	local ssid blacklist hidden scanned found_hidden n i
+	local ssid blacklisted hidden scanned found_hidden n i
 
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
@@ -297,8 +297,8 @@ DoScan() {
 		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
 			echo "${scanned}" | grep -qsxF "${hidden}" ) || \
 		echo "${scanned}" | grep -qsxF "${ssid}"; then
-			eval blacklist=\"\$net${i}_blacklist\"
-			if [ -z "${blacklist}" ]; then
+			eval blacklisted=\"\$net${i}_blacklisted\"
+			if [ -z "${blacklisted}" ]; then
 				echo "${i}"
 				return 0
 			else
@@ -330,7 +330,7 @@ HotspotBlackList() {
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackList} -gt 0 ] && \
 	[ $((ConnAttempts++)) -ge ${BlackList} ]; then
-		eval net${ConnectingTo}_blacklist=\"y\"
+		eval net${ConnectingTo}_blacklisted=\"y\"
 		_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
 	fi
 }
