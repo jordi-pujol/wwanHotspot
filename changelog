@@ -8,7 +8,8 @@ wwanHotspot v1.11
     Will disable and blacklist the connection after the number
     of BlackList attempts have failed.
   * the variables netX_blacklist are renamed to netX_blacklisted
-    to clarify their meaning and usage. Please check the config file.
+    to clarify their meaning and usage.
+    When upgrading please check the config file.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 22 Jun 2018 08:22:12 +0200
 
