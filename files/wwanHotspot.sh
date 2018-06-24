@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.11 $
+#  $Revision: 1.12 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -222,7 +222,7 @@ ActiveSsidNbr() {
 	END{if (!rc) {print 0}; exit rc+1}'
 }
 
-CheckConn() {
+CheckConnectivity() {
 	local delay=20 addr check
 	if [ "${ConnectingTo}" -gt 0 ] || \
 	ConnectingTo="$(ActiveSsidNbr)"; then
@@ -245,15 +245,15 @@ CheckConn() {
 				break
 			if [ "${Status}" = 2 ]; then
 				[ -z "${Debug}" ] || \
-					_applog "Connection ${ConnectingTo}:'${WwanSsid}' has been verified"
+					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' has been verified"
 			else
-				_log "Connection ${ConnectingTo}:'${WwanSsid}' has been verified"
+				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' has been verified"
 			fi
 			return 0
 		done
-		_log "Error: Connection ${ConnectingTo}:'${WwanSsid}' is not working"
+		_log "Error: hotspot ${ConnectingTo}:'${WwanSsid}' has limited or no connectivity at all"
 	else
-		_applog "Error: Can't check connection '${WwanSsid}'"
+		_applog "Error: Can't check connectivity of hotspot '${WwanSsid}'"
 	fi
 	return 1
 }
@@ -360,7 +360,7 @@ WifiStatus() {
 		if IsWwanConnected; then
 			NetworkRestarted=0
 			WwanErr=0
-			if ! CheckConn; then
+			if ! CheckConnectivity; then
 				WwanDisable
 				HotspotBlackList
 				Status=1
