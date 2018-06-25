@@ -1,9 +1,9 @@
 wwanHotspot v1.12
 
   * files/wwanHospot.sh:
-    - Verifying that variables are set,
-      adding shell command: 'set -o unset'
-      and modifying the corresponding code
+    - All variables must be set or throw an error on unset variables,
+      add shell command: 'set -o unset'
+      been sure that all corresponding code is adapted.
     - bug fix: in function IsWifiActive()
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 25 Jun 2018 17:30:37 +0200
