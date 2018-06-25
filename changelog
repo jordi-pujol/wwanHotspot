@@ -1,3 +1,13 @@
+wwanHotspot v1.12
+
+  * files/wwanHospot.sh:
+    - Verifying that variables are set,
+      adding shell command: 'set -o unset'
+      and modifying the corresponding code
+    - bug fix: in function IsWifiActive()
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 25 Jun 2018 17:30:37 +0200
+
 wwanHotspot v1.11
 
   * list daemon status to /var/log/wwanHotspot:
