@@ -34,12 +34,12 @@ _log() {
 
 _sleep() {
 	[ -z "${Debug}" ] || \
-		_applog "sleeping ${Interval} seconds" 
+		_applog "sleeping ${Interval} seconds"
 	sleep ${Interval} > /dev/null 2>&1 &
 	PidSleep="${!}"
 	wait "${PidSleep}" || :
 	[ -z "${Debug}" ] || \
-		_applog "sleeping ended" 
+		_applog "sleeping ended"
 	PidSleep=""
 }
 
@@ -54,17 +54,15 @@ _ps_children() {
 IsWifiActive() {
 	local ssid="${1}" iface="${2:-"wlan0"}" ssid1
 	ssid1="$(iwinfo | \
-	sed -nre "\|^${iface}[[:blank:]]+ESSID: (.*)$| {s||\1|p;q0}; ${q1}")" && \
+	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.*)$| {s||\1|p;q0}; ${q1}')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
 
 WatchWifi() {
-	local c="${1:-10}"
-	local iface
+	local c="${1:-10}" iface ApSsid ApDisabled
 	[ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ] && \
 		iface="wlan0" || \
 		iface="wlan0-1"
-	local ApSsid ApDisabled
 	ApSsid="$(uci -q get wireless.@wifi-iface[0].ssid)" || :
 	ApDisabled="$(uci -q get wireless.@wifi-iface[0].disabled)" || :
 	while [ $((c--)) -gt 0 ]; do
@@ -115,8 +113,6 @@ ListStatus() {
 }
 
 LoadConfig() {
-	local n=0 ssid
-
 	_log "Loading configuration."
 
 	# config variables, default values
@@ -131,6 +127,12 @@ LoadConfig() {
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
 
+	Debug="${Debug:-}"
+	ScanAuto="${ScanAuto:-}"
+	Sleep="${Sleep:-"20"}"
+	SleepScanAuto="${SleepScanAuto:-"$((${Sleep}*15))"}"
+	BlackList="${BlackList:-"3"}"
+
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
 		set -x
@@ -143,10 +145,11 @@ LoadConfig() {
 
 	CfgSsids=""
 	CfgSsidsCnt=0
+	local n=0 ssid
 	while true; do
 		[ "$((n++))" -le "999" ] || \
 			return 1
-		eval ssid=\"\$net${n}_ssid\" && \
+		eval ssid=\"\${net${n}_ssid:-}\" && \
 		[ -n "${ssid}" ] || \
 			break
 		if [ ${n} -eq 1 ]; then
@@ -219,14 +222,14 @@ Scanning() {
 ActiveSsidNbr() {
 	echo "${CfgSsids}" | \
 	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
-	END{if (!rc) {print 0}; exit rc+1}'
+	END{if (! rc) {print 0}; exit rc+1}'
 }
 
 CheckConnectivity() {
 	local delay=20 addr check
 	if [ "${ConnectingTo}" -gt 0 ] || \
 	ConnectingTo="$(ActiveSsidNbr)"; then
-		eval check=\"\$net${ConnectingTo}_check\"
+		eval check=\"\${net${ConnectingTo}_check:-}\" && \
 		[ -n "${check}" ] || \
 			return 0
 		while [ $((delay--)) -gt 0 ]; do
@@ -263,12 +266,12 @@ DoScan() {
 
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
-			_applog "Must not scan" 
+			_applog "Must not scan"
 		return 1
 	fi
 
 	[ -z "${Debug}" ] || \
-		_applog "Scanning" 
+		_applog "DoScan - Scanning"
 
 	scanned="$(Scanning | \
 	sed -nre '\|^[[:blank:]]+SSID: (.*)$| {
@@ -278,8 +281,10 @@ DoScan() {
 	found_hidden="$(! echo "${scanned}" | grep -qsxe '' || \
 		echo "y")"
 
-	if [ -n "${WwanSsid}" ] && \
-	n="$(ActiveSsidNbr)"; then
+	[ ${ConnectingTo} -gt 0 ] || \
+		ConnectingTo="$(ActiveSsidNbr)"
+	n=${ConnectingTo}
+	if [ -n "${WwanSsid}" -a ${n} -gt 0 ]; then
 		[ $((n++)) -lt ${CfgSsidsCnt} ] || \
 			n=1
 	else
@@ -288,16 +293,16 @@ DoScan() {
 
 	i=${n}
 	while :; do
-		eval ssid=\"\$net${i}_ssid\" && \
+		eval ssid=\"\${net${i}_ssid:-}\" && \
 		[ -n "${ssid}" ] || \
 			break
 
-		eval hidden=\"\$net${i}_hidden\"
+		eval hidden=\"\${net${i}_hidden:-}\" || :
 		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
 		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
 			echo "${scanned}" | grep -qsxF "${hidden}" ) || \
 		echo "${scanned}" | grep -qsxF "${ssid}"; then
-			eval blacklisted=\"\$net${i}_blacklisted\"
+			eval blacklisted=\"\${net${i}_blacklisted:-}\" || :
 			if [ -z "${blacklisted}" ]; then
 				echo "${i}"
 				return 0
@@ -317,7 +322,7 @@ DoScan() {
 }
 
 WwanDisable() {
-	_log "Disabling wireless device for Hotspot '${WwanSsid}'"
+	_log "Disabling wireless device for hotspot '${WwanSsid}'"
 	uci set wireless.@wifi-iface[1].disabled=1
 	WwanDisabled=1
 	uci commit wireless
@@ -330,7 +335,7 @@ HotspotBlackList() {
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackList} -gt 0 ] && \
 	[ $((ConnAttempts++)) -ge ${BlackList} ]; then
-		eval net${ConnectingTo}_blacklisted=\"y\"
+		eval net${ConnectingTo}_blacklisted=\"y\" || :
 		_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
 	fi
 }
@@ -377,7 +382,7 @@ WifiStatus() {
 				Interval=${SleepScanAuto}
 			else
 				[ -z "${Debug}" ] || \
-					_applog "Hotspot is already connected to '${WwanSsid}'" 
+					_applog "Hotspot is already connected to '${WwanSsid}'"
 			fi
 		elif [ ${NetworkRestarted} -gt 0 ]; then
 			NetworkRestarted=$((${NetworkRestarted}-1))
@@ -392,7 +397,7 @@ WifiStatus() {
 				Interval=${Sleep}
 			else
 				[ -z "${Debug}" ] || \
-					_applog "Disabling wireless device for Hotspot, Again ?" 
+					_applog "Disabling wireless device for Hotspot, Again ?"
 			fi
 			WatchWifi
 			continue
@@ -400,15 +405,15 @@ WifiStatus() {
 			[ -z "${Debug}" ] || \
 				_applog "DoScan selected '${n}'"
 			local ssid
-			eval ssid=\"\$net${n}_ssid\"
+			eval ssid=\"\${net${n}_ssid:-}\" || :
 			if [ ${ConnectingTo} -ne ${n} ]; then
 				ConnectingTo=${n}
 				ConnAttempts=1
 			fi
 			if [ "${ssid}" != "${WwanSsid}" ]; then
 				local encrypt key
-				eval encrypt=\"\$net${n}_encrypt\"
-				eval key=\"\$net${n}_key\"
+				eval encrypt=\"\${net${n}_encrypt:-}\" || :
+				eval key=\"\${net${n}_key:-}\" || :
 				WwanErr=0
 				_log "Hotspot '${ssid}' found. Applying settings..."
 				uci set wireless.@wifi-iface[1].ssid="${ssid}"
@@ -462,7 +467,7 @@ WifiStatus() {
 	done
 }
 
-set -e -o pipefail
+set -eu -o pipefail
 NAME="$(basename "${0}")"
 case "${1:-}" in
 start)
