@@ -54,7 +54,7 @@ _ps_children() {
 IsWifiActive() {
 	local ssid="${1}" iface="${2:-"wlan0"}" ssid1
 	ssid1="$(iwinfo | \
-	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.*)$| {s||\1|p;q0}; ${q1}')" && \
+	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| {s||\1|p;q0}; ${q1}')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
 
