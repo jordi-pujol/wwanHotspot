@@ -5,6 +5,7 @@ wwanHotspot v1.12
       add shell command: 'set -o unset'
       been sure that all corresponding code is adapted.
     - bug fix: in function IsWifiActive()
+      it's a minor bug, this function didn't fail because the data was verified twice.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 25 Jun 2018 17:30:37 +0200
 
