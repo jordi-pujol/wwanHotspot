@@ -282,7 +282,7 @@ DoScan() {
 		echo "y")"
 
 	[ ${ConnectingTo} -gt 0 ] || \
-		ConnectingTo="$(ActiveSsidNbr)"
+		ConnectingTo="$(ActiveSsidNbr)" || :
 	n=${ConnectingTo}
 	if [ -n "${WwanSsid}" -a ${n} -gt 0 ]; then
 		[ $((n++)) -lt ${CfgSsidsCnt} ] || \
