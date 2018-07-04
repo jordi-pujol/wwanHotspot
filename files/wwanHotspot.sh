@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.12 $
+#  $Revision: 1.13 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -108,6 +108,13 @@ ListStatus() {
 		_applog "${v}"
 	done
 	_applog
+	if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
+		_applog "Hotspot client is not enabled."
+	else
+		iwinfo wlan0-1 info >> "/var/log/${NAME}"
+	fi
+	iwinfo wlan0 info >> "/var/log/${NAME}"
+	_applog
 
 	ScanRequested
 }
@@ -135,10 +142,10 @@ LoadConfig() {
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
-		set -x
+		set -o xtrace
 	else
 		exec >> "/var/log/${NAME}" 2>&1
-		set +x
+		set +o xtrace
 	fi
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
@@ -248,9 +255,9 @@ CheckConnectivity() {
 				break
 			if [ "${Status}" = 2 ]; then
 				[ -z "${Debug}" ] || \
-					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' has been verified"
+					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${addr} has been verified"
 			else
-				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' has been verified"
+				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${addr} has been verified"
 			fi
 			return 0
 		done
@@ -467,7 +474,7 @@ WifiStatus() {
 	done
 }
 
-set -eu -o pipefail
+set -o errexit -o nounset -o pipefail
 NAME="$(basename "${0}")"
 case "${1:-}" in
 start)
