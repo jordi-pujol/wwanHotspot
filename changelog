@@ -1,3 +1,11 @@
+wwanHotspot v1.13
+
+  * files/wwanHospot.sh:
+    - show status of the wlan interfaces
+    - verify connections listing the IP address that has been checked
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 03 Jul 2018 15:01:29 +0200
+
 wwanHotspot v1.12
 
   * files/wwanHospot.sh:
