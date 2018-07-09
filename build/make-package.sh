@@ -50,6 +50,15 @@ _check_syntax() {
 	return "${rc}"
 }
 
+_cleanup() {
+	echo "Cleaning." >&2
+	rm -vrf ./ipk
+	rm -vf ./control.tar.gz \
+		./data.tar.gz \
+		./debian-binary \
+		./*.ipk
+}
+
 set -o errexit -o nounset +o noglob
 
 [ -z "${DEBUG:=}" ] || \
@@ -74,13 +83,15 @@ while [ -n "${1:-}" ]; do
 					rc=1
 				fi
 			done
-			[ "${rc}" = 0 ] && \
-				echo "Nothing to do" >&2 || \
-				echo "Some files have been modified. This package must be updated." >&2
-			exit 0
+			if [ "${rc}" = 0 ]; then
+				echo "Nothing to do" >&2
+				exit 0
+			fi
+			echo "Some files have been modified. This package must be updated." >&2
 		fi
 		echo "Building package." >&2
 		_check_syntax || exit 1
+		_cleanup
 		echo "Populating package directories." >&2
 		rm -rf ./ipk
 		mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin
@@ -108,12 +119,7 @@ while [ -n "${1:-}" ]; do
 		echo "Done." >&2
 		;;
 	clean)
-		echo "Cleaning." >&2
-		rm -vrf ./ipk
-		rm -vf ./control.tar.gz \
-			./data.tar.gz \
-			./debian-binary \
-			./*.ipk
+		_cleanup
 		echo "Done." >&2
 		;;
 	*)
