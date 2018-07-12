@@ -23,7 +23,9 @@
 #************************************************************************
 
 _control_value() {
-	awk -v var="${1}" '$1 == var {print $2; rc=-1; exit}
+	awk -v var="${1}" '$1 == var {$1 = ""
+		gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
+		print; rc=-1; exit}
 		END{exit rc+1}' < control
 }
 
