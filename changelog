@@ -7,6 +7,7 @@ wwanHotspot v1.13
     - allow several options in the command line to be executed sequentially
     - add new option "check" to check syntax of the scripts without creating
       the package
+    - retrieve the whole value of a control field
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 03 Jul 2018 15:01:29 +0200
 
