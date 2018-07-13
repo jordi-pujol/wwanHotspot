@@ -95,7 +95,6 @@ while [ -n "${1:-}" ]; do
 		_check_syntax || exit 1
 		_cleanup
 		echo "Populating package directories." >&2
-		rm -rf ./ipk
 		mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin
 		cp ../files/${PKG}.config ./ipk/etc/config/${PKG}
 		cp ../files/${PKG}.init ./ipk/etc/init.d/${PKG}
