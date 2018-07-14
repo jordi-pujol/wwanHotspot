@@ -8,6 +8,8 @@ wwanHotspot v1.13
     - add new option "check" to check syntax of the scripts without creating
       the package
     - retrieve the whole value of a control field
+  * files/wwanHospot.init:
+    - stop(), this script should not wait for external processes
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 03 Jul 2018 15:01:29 +0200
 
