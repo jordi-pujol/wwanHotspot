@@ -69,9 +69,8 @@ stop_service() {
 	echo "Info: Stopping Daemon..." >&2
 	local pids="${pid} $(_ps_children "${pid}")"
 	kill -TERM ${pids} > /dev/null 2>&1 &
-	wait ${pids} &
 	local try=0
-	while kill -0 ${!} > /dev/null 2>&1 && \
+	while kill -0 ${pids} > /dev/null 2>&1 && \
 	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do                            
 		sleep 1
 	done
