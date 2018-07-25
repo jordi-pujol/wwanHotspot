@@ -1,3 +1,10 @@
+wwanHotspot v1.14
+
+  * files/wwanHospot.sh:
+    - ListStatus(): show current ip routes
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 21 Jul 2018 08:22:12 +0200
+
 wwanHotspot v1.13
 
   * files/wwanHospot.sh:
