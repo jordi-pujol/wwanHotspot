@@ -94,29 +94,30 @@ _exit() {
 
 ListStatus() {
 	local v
-	_applog "${NAME}" "Actual status:"
-	_applog
-	_applog "Debug=\"${Debug}\""
-	_applog "ScanAuto=\"${ScanAuto}\""
-	_applog "Sleep=\"${Sleep}\""
-	_applog "SleepScanAuto=\"${SleepScanAuto}\""
-	_applog "BlackList=\"${BlackList}\""
-	_applog
+	( echo "${NAME}" "$(date +'%Y-%m-%d %H:%M:%S')" "status:"
+	echo
+	echo "Debug=\"${Debug}\""
+	echo "ScanAuto=\"${ScanAuto}\""
+	echo "Sleep=\"${Sleep}\""
+	echo "SleepScanAuto=\"${SleepScanAuto}\""
+	echo "BlackList=\"${BlackList}\""
+	echo
 	set | awk -F '=' \
 	'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null | sort | \
 	while read v; do
-		_applog "${v}"
+		echo "${v}"
 	done
-	_applog
+	echo
 	if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
-		_applog "Hotspot client is not enabled."
+		echo "Hotspot client is not enabled."
 	else
-		iwinfo wlan0-1 info >> "/var/log/${NAME}"
+		iwinfo wlan0-1 info
 	fi
-	iwinfo wlan0 info >> "/var/log/${NAME}"
-	_applog
-	ip route show >> "/var/log/${NAME}"
-	_applog
+	echo
+	iwinfo wlan0 info
+	echo
+	ip route show
+	) > "/var/log/${NAME}.stat" 2>&1
 
 	ScanRequested
 }
