@@ -1,13 +1,14 @@
 wwanHotspot v1.14
 
-  * files/wwanHospot.sh:
+  * files/wwanHotspot.sh:
     - ListStatus(): show current ip routes
+    - ListStatus(): list to the file /var/log/wwanHotspot.stat
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 21 Jul 2018 08:22:12 +0200
 
 wwanHotspot v1.13
 
-  * files/wwanHospot.sh:
+  * files/wwanHotspot.sh:
     - show status of the wlan interfaces
     - verify connections listing the IP address that has been checked
   * build/make-package.sh:
@@ -15,7 +16,7 @@ wwanHotspot v1.13
     - add new option "check" to check syntax of the scripts without creating
       the package
     - retrieve the whole value of a control field
-  * files/wwanHospot.init:
+  * files/wwanHotspot.init:
     - stop_service(), this script should not wait for external processes by their pid
       number, can only check if they are active
 
@@ -23,7 +24,7 @@ wwanHotspot v1.13
 
 wwanHotspot v1.12
 
-  * files/wwanHospot.sh:
+  * files/wwanHotspot.sh:
     - All variables must be set or throw an error on unset variables,
       add shell command: 'set -o unset'
       been sure that all corresponding code is adapted.
