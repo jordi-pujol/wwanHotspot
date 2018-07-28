@@ -125,6 +125,7 @@ ListStat() {
 
 ListStatus() {
 	ListStat &
+	wait "${!}" || :
 	ScanRequested
 }
 
