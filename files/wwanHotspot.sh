@@ -92,15 +92,19 @@ _exit() {
 	wait || :
 }
 
-ListStatus() {
+ListStat() {
 	local v
-	( echo "${NAME}" "$(date +'%Y-%m-%d %H:%M:%S')" "status:"
+	exec > "/var/log/${NAME}.stat"
+	echo "${NAME}" "$(date +'%Y-%m-%d %H:%M:%S')" "status:"
+	[ ${#} -le 0 ] || \
+		echo "${@}"
 	echo
 	echo "Debug=\"${Debug}\""
 	echo "ScanAuto=\"${ScanAuto}\""
 	echo "Sleep=\"${Sleep}\""
 	echo "SleepScanAuto=\"${SleepScanAuto}\""
 	echo "BlackList=\"${BlackList}\""
+	echo "BlackListOnErr=\"${BlackListOnErr}\""
 	echo
 	set | awk -F '=' \
 	'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null | sort | \
@@ -117,8 +121,10 @@ ListStatus() {
 	iwinfo wlan0 info
 	echo
 	ip route show
-	) > "/var/log/${NAME}.stat" 2>&1
+}
 
+ListStatus() {
+	ListStat &
 	ScanRequested
 }
 
@@ -131,6 +137,7 @@ LoadConfig() {
 	Sleep=20
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
+	BlackListOnErr="all"
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]+_" {print $1}') 2> /dev/null || :
 
@@ -142,6 +149,7 @@ LoadConfig() {
 	Sleep="${Sleep:-"20"}"
 	SleepScanAuto="${SleepScanAuto:-"$((${Sleep}*15))"}"
 	BlackList="${BlackList:-"3"}"
+	BlackListOnErr="${BlackListOnErr:-"all"}"
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
@@ -341,7 +349,10 @@ WwanDisable() {
 }
 
 HotspotBlackList() {
+	local errtype="${1}"
 	_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
+	echo "${BlackListOnErr}" | grep -qswEe "all|${errtype}" || \
+		return 0
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackList} -gt 0 ] && \
 	[ $((ConnAttempts++)) -ge ${BlackList} ]; then
@@ -377,7 +388,7 @@ WifiStatus() {
 			WwanErr=0
 			if ! CheckConnectivity; then
 				WwanDisable
-				HotspotBlackList
+				HotspotBlackList "network"
 				Status=1
 				ScanRequest=1
 				Interval=${Sleep}
@@ -390,6 +401,7 @@ WifiStatus() {
 				_log "Hotspot is connected to '${WwanSsid}'"
 				Status=2
 				Interval=${SleepScanAuto}
+				ListStat "Hotspot is connected to '${WwanSsid}'" &
 			else
 				[ -z "${Debug}" ] || \
 					_applog "Hotspot is already connected to '${WwanSsid}'"
@@ -400,8 +412,12 @@ WifiStatus() {
 		elif IsWwanConnected "unknown"; then
 			WwanDisable
 			if [ ${Status} != 1 ]; then
-				[ ${Status} = 2 ] || \
-					HotspotBlackList
+				if [ ${Status} = 2 ]; then
+					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
+				else
+					HotspotBlackList "connect"
+					ListStat "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'" &
+				fi
 				Status=1
 				ScanRequest=1
 				Interval=${Sleep}
@@ -459,7 +475,7 @@ WifiStatus() {
 			fi
 		else
 			WwanErr=0
-			[ ${ScanRequest} != ${CfgSsidsCnt} ] || \
+			[ ${ScanRequest} -lt 0 ] || \
 				_log "A Hotspot is not available."
 			Status=4
 			if [ "${WwanDisabled}" != 1 ]; then
