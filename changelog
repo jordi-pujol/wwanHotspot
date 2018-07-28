@@ -1,8 +1,12 @@
 wwanHotspot v1.14
 
   * files/wwanHotspot.sh:
-    - ListStatus(): show current ip routes
-    - ListStatus(): list to the file /var/log/wwanHotspot.stat
+    List status to the file /var/log/wwanHotspot.stat
+    and update the file on status change.
+    - ListStat(): also show current ip routes
+  * BlackListOnErr: New configuration parameter.
+    Is a comma separated list of error types that should blacklist a
+    hotspot.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 21 Jul 2018 08:22:12 +0200
 
