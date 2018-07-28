@@ -189,6 +189,7 @@ LoadConfig() {
 		fi
 	fi
 
+	Status=0
 	NetworkRestarted=0
 	WwanErr=0
 	ScanRequest=${CfgSsidsCnt}
