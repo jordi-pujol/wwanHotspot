@@ -149,7 +149,7 @@ LoadConfig() {
 	Sleep="${Sleep:-"20"}"
 	SleepScanAuto="${SleepScanAuto:-"$((${Sleep}*15))"}"
 	BlackList="${BlackList:-"3"}"
-	BlackListOnErr="${BlackListOnErr:-"all"}"
+	BlackListOnErr="${BlackListOnErr:-}"
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
@@ -335,7 +335,7 @@ DoScan() {
 			break
 	done
 	[ -z "${Debug}" ] || \
-		_applog "No Hotspots available."
+		_applog "DoScan: No Hotspots available."
 	return 1
 }
 
@@ -454,6 +454,7 @@ WifiStatus() {
 				NetworkRestarted=2
 				_log "Connecting to '${WwanSsid}'..."
 				WatchWifi 20
+				ListStat "Connecting to '${WwanSsid}'..." &
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
@@ -461,6 +462,7 @@ WifiStatus() {
 				wifi up
 				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
 				WatchWifi
+				ListStat "Enabling Hotspot client interface to '${WwanSsid}'..." &
 			else
 				_applog "Hotspot client interface to '${WwanSsid}' is already enabled"
 			fi
@@ -475,9 +477,11 @@ WifiStatus() {
 			fi
 		else
 			WwanErr=0
-			[ ${ScanRequest} -lt 0 ] || \
+			if [ ${Status} != 4 ]; then
 				_log "A Hotspot is not available."
-			Status=4
+				Status=4
+				ListStat "A Hotspot is not available." &
+			fi
 			if [ "${WwanDisabled}" != 1 ]; then
 				Interval=${Sleep}
 			elif [ ${ScanRequest} -gt 0 ] && \
