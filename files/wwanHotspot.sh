@@ -413,6 +413,7 @@ WifiStatus() {
 			continue
 		elif IsWwanConnected "unknown"; then
 			WwanDisable
+			WatchWifi
 			if [ ${Status} != 1 ]; then
 				if [ ${Status} = 2 ]; then
 					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
@@ -427,7 +428,6 @@ WifiStatus() {
 				[ -z "${Debug}" ] || \
 					_applog "Disabling wireless device for Hotspot, Again ?"
 			fi
-			WatchWifi
 			continue
 		elif n="$(DoScan)"; then
 			[ -z "${Debug}" ] || \
