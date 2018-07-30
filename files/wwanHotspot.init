@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.14 $
+#  $Revision: 1.15 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -71,7 +71,7 @@ stop_service() {
 	kill -TERM ${pids} > /dev/null 2>&1 &
 	local try=0
 	while kill -0 ${pids} > /dev/null 2>&1 && \
-	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do                            
+	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do
 		sleep 1
 	done
 	! kill -0 ${pids} > /dev/null 2>&1 || \
@@ -79,9 +79,9 @@ stop_service() {
 	wait || :
 }
 
-service_triggers() {                                          
+service_triggers() {
 	local ifaces="wan $(uci -q get wireless.@wifi-iface[1].network)"
-	local n                                                          
+	local n
 
 	procd_open_trigger
 	for n in ${ifaces}; do
@@ -89,7 +89,7 @@ service_triggers() {
 	done
 	procd_add_config_trigger "config.change" "${NAME}" "${INIT}" reload
 	procd_close_trigger
-}                         
+}
 
 reload_service() {
 	local pid
