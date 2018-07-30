@@ -415,10 +415,10 @@ WifiStatus() {
 			WwanDisable
 			if [ ${Status} != 1 ]; then
 				if [ ${Status} = 2 ]; then
-					_log "Lost connection ${ConnectingTo}:'${WwanSsid}'"
+					_log "Reason: Lost connection ${ConnectingTo}:'${WwanSsid}'"
 					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
 				else
-					_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
+					_log "Reason: Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
 					HotspotBlackList "connect" || :
 					ListStat "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'" &
 				fi
