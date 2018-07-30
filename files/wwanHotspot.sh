@@ -105,6 +105,7 @@ ListStat() {
 	echo "SleepScanAuto=\"${SleepScanAuto}\""
 	echo "BlackList=\"${BlackList}\""
 	echo "BlackListOnErr=\"${BlackListOnErr}\""
+	echo "PingWait=\"${PingWait}\""
 	echo
 	set | awk -F '=' \
 	'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null | sort | \
@@ -139,6 +140,7 @@ LoadConfig() {
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
 	BlackListOnErr="all"
+	PingWait=5
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]+_" {print $1}') 2> /dev/null || :
 
@@ -151,6 +153,7 @@ LoadConfig() {
 	SleepScanAuto="${SleepScanAuto:-"$((${Sleep}*15))"}"
 	BlackList="${BlackList:-"3"}"
 	BlackListOnErr="${BlackListOnErr:-}"
+	PingWait="${PingWait:-5}"
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
@@ -246,7 +249,8 @@ ActiveSsidNbr() {
 }
 
 CheckConnectivity() {
-	local delay=20 addr check
+	local delay=20 check
+	CheckAddr=""
 	if [ "${ConnectingTo}" -gt 0 ] || \
 	ConnectingTo="$(ActiveSsidNbr)"; then
 		eval check=\"\${net${ConnectingTo}_check:-}\" && \
@@ -257,26 +261,26 @@ CheckConnectivity() {
 			if echo "${check}" | \
 			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
 			[ -n "$(ip -4 route show default dev wlan0)" ]; then
-				addr="${check}"
+				CheckAddr="${check}"
 			else
-				addr="$(ip -4 route show dev wlan0 | \
+				CheckAddr="$(ip -4 route show dev wlan0 | \
 				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
 				s||\1|p;q0};${q1}')" || \
 					continue
 			fi
-			ping -4 -W 3 -c 3 -I wlan0 "${addr}" || \
+			ping -4 -W ${PingWait} -c 3 -I wlan0 "${CheckAddr}" || \
 				break
 			if [ "${Status}" = 2 ]; then
 				[ -z "${Debug}" ] || \
-					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${addr} has been verified"
+					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${CheckAddr} has been verified"
 			else
-				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${addr} has been verified"
+				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${CheckAddr} has been verified"
 			fi
 			return 0
 		done
 		_log "Error: hotspot ${ConnectingTo}:'${WwanSsid}' has limited or no connectivity at all"
 	else
-		_applog "Error: Can't check connectivity of hotspot '${WwanSsid}'"
+		_applog "Error: Can't check connectivity of hotspot ${ConnectingTo}:'${WwanSsid}'"
 	fi
 	return 1
 }
@@ -342,7 +346,7 @@ DoScan() {
 }
 
 WwanDisable() {
-	_log "Disabling wireless device for hotspot '${WwanSsid}'"
+	_log "Disabling wireless device for hotspot ${ConnectingTo}:'${WwanSsid}'"
 	uci set wireless.@wifi-iface[1].disabled=1
 	WwanDisabled=1
 	uci commit wireless
@@ -366,7 +370,7 @@ WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
 	local ScanRequest WwanErr Status=0 Interval=1
-	local ConnectingTo=0 ConnAttempts=1
+	local ConnectingTo=0 ConnAttempts=1 CheckAddr=""
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local NetworkRestarted=0
@@ -392,21 +396,24 @@ WifiStatus() {
 				Interval=${Sleep}
 				if HotspotBlackList "network"; then
 					WwanDisable
+					_log "Reason: Limited connectivity on network ${ConnectingTo}:'${WwanSsid}'"
 					Status=1
-					ListStat "Limited connectivity on network '${WwanSsid}'" &
+					ListStat "Limited connectivity on network ${ConnectingTo}:'${WwanSsid}'" &
 				fi
 				continue
 			fi
 			ScanRequest=0
 			ConnAttempts=1
 			if [ ${Status} != 2 ]; then
-				_log "Hotspot is connected to '${WwanSsid}'"
+				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				Status=2
-				Interval=${SleepScanAuto}
-				ListStat "Hotspot is connected to '${WwanSsid}'" &
+				[ -n "${CheckAddr}" ] && \
+					Interval=${Sleep} || \
+					Interval=${SleepScanAuto}
+				ListStat "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'" &
 			else
 				[ -z "${Debug}" ] || \
-					_applog "Hotspot is already connected to '${WwanSsid}'"
+					_applog "Hotspot is already connected to ${ConnectingTo}:'${WwanSsid}'"
 			fi
 		elif [ ${NetworkRestarted} -gt 0 ]; then
 			NetworkRestarted=$((${NetworkRestarted}-1))
@@ -455,19 +462,19 @@ WifiStatus() {
 				sleep 1
 				/etc/init.d/network restart
 				NetworkRestarted=2
-				_log "Connecting to '${WwanSsid}'..."
+				_log "Connecting to ${ConnectingTo}:'${WwanSsid}'..."
 				WatchWifi 20
-				ListStat "Connecting to '${WwanSsid}'..." &
+				ListStat "Connecting to ${ConnectingTo}:'${WwanSsid}'..." &
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[1].disabled=0
 				uci commit wireless
 				wifi down
 				wifi up
 				WatchWifi
-				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
-				ListStat "Enabling Hotspot client interface to '${WwanSsid}'..." &
+				_log "Enabling Hotspot client interface to ${ConnectingTo}:'${WwanSsid}'..."
+				ListStat "Enabling Hotspot client interface to ${ConnectingTo}:'${WwanSsid}'..." &
 			else
-				_applog "Hotspot client interface to '${WwanSsid}' is already enabled"
+				_applog "Hotspot client interface to ${ConnectingTo}:'${WwanSsid}' is already enabled"
 			fi
 			Status=3
 			if [ $((WwanErr++)) -gt ${CfgSsidsCnt} ]; then
