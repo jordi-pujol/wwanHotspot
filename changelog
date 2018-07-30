@@ -1,7 +1,8 @@
 wwanHotspot v1.15
 
   * files/wwanHotspot.sh:
-    CheckConnectivity: Don't disable interface until it's blacklisted.
+    - CheckConnectivity: Don't disable interface until it's blacklisted.
+    - Only wait 3 seconds for a ping response.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 30 Jul 2018 09:27:22 +0200
 
