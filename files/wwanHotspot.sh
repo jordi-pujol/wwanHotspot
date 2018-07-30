@@ -470,8 +470,8 @@ WifiStatus() {
 				uci commit wireless
 				wifi down
 				wifi up
-				WatchWifi
 				_log "Enabling Hotspot client interface to ${ConnectingTo}:'${WwanSsid}'..."
+				WatchWifi
 				ListStat "Enabling Hotspot client interface to ${ConnectingTo}:'${WwanSsid}'..." &
 			else
 				_applog "Hotspot client interface to ${ConnectingTo}:'${WwanSsid}' is already enabled"
