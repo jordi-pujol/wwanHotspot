@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.14 $
+#  $Revision: 1.15 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -264,7 +264,7 @@ CheckConnectivity() {
 				s||\1|p;q0};${q1}')" || \
 					continue
 			fi
-			ping -c 3 -I wlan0 "${addr}" || \
+			ping -4 -W 3 -c 3 -I wlan0 "${addr}" || \
 				break
 			if [ "${Status}" = 2 ]; then
 				[ -z "${Debug}" ] || \
@@ -348,19 +348,18 @@ WwanDisable() {
 	uci commit wireless
 	wifi down
 	wifi up
+	WatchWifi
 }
 
 HotspotBlackList() {
 	local errtype="${1}"
-	_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
-	echo "${BlackListOnErr}" | grep -qswEe "all|${errtype}" || \
-		return 0
-	if [ ${ConnectingTo} -gt 0 ] && \
+	echo "${BlackListOnErr}" | grep -qswEe "all|${errtype}" && \
+	[ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackList} -gt 0 ] && \
-	[ $((ConnAttempts++)) -ge ${BlackList} ]; then
-		eval net${ConnectingTo}_blacklisted=\"y\" || :
-		_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
-	fi
+	[ $((ConnAttempts++)) -ge ${BlackList} ] || \
+		return 1
+	eval net${ConnectingTo}_blacklisted=\"y\" || :
+	_log "Blacklisting connection ${ConnectingTo}:'${WwanSsid}'"
 }
 
 WifiStatus() {
@@ -389,12 +388,13 @@ WifiStatus() {
 			NetworkRestarted=0
 			WwanErr=0
 			if ! CheckConnectivity; then
-				WwanDisable
-				HotspotBlackList "network"
-				Status=1
 				ScanRequest=1
 				Interval=${Sleep}
-				WatchWifi
+				if HotspotBlackList "network"; then
+					WwanDisable
+					Status=1
+					ListStat "Limited connectivity on network '${WwanSsid}'" &
+				fi
 				continue
 			fi
 			ScanRequest=0
@@ -413,12 +413,12 @@ WifiStatus() {
 			continue
 		elif IsWwanConnected "unknown"; then
 			WwanDisable
-			WatchWifi
 			if [ ${Status} != 1 ]; then
 				if [ ${Status} = 2 ]; then
 					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
 				else
-					HotspotBlackList "connect"
+					_log "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'"
+					HotspotBlackList "connect" || :
 					ListStat "Unsuccessful connection ${ConnectingTo}:'${WwanSsid}'" &
 				fi
 				Status=1
@@ -462,8 +462,8 @@ WifiStatus() {
 				uci commit wireless
 				wifi down
 				wifi up
-				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
 				WatchWifi
+				_log "Enabling Hotspot client interface to '${WwanSsid}'..."
 				ListStat "Enabling Hotspot client interface to '${WwanSsid}'..." &
 			else
 				_applog "Hotspot client interface to '${WwanSsid}' is already enabled"
