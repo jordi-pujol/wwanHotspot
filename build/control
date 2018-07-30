@@ -1,5 +1,5 @@
 Package: wwanHotspot
-Version: 1.14
+Version: 1.15
 Section: net
 Priority: optional
 Maintainer: Jordi Pujol <jordipujolp AT gmail DOT com>
@@ -11,4 +11,3 @@ Depends: iwinfo, ip,
 Source:  N/A
 Description: OpenWrt daemon to maintain allways up a dual wifi config:
  Access Point and HotSpot client.
- 
