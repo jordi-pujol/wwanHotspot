@@ -1,3 +1,10 @@
+wwanHotspot v1.15
+
+  * files/wwanHotspot.sh:
+    CheckConnectivity: Don't disable interface until it's blacklisted.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 30 Jul 2018 09:27:22 +0200
+
 wwanHotspot v1.14
 
   * files/wwanHotspot.sh:
@@ -176,4 +183,3 @@ wwanHotspot v1.0
   * initial release
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 28 Sep 2017 10:30:10 +0200
- 
