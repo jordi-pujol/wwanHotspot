@@ -2,6 +2,7 @@ wwanHotspot v1.15
 
   * PingWait : New configuration parameter.
     Number of seconds to wait for every ping response. Default: 5
+    Recommended value: 5 to 10
   * files/wwanHotspot.sh:
     - CheckConnectivity: Don't disable interface until it's blacklisted.
     - Faster response on connectivity not reliable or lost:
