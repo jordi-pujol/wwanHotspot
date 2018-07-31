@@ -248,6 +248,12 @@ ActiveSsidNbr() {
 	END{if (! rc) {print 0}; exit rc+1}'
 }
 
+_ping() {
+	[ -n "${Debug}" ] || \
+		exec > /dev/null 2>&1
+	ping -4 -W ${PingWait} -c 3 -I wlan0 "${CheckAddr}"
+}
+
 CheckConnectivity() {
 	local delay=20 check
 	CheckAddr=""
@@ -268,11 +274,11 @@ CheckConnectivity() {
 				s||\1|p;q0};${q1}')" || \
 					continue
 			fi
-			ping -4 -W ${PingWait} -c 3 -I wlan0 "${CheckAddr}" || \
+			_ping &
+			wait "${!}" || \
 				break
 			if [ "${Status}" = 2 ]; then
-				[ -z "${Debug}" ] || \
-					_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${CheckAddr} has been verified"
+				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${CheckAddr} has been verified"
 			else
 				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}' to ${CheckAddr} has been verified"
 			fi
