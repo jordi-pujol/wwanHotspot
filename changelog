@@ -1,3 +1,14 @@
+wwanHotspot v1.16
+
+  * set netX_blacklisted to connect or network according to the type
+    of error that caused it.
+  * BlackListOnErr: Remove this configuration parameter.
+  * BlackListNetwork: New configuration parameter.
+    Number of failed consecutive communication attemps before
+    blacklisting this hotspot.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 1 Aug 2018 09:20:31 +0200
+
 wwanHotspot v1.15
 
   * PingWait : New configuration parameter.
@@ -191,3 +202,4 @@ wwanHotspot v1.0
   * initial release
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 28 Sep 2017 10:30:10 +0200
+ 
