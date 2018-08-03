@@ -6,6 +6,8 @@ wwanHotspot v1.16
   * BlackListNetwork: New configuration parameter.
     Number of failed consecutive communication attemps before
     blacklisting this hotspot.
+  * wwanHotspot.sh, ListStat() :
+    sort is not needed for variables netX_*
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 1 Aug 2018 09:20:31 +0200
 
