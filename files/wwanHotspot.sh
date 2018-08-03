@@ -93,7 +93,6 @@ _exit() {
 }
 
 ListStat() {
-	local v
 	exec > "/var/log/${NAME}.stat"
 	echo "${NAME}" "$(date +'%Y-%m-%d %H:%M:%S')" "status:"
 	[ ${#} -le 0 ] || \
@@ -108,10 +107,7 @@ ListStat() {
 	echo "PingWait=\"${PingWait}\""
 	echo
 	set | awk -F '=' \
-	'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null | sort | \
-	while read v; do
-		echo "${v}"
-	done
+		'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null
 	echo
 	if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
 		echo "Hotspot client is not enabled."
@@ -244,8 +240,8 @@ Scanning() {
 
 ActiveSsidNbr() {
 	echo "${CfgSsids}" | \
-	awk -v ssid="${WwanSsid}" '$0 == ssid {print NR; rc=-1; exit}
-	END{if (! rc) {print 0}; exit rc+1}'
+	awk -v ssid="${WwanSsid}" '$0 == ssid {nr = NR; exit}
+	END{print nr+0}'
 }
 
 _ping() {
@@ -257,42 +253,36 @@ _ping() {
 CheckConnectivity() {
 	local delay=20 check CheckAddr
 	Interval=${SleepScanAuto}
-	if [ "${ConnectingTo}" -gt 0 ] || \
-	ConnectingTo="$(ActiveSsidNbr)"; then
-		eval check=\"\${net${ConnectingTo}_check:-}\" && \
-		[ -n "${check}" ] || \
-			return 0
-		while [ $((delay--)) -gt 0 ]; do
-			sleep 1
-			if echo "${check}" | \
-			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
-			[ -n "$(ip -4 route show default dev wlan0)" ]; then
-				CheckAddr="${check}"
-			else
-				CheckAddr="$(ip -4 route show dev wlan0 | \
-				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
-				s||\1|p;q0};${q1}')" || \
-					continue
-			fi
-			Interval=${Sleep}
-			_ping &
-			wait "${!}" || \
-				break
-			if [ "${Status}" = 2 ]; then
-				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-					"to ${CheckAddr} has been verified"
-			else
-				_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-					"to ${CheckAddr} has been verified"
-			fi
-			return 0
-		done
-		_log "Error: ${NetworkAttempts} connectivity failures" \
-			"on ${ConnectingTo}:'${WwanSsid}'."
-	else
-		_applog "Error: Can't check connectivity of hotspot" \
-			"${ConnectingTo}:'${WwanSsid}'"
-	fi
+	eval check=\"\${net${ConnectingTo}_check:-}\" && \
+	[ -n "${check}" ] || \
+		return 0
+	while [ $((delay--)) -gt 0 ]; do
+		sleep 1
+		if echo "${check}" | \
+		sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
+		[ -n "$(ip -4 route show default dev wlan0)" ]; then
+			CheckAddr="${check}"
+		else
+			CheckAddr="$(ip -4 route show dev wlan0 | \
+			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
+			s||\1|p;q0};${q1}')" || \
+				continue
+		fi
+		Interval=${Sleep}
+		_ping &
+		wait "${!}" || \
+			break
+		if [ "${Status}" = 2 ]; then
+			_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
+				"to ${CheckAddr} has been verified"
+		else
+			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
+				"to ${CheckAddr} has been verified"
+		fi
+		return 0
+	done
+	_log "Error: ${NetworkAttempts} connectivity failures" \
+		"on ${ConnectingTo}:'${WwanSsid}'."
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackListNetwork} -gt 0 ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
@@ -330,15 +320,9 @@ DoScan() {
 	found_hidden="$(! echo "${scanned}" | grep -qsxe '' || \
 		echo "y")"
 
-	[ ${ConnectingTo} -gt 0 ] || \
-		ConnectingTo="$(ActiveSsidNbr)" || :
-	n=${ConnectingTo}
-	if [ -n "${WwanSsid}" -a ${n} -gt 0 ]; then
-		[ $((n++)) -lt ${CfgSsidsCnt} ] || \
-			n=1
-	else
+	n="$(ActiveSsidNbr)"
+	[ $((n++)) -lt ${CfgSsidsCnt} ] || \
 		n=1
-	fi
 
 	i=${n}
 	while :; do
@@ -405,6 +389,8 @@ WifiStatus() {
 		if IsWwanConnected; then
 			NetworkRestarted=0
 			WwanErr=0
+			[ ${ConnectingTo} -gt 0 ] || \
+				ConnectingTo="$(ActiveSsidNbr)"
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				Status=2
@@ -453,10 +439,10 @@ WifiStatus() {
 			continue
 		fi
 		if n="$(DoScan)"; then
-			[ -z "${Debug}" ] || \
-				_applog "DoScan selected '${n}'"
 			local ssid
 			eval ssid=\"\${net${n}_ssid:-}\" || :
+			[ -z "${Debug}" ] || \
+				_applog "DoScan selected ${n}:'${ssid}'"
 			if [ ${ConnectingTo} -ne ${n} ]; then
 				ConnectingTo=${n}
 				ConnAttempts=1
