@@ -1,6 +1,6 @@
 wwanHotspot v1.16
 
-  * set netX_blacklisted to connect or network according to the type
+  * set netX_blacklisted to "connect" or "network" according to the type
     of error that caused it.
   * BlackListOnErr: Remove this configuration parameter.
   * BlackListNetwork: New configuration parameter.
