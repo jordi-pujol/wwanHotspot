@@ -106,9 +106,24 @@ ListStat() {
 	echo "BlackListNetwork=\"${BlackListNetwork}\""
 	echo "PingWait=\"${PingWait}\""
 	echo
-	set | awk -F '=' \
-		'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null
-	echo
+	local a="" v v0="" v1
+	while read -r v; do
+		[ -n "${v}" ] || \
+			break
+		v1="$(echo "${v}" | cut -f 1 -s -d "_")"
+		if [ -n "${v0}" -a "${v0}" != "${v1}" ]; then
+			[ -z "${a}" ] || \
+				echo "${a}"
+			a=""
+		fi
+		v0="${v1}"
+		a="${v}"$'\n'"${a}"
+	done << EOF
+$(set | awk -F '=' \
+'$1 ~ "^net[[:digit:]]+_" {print}' 2> /dev/null)
+EOF
+	[ -z "${a}" ] || \
+		echo "${a}"
 	if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
 		echo "Hotspot client is not enabled."
 	else
@@ -240,8 +255,9 @@ Scanning() {
 
 ActiveSsidNbr() {
 	echo "${CfgSsids}" | \
-	awk -v ssid="${WwanSsid}" '$0 == ssid {nr = NR; exit}
-	END{print nr+0}'
+	awk -v ssid="${WwanSsid}" \
+		'$0 == ssid {n = NR; exit}
+		END{print n+0}'
 }
 
 _ping() {
