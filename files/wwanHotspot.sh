@@ -431,6 +431,7 @@ WifiStatus() {
 				if [ ${Status} = 2 ]; then
 					_log "Reason: Lost connection ${ConnectingTo}:'${WwanSsid}'"
 					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
+					ConnectingTo=0
 				else
 					_log "Reason: ${ConnAttempts} unsuccessful connection" \
 						"to ${ConnectingTo}:'${WwanSsid}'"
@@ -451,7 +452,6 @@ WifiStatus() {
 				[ -z "${Debug}" ] || \
 					_applog "Disabling wireless device for Hotspot, Again ?"
 			fi
-			ConnectingTo=0
 			continue
 		fi
 		if n="$(DoScan)"; then
