@@ -1,3 +1,10 @@
+wwanHotspot v1.17
+
+  * wwanHotspot.sh, ListStat() :
+    A more simple and effective way to classify the netX_* values.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 5 Aug 2018 09:00:01 +0200
+
 wwanHotspot v1.16
 
   * set netX_blacklisted to "connect" or "network" according to the type
