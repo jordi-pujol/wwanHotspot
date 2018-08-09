@@ -119,12 +119,17 @@ ListStat() {
 	echo
 	iwinfo wlan0 info
 	echo
+	IsWanConnected && \
+		echo "WAN interface is connected." || \
+		echo "WAN interface is disconnected."
+	echo
 	ip route show
 }
 
 ListStatus() {
 	ListStat &
 	wait "${!}" || :
+	Status=0
 	ScanRequested
 }
 
@@ -191,7 +196,6 @@ LoadConfig() {
 		fi
 	fi
 
-	Status=0
 	NetworkRestarted=0
 	WwanErr=0
 	ScanRequest=${CfgSsidsCnt}
