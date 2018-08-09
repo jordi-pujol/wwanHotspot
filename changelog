@@ -1,7 +1,8 @@
 wwanHotspot v1.17
 
   * wwanHotspot.sh, ListStat() :
-    A more simple and effective way to classify the netX_* values.
+    - A more simple and effective way to classify the netX_* values.
+    - List also WAN's interface status.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 5 Aug 2018 09:00:01 +0200
 
