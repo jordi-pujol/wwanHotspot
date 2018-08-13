@@ -514,7 +514,7 @@ WifiStatus() {
 			fi
 		fi
 		[ ${ScanRequest} -le 0 ] || \
-			ScanRequest=$((${ScanRequest}-1))
+			[ $((${ScanRequest}--)) ]
 	done
 }
 
