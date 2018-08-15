@@ -37,7 +37,7 @@ _sleep() {
 		_applog "sleeping ${Interval} seconds"
 	sleep ${Interval} > /dev/null 2>&1 &
 	PidSleep="${!}"
-	wait ${PidSleep} || :
+	wait "${PidSleep}" || :
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ended"
 	PidSleep=""
@@ -514,7 +514,7 @@ WifiStatus() {
 			fi
 		fi
 		[ ${ScanRequest} -le 0 ] || \
-			[ $((${ScanRequest}--)) ]
+			ScanRequest=$((${ScanRequest}-1))
 	done
 }
 
