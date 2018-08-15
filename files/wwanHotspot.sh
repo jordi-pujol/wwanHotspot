@@ -36,7 +36,8 @@ _sleep() {
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ${Interval} seconds"
 	sleep ${Interval} > /dev/null 2>&1 &
-	wait $((PidSleep="${!}")) || :
+	PidSleep="${!}"
+	wait ${PidSleep} || :
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ended"
 	PidSleep=""
