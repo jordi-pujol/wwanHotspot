@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.17 $
+#  $Revision: 1.18 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -59,11 +59,11 @@ IsWifiActive() {
 
 WatchWifi() {
 	local c="${1:-10}" iface ApSsid ApDisabled
-	[ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ] && \
+	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ] && \
 		iface="wlan0" || \
 		iface="wlan0-1"
-	ApSsid="$(uci -q get wireless.@wifi-iface[0].ssid)" || :
-	ApDisabled="$(uci -q get wireless.@wifi-iface[0].disabled)" || :
+	ApSsid="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)" || :
+	ApDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" || :
 	while [ $((c--)) -gt 0 ]; do
 		sleep 1
 		[ "${ApDisabled}" != 1 ] || \
@@ -110,7 +110,7 @@ ListStat() {
 		set | grep -se "^net${i}_" | sort -r
 		echo
 	done
-	if [ "$(uci -q get wireless.@wifi-iface[1].disabled)" = 1 ]; then
+	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		echo "Hotspot client is not enabled."
 	else
 		iwinfo wlan0-1 info
@@ -166,6 +166,19 @@ LoadConfig() {
 	fi
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
+	local i=-1 m
+	while [ $((i++)) ]; do
+		m="$(uci -q get wireless.@wifi-iface[${i}].mode)" || \
+			break
+		case "${m}" in
+			ap) WIfaceAP=${i} ;;
+			sta) WIfaceSTA=${i} ;;
+		esac
+	done
+	if [ -z "${WIfaceAP:-}" -o -z "${WIfaceSTA:-}" ]; then
+		_log "Invalid AP+STA configuration."
+		exit 1
+	fi
 
 	CfgSsids=""
 	CfgSsidsCnt=0
@@ -184,13 +197,13 @@ LoadConfig() {
 		CfgSsidsCnt=${n}
 	done
 	if [ ${CfgSsidsCnt} -eq 0 ]; then
-		WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
+		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -n "${WwanSsid}" ]; then
 			CfgSsids="${WwanSsid}"
 			net1_ssid="${WwanSsid}"
 			CfgSsidsCnt=1
 		else
-			_log "Invalid configuration."
+			_log "Invalid configuration. No Hotspots specified."
 			exit 1
 		fi
 	fi
@@ -362,7 +375,7 @@ DoScan() {
 
 WwanDisable() {
 	_log "Disabling wireless device for hotspot ${ConnectingTo}:'${WwanSsid}'"
-	uci set wireless.@wifi-iface[1].disabled=1
+	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=1
 	WwanDisabled=1
 	uci commit wireless
 	wifi down
@@ -378,6 +391,7 @@ WifiStatus() {
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local NetworkRestarted=0
+	local WIfaceAP WIfaceSTA
 
 	trap '_exit' EXIT
 
@@ -390,8 +404,8 @@ WifiStatus() {
 	trap 'ListStatus' USR2
 
 	while _sleep; do
-		WwanDisabled="$(uci -q get wireless.@wifi-iface[1].disabled)" || :
-		WwanSsid="$(uci -q get wireless.@wifi-iface[1].ssid)" || :
+		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
+		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
 			NetworkRestarted=0
 			WwanErr=0
@@ -459,12 +473,12 @@ WifiStatus() {
 				eval key=\"\${net${n}_key:-}\" || :
 				WwanErr=0
 				_log "Hotspot '${ssid}' found. Applying settings..."
-				uci set wireless.@wifi-iface[1].ssid="${ssid}"
-				uci set wireless.@wifi-iface[1].encryption="${encrypt}"
-				uci set wireless.@wifi-iface[1].key="${key}"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${ssid}"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
 				WwanSsid="${ssid}"
 				[ "${WwanDisabled}" != 1 ] || \
-					uci set wireless.@wifi-iface[1].disabled=0
+					uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
 				sleep 1
 				/etc/init.d/network restart
@@ -473,7 +487,7 @@ WifiStatus() {
 				WatchWifi 20
 				ListStat "Connecting to ${ConnectingTo}:'${WwanSsid}'..." &
 			elif [ "${WwanDisabled}" = 1 ]; then
-				uci set wireless.@wifi-iface[1].disabled=0
+				uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
 				wifi down
 				wifi up
