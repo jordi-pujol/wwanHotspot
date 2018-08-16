@@ -51,7 +51,7 @@ _ps_children() {
 }
 
 IsWifiActive() {
-	local ssid="${1}" iface="${2:-"wlan0"}" ssid1
+	local ssid="${1}" iface="${2:-"${WIface}"}" ssid1
 	ssid1="$(iwinfo | \
 	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| {s||\1|p;q0}; ${q1}')" && \
 	[ "${ssid1}" = "${ssid}" ]
@@ -60,8 +60,8 @@ IsWifiActive() {
 WatchWifi() {
 	local c="${1:-10}" iface ApSsid ApDisabled
 	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ] && \
-		iface="wlan0" || \
-		iface="wlan0-1"
+		iface="${WIface}" || \
+		iface="${WIface}-1"
 	ApSsid="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)" || :
 	ApDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" || :
 	while [ $((c--)) -gt 0 ]; do
@@ -113,10 +113,10 @@ ListStat() {
 	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		echo "Hotspot client is not enabled."
 	else
-		iwinfo wlan0-1 info
+		iwinfo ${WIface}-1 info
 	fi
 	echo
-	iwinfo wlan0 info
+	iwinfo ${WIface} info
 	echo
 	IsWanConnected && \
 		echo "WAN interface is connected." || \
@@ -166,21 +166,32 @@ LoadConfig() {
 	fi
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
-	local i=-1 m
-	WIfaceAP=""
-	WIfaceSTA=""
+	local i=-1 m d
 	while [ $((i++)) ]; do
-		m="$(uci -q get wireless.@wifi-iface[${i}].mode)" || \
+		if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
+			_log "Invalid AP+STA configuration."
+			exit 1
+		fi
+		if [ "${m}" = "sta" ]; then
+			WIfaceSTA=${i}
+			d="$(uci -q get wireless.@wifi-iface[${i}].device)"
+			WIface="wlan$(echo "${d}" | \
+				sed -nre '/.*([[:digit:]]+)$/ s//\1/p')"
 			break
-		case "${m}" in
-			ap) WIfaceAP=${i} ;;
-			sta) WIfaceSTA=${i} ;;
-		esac
+		fi
 	done
-	if [ -z "${WIfaceAP:-}" -o -z "${WIfaceSTA:-}" ]; then
-		_log "Invalid AP+STA configuration."
-		exit 1
-	fi
+	i=-1
+	while [ $((i++)) ]; do
+		if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
+			_log "Invalid AP+STA configuration."
+			exit 1
+		fi
+		if [ "${m}" = "ap" ] && \
+		[ "$(uci -q get wireless.@wifi-iface[${i}].device)" = "${d}" ]; then
+			WIfaceAP=${i}
+			break
+		fi
+	done
 
 	CfgSsids=""
 	CfgSsidsCnt=0
@@ -242,7 +253,7 @@ Scanning() {
 	local err i=5
 	while [ $((i--)) -gt 0 ]; do
 		sleep 1
-		! err="$(iw wlan0 scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
+		! err="$(iw ${WIface} scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
 			return 0
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
@@ -268,7 +279,7 @@ ActiveSsidNbr() {
 _ping() {
 	[ -n "${Debug}" ] || \
 		exec > /dev/null 2>&1
-	ping -4 -W ${PingWait} -c 3 -I wlan0 "${CheckAddr}"
+	ping -4 -W ${PingWait} -c 3 -I ${WIface} "${CheckAddr}"
 }
 
 CheckConnectivity() {
@@ -281,10 +292,10 @@ CheckConnectivity() {
 		sleep 1
 		if echo "${check}" | \
 		sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
-		[ -n "$(ip -4 route show default dev wlan0)" ]; then
+		[ -n "$(ip -4 route show default dev ${WIface})" ]; then
 			CheckAddr="${check}"
 		else
-			CheckAddr="$(ip -4 route show dev wlan0 | \
+			CheckAddr="$(ip -4 route show dev ${WIface} | \
 			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
 			s||\1|p;q0};${q1}')" || \
 				continue
@@ -393,7 +404,7 @@ WifiStatus() {
 	local PidDaemon="${$}"
 	local PidSleep=""
 	local NetworkRestarted=0
-	local WIfaceAP WIfaceSTA
+	local WIface WIfaceAP WIfaceSTA
 
 	trap '_exit' EXIT
 
