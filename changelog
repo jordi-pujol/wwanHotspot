@@ -1,6 +1,7 @@
 wwanHotspot v1.18
 
   * auto-detect which wifi interfaces are acting as STA or AP.
+  * auto-detect the name of the wlanX radio interface that is used by STA and AP.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 16 Aug 2018 17:06:57 +0200
 
