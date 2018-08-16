@@ -167,6 +167,8 @@ LoadConfig() {
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 	local i=-1 m
+	WIfaceAP=""
+	WIfaceSTA=""
 	while [ $((i++)) ]; do
 		m="$(uci -q get wireless.@wifi-iface[${i}].mode)" || \
 			break
