@@ -110,14 +110,9 @@ ListStat() {
 		set | grep -se "^net${i}_" | sort -r
 		echo
 	done
-	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
-		echo "Hotspot client is not enabled."
-	else
-		iwinfo "${WIface}-1" info
-	fi
-	echo
-	iwinfo "${WIface}" info
-	echo
+	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 ] || \
+		echo "Hotspot client is not enabled."$'\n'
+	iwinfo
 	IsWanConnected && \
 		echo "WAN interface is connected." || \
 		echo "WAN interface is disconnected."
