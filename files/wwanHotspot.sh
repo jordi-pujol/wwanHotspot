@@ -113,10 +113,10 @@ ListStat() {
 	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		echo "Hotspot client is not enabled."
 	else
-		iwinfo ${WIface}-1 info
+		iwinfo "${WIface}-1" info
 	fi
 	echo
-	iwinfo ${WIface} info
+	iwinfo "${WIface}" info
 	echo
 	IsWanConnected && \
 		echo "WAN interface is connected." || \
@@ -196,9 +196,7 @@ LoadConfig() {
 	CfgSsids=""
 	CfgSsidsCnt=0
 	local n=0 ssid
-	while true; do
-		[ "$((n++))" -le "999" ] || \
-			return 1
+	while [ $((n++)) ]; do
 		eval ssid=\"\${net${n}_ssid:-}\" && \
 		[ -n "${ssid}" ] || \
 			break
@@ -211,14 +209,13 @@ LoadConfig() {
 	done
 	if [ ${CfgSsidsCnt} -eq 0 ]; then
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		if [ -n "${WwanSsid}" ]; then
-			CfgSsids="${WwanSsid}"
-			net1_ssid="${WwanSsid}"
-			CfgSsidsCnt=1
-		else
+		if [ -z "${WwanSsid}" ]; then
 			_log "Invalid configuration. No Hotspots specified."
 			exit 1
 		fi
+		CfgSsids="${WwanSsid}"
+		net1_ssid="${WwanSsid}"
+		CfgSsidsCnt=1
 	fi
 
 	NetworkRestarted=0
@@ -253,7 +250,7 @@ Scanning() {
 	local err i=5
 	while [ $((i--)) -gt 0 ]; do
 		sleep 1
-		! err="$(iw ${WIface} scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
+		! err="$(iw "${WIface}" scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
 			return 0
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
@@ -279,7 +276,7 @@ ActiveSsidNbr() {
 _ping() {
 	[ -n "${Debug}" ] || \
 		exec > /dev/null 2>&1
-	ping -4 -W ${PingWait} -c 3 -I ${WIface} "${CheckAddr}"
+	ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
 }
 
 CheckConnectivity() {
@@ -295,7 +292,7 @@ CheckConnectivity() {
 		[ -n "$(ip -4 route show default dev ${WIface})" ]; then
 			CheckAddr="${check}"
 		else
-			CheckAddr="$(ip -4 route show dev ${WIface} | \
+			CheckAddr="$(ip -4 route show dev "${WIface}" | \
 			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
 			s||\1|p;q0};${q1}')" || \
 				continue
