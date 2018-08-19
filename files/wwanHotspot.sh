@@ -170,8 +170,8 @@ LoadConfig() {
 		if [ "${m}" = "sta" ]; then
 			WIfaceSTA=${i}
 			d="$(uci -q get wireless.@wifi-iface[${i}].device)"
-			WIface="wlan$(echo "${d}" | \
-				sed -nre '/.*([[:digit:]]+)$/ s//\1/p')"
+			WIface="wlan$(iwinfo $d info | grep 'PHY name' | \
+                                sed -nre '/.*phy([[:digit:]])$/ s//\1/p')"
 			break
 		fi
 	done
