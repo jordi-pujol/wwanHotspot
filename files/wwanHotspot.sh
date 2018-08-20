@@ -195,10 +195,10 @@ LoadConfig() {
 			fi
 		done
 	done
-	_applog "Detected STA in wifi-iface ${WIfaceSTA}."
+	_applog "Detected STA in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
-		_applog "Detected AP in wifi-iface ${WIfaceAP}." || \
-		_applog "Non standard AP+STA configuration."
+		_applog "Detected AP in wifi-iface ${WIfaceAP}" || \
+		_applog "Non standard AP+STA configuration"
 
 	CfgSsids=""
 	CfgSsidsCnt=0
