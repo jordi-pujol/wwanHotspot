@@ -52,13 +52,17 @@ _ps_children() {
 
 IsWifiActive() {
 	local ssid="${1}" iface="${2:-"${WIface}"}" ssid1
-	ssid1="$(iwinfo | \
+	ssid1="$(iwinfo "${iface}" info | \
 	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| {s||\1|p;q0}; ${q1}')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
 
 WatchWifi() {
 	local c="${1:-10}" iface ApSsid ApDisabled
+	if [ -z "${WIfaceAP}" ]; then
+		sleep ${c}
+		return 0
+	fi
 	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ] && \
 		iface="${WIface}" || \
 		iface="${WIface}-1"
@@ -161,32 +165,40 @@ LoadConfig() {
 	fi
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
-	local i=-1 m d
-	while [ $((i++)) ]; do
-		if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
-			_log "Invalid AP+STA configuration."
-			exit 1
-		fi
-		if [ "${m}" = "sta" ]; then
-			WIfaceSTA=${i}
-			d="$(uci -q get wireless.@wifi-iface[${i}].device)"
-			WIface="wlan$(iwinfo $d info | grep 'PHY name' | \
-                                sed -nre '/.*phy([[:digit:]])$/ s//\1/p')"
-			break
-		fi
+	local i=-1 j m d
+	WIfaceAP=""
+	WIfaceSTA=""
+	while [ -z "${WIfaceAP}" ]; do
+		while [ $((i++)) ]; do
+			if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
+				[ -z "${WIfaceSTA}" ] || \
+					break 2
+				_log "Invalid AP+STA configuration. Exiting"
+				exit 1
+			fi
+			if [ "${m}" = "sta" ]; then
+				WIfaceSTA=${i}
+				d="$(uci -q get wireless.@wifi-iface[${i}].device)"
+				WIface="wlan$(iwinfo "${d}" info | \
+					sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
+				break
+			fi
+		done
+		j=-1
+		while [ $((j++)) ]; do
+			m="$(uci -q get wireless.@wifi-iface[${j}].mode)" || \
+				break
+			if [ "${m}" = "ap" ] && \
+			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${d}" ]; then
+				WIfaceAP=${j}
+				break
+			fi
+		done
 	done
-	i=-1
-	while [ $((i++)) ]; do
-		if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
-			_log "Invalid AP+STA configuration."
-			exit 1
-		fi
-		if [ "${m}" = "ap" ] && \
-		[ "$(uci -q get wireless.@wifi-iface[${i}].device)" = "${d}" ]; then
-			WIfaceAP=${i}
-			break
-		fi
-	done
+	_applog "Detected STA in wifi-iface ${WIfaceSTA}."
+	[ -n "${WIfaceAP}" ] && \
+		_applog "Detected AP in wifi-iface ${WIfaceAP}." || \
+		_applog "Non standard AP+STA configuration."
 
 	CfgSsids=""
 	CfgSsidsCnt=0
@@ -205,7 +217,7 @@ LoadConfig() {
 	if [ ${CfgSsidsCnt} -eq 0 ]; then
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -z "${WwanSsid}" ]; then
-			_log "Invalid configuration. No Hotspots specified."
+			_log "Invalid configuration. No Hotspots specified. Exiting"
 			exit 1
 		fi
 		CfgSsids="${WwanSsid}"
