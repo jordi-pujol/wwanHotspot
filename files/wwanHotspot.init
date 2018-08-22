@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.18 $
+#  $Revision: 1.19 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -41,6 +41,19 @@ _ps_children() {
 	done
 }
 
+_wwan_network() {
+	local i=-1 m
+	while [ $((i++)) ] && \
+	m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; do
+		[ "${m}" = "sta" ] || \
+			continue
+		uci -q get wireless.@wifi-iface[${i}].network
+		return 0
+	done
+	echo "Error: Can't find the STA interface" >&2
+	return 1
+}
+
 service_running() {
 	local pid
 
@@ -51,8 +64,10 @@ service_running() {
 
 start_service() {
 	service_running > /dev/null && \
-		echo "Warning: Daemon is already running." >&2 || \
+		echo "Warning: Daemon is already running" >&2 || \
 		echo "Info: Starting Daemon..." >&2
+	_wwan_network > /dev/null || \
+		return 1
 	procd_open_instance
 	procd_set_param command "${PROG}" "start"
 	procd_set_param pidfile "${PIDFILE}"
@@ -63,7 +78,7 @@ stop_service() {
 	local pid
 
 	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running." >&2
+		echo "Error: Daemon is not running" >&2
 		return 1
 	fi
 	echo "Info: Stopping Daemon..." >&2
@@ -80,7 +95,7 @@ stop_service() {
 }
 
 service_triggers() {
-	local ifaces="wan $(uci -q get wireless.@wifi-iface[1].network)"
+	local ifaces="wan $(_wwan_network)"
 	local n
 
 	procd_open_trigger
@@ -95,10 +110,10 @@ reload_service() {
 	local pid
 
 	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running." >&2
+		echo "Error: Daemon is not running" >&2
 		return 1
 	fi
-	echo "Info: Reloading Daemon config." >&2
+	echo "Info: Reloading Daemon config" >&2
 	#procd_send_signal "${NAME}"
 	kill -HUP $pid || :
 }
@@ -107,10 +122,10 @@ scan() {
 	local pid
 
 	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running." >&2
+		echo "Error: Daemon is not running" >&2
 		return 1
 	fi
-	echo "Info: Requesting an scan to daemon." >&2
+	echo "Info: Requesting an scan to daemon" >&2
 	#procd_send_signal "${NAME}" "*" "USR1"
 	kill -USR1 $pid || :
 }
@@ -119,9 +134,9 @@ status() {
 	local pid
 
 	if ! pid="$(service_running)"; then
-		echo "Daemon is not running." >&2
+		echo "Daemon is not running" >&2
 		return 1
 	fi
-	echo "Daemon is running in process ${pid}." >&2
+	echo "Daemon is running in process ${pid}" >&2
 	kill -USR2 $pid || :
 }
