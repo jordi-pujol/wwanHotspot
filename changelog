@@ -1,7 +1,7 @@
 wwanHotspot v1.19
 
   * files/wwanHotspot.sh:
-    - check duplicate SSIDs in hotspot's configuration
+    - check that there aren't duplicate SSIDs in hotspot's configuration
   * files/wwanHotspot.init:
     - detect the STA wifi interface and set the corresponding wwan trigger
     - don't start daemon if the STA wifi interface is not configured
