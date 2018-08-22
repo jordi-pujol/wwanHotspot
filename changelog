@@ -1,3 +1,13 @@
+wwanHotspot v1.19
+
+  * files/wwanHotspot.sh:
+    - check duplicate SSIDs in hotspot's configuration
+  * files/wwanHotspot.init:
+    - detect the STA wifi interface and set the corresponding wwan trigger
+    - don't start daemon if the STA wifi interface is not configured
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 22 Aug 2018 08:16:22 +0200
+
 wwanHotspot v1.18
 
   * auto-detect which wifi interfaces are acting as STA or AP.
