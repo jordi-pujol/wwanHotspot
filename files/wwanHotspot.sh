@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.18 $
+#  $Revision: 1.19 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -52,7 +52,7 @@ _ps_children() {
 
 IsWifiActive() {
 	local ssid="${1}" iface="${2:-"${WIface}"}" ssid1
-	ssid1="$(iwinfo "${iface}" info | \
+	ssid1="$(iwinfo "${iface}" info 2> /dev/null | \
 	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| {s||\1|p;q0}; ${q1}')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
@@ -185,9 +185,8 @@ LoadConfig() {
 			fi
 		done
 		j=-1
-		while [ $((j++)) ]; do
-			m="$(uci -q get wireless.@wifi-iface[${j}].mode)" || \
-				break
+		while [ $((j++)) ] && \
+		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
 			if [ "${m}" = "ap" ] && \
 			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${d}" ]; then
 				WIfaceAP=${j}
@@ -223,6 +222,10 @@ LoadConfig() {
 		CfgSsids="${WwanSsid}"
 		net1_ssid="${WwanSsid}"
 		CfgSsidsCnt=1
+	fi
+	if [ -n "$(echo "${CfgSsids}" | sort | uniq -d)" ]; then
+		_log "Invalid configuration. Duplicate Hotspot's SSIDs. Exiting"
+		exit 1
 	fi
 
 	NetworkRestarted=0
