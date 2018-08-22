@@ -4,7 +4,7 @@ wwanHotspot v1.19
     - check that there aren't duplicate SSIDs in hotspot's configuration
   * files/wwanHotspot.init:
     - detect the STA wifi interface and set the corresponding wwan trigger
-    - don't start daemon if the STA wifi interface is not configured
+    - don't start daemon if the STA wifi interface can't be detected
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 22 Aug 2018 08:16:22 +0200
 
