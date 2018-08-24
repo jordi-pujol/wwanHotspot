@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.19 $
+#  $Revision: 1.20 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -35,11 +35,21 @@ _log() {
 _sleep() {
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ${Interval} seconds"
-	sleep ${Interval} > /dev/null 2>&1 &
+	sleep ${Interval1:-${Interval}} > /dev/null 2>&1 &
 	wait $((PidSleep=${!})) || :
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ended"
 	PidSleep=""
+	Interval1=""
+}
+
+# spare function, for future use
+_sleep2() {
+	local rc=0
+	sleep ${1} > /dev/null 2>&1 &
+	wait $((PidSleep2=${!})) || rc=1
+	PidSleep2=""
+	return ${rc}
 }
 
 _ps_children() {
@@ -78,12 +88,15 @@ WatchWifi() {
 }
 
 ScanRequested() {
-	[ -n "${PidSleep}" ] || \
-		return 0
-	_log "Scan requested."
-	WwanErr=0
-	ScanRequest=${CfgSsidsCnt}
-	kill -TERM "${PidSleep}" || :
+	_applog "Scan requested."
+	if [ -n "${PidSleep}" ]; then
+		WwanErr=0
+		ScanRequest=${CfgSsidsCnt}
+		kill -TERM "${PidSleep}" || :
+	elif [ -n "${PidSleep2}" ]; then
+		kill -TERM "${PidSleep2}" || :
+		Interval1=1
+	fi
 }
 
 _exit() {
@@ -290,7 +303,7 @@ _ping() {
 }
 
 CheckConnectivity() {
-	local delay=20 check CheckAddr
+	local delay=20 check CheckAddr rc
 	Interval=${SleepScanAuto}
 	eval check=\"\${net${ConnectingTo}_check:-}\" && \
 	[ -n "${check}" ] || \
@@ -308,8 +321,14 @@ CheckConnectivity() {
 				continue
 		fi
 		Interval=${Sleep}
+		rc=0
 		_ping &
-		wait "${!}" || \
+		wait $((PidSleep2=${!})) || \
+			rc="${?}"
+		PidSleep2=""
+		[ ${rc} -le 127 ] || \
+			return 0
+		[ ${rc} -eq 0 ] || \
 			break
 		if [ "${Status}" = 2 ]; then
 			_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
@@ -332,7 +351,7 @@ CheckConnectivity() {
 			"on ${ConnectingTo}:'${WwanSsid}'"
 		Status=1
 		ScanRequest=1
-		ListStat "${NetworkAttempts} connectivity failures " \
+		ListStat "${NetworkAttempts} connectivity failures" \
 			"on ${ConnectingTo}:'${WwanSsid}'" &
 		ConnectingTo=0
 	fi
@@ -378,10 +397,8 @@ DoScan() {
 			if [ -z "${blacklisted}" ]; then
 				echo "${i}"
 				return 0
-			else
-				[ -z "${Debug}" ] || \
-					_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
 			fi
+			_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
 		fi
 		[ $((i++)) -lt ${CfgSsidsCnt} ] || \
 			i=1
@@ -406,10 +423,10 @@ WwanDisable() {
 WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
-	local ScanRequest WwanErr Status=0 Interval=1
+	local ScanRequest WwanErr Status=0 Interval=1 Interval1=""
 	local ConnectingTo=0 ConnAttempts=1 NetworkAttempts
 	local PidDaemon="${$}"
-	local PidSleep=""
+	local PidSleep="" PidSleep2=""
 	local NetworkRestarted=0
 	local WIface WIfaceAP WIfaceSTA
 
