@@ -1,3 +1,11 @@
+wwanHotspot v1.20
+
+  * files/wwanHotspot.sh:
+    - quick response when a connection is lost while a ping command
+      is executed
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 23 Aug 2018 15:22:37 +0200
+
 wwanHotspot v1.19
 
   * files/wwanHotspot.sh:
