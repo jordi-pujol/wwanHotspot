@@ -1,5 +1,9 @@
 wwanHotspot v1.20
 
+  * LogRotate
+    keep old logs in /var/log instead of deleting them.
+    LogRotate is the maximum number of log files to keep.
+    Set LogRotate to 0 to overwrite and not backup log files.
   * files/wwanHotspot.sh:
     - quick response when a connection is lost while a ping command
       is executed
