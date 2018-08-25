@@ -22,8 +22,12 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
+_datetime() {
+	date +'%Y-%m-%d %H:%M:%S'
+}
+
 _applog() {
-	printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" \
+	printf '%s %s\n' "$(_datetime)" \
 		"$(echo "${@}")" >> "/var/log/${NAME}"
 }
 
@@ -33,23 +37,17 @@ _log() {
 }
 
 _sleep() {
+	if [ -n "${NoSleep}" ]; then
+		NoSleep=""
+		return 0
+	fi
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ${Interval} seconds"
-	sleep ${Interval1:-${Interval}} > /dev/null 2>&1 &
+	sleep ${Interval} > /dev/null 2>&1 &
 	wait $((PidSleep=${!})) || :
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ended"
 	PidSleep=""
-	Interval1=""
-}
-
-# spare function, for future use
-_sleep2() {
-	local rc=0
-	sleep ${1} > /dev/null 2>&1 &
-	wait $((PidSleep2=${!})) || rc=1
-	PidSleep2=""
-	return ${rc}
 }
 
 _ps_children() {
@@ -58,6 +56,10 @@ _ps_children() {
 		echo "${p}"
 		_ps_children "${p}"
 	done
+}
+
+HotspotBlackList(){
+	eval net${1}_blacklisted=\"${2} $(_datetime)\" || :
 }
 
 IsWifiActive() {
@@ -93,9 +95,9 @@ ScanRequested() {
 		WwanErr=0
 		ScanRequest=${CfgSsidsCnt}
 		kill -TERM "${PidSleep}" || :
-	elif [ -n "${PidSleep2}" ]; then
-		kill -TERM "${PidSleep2}" || :
-		Interval1=1
+	elif [ -n "${PidPing}" ]; then
+		NoSleep="y"
+		kill -TERM "${PidPing}" || :
 	fi
 }
 
@@ -110,7 +112,7 @@ _exit() {
 
 ListStat() {
 	exec > "/var/log/${NAME}.stat"
-	echo "${NAME}" "$(date +'%Y-%m-%d %H:%M:%S')" "status:"
+	echo "${NAME} $(_datetime) status:"
 	[ ${#} -le 0 ] || \
 		echo "${@}"
 	echo
@@ -207,6 +209,7 @@ LoadConfig() {
 			fi
 		done
 	done
+	_applog "STA network interface is ${WIface}"
 	_applog "Detected STA config in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
 		_applog "Detected AP config in wifi-iface ${WIfaceAP}" || \
@@ -323,9 +326,9 @@ CheckConnectivity() {
 		Interval=${Sleep}
 		rc=0
 		_ping &
-		wait $((PidSleep2=${!})) || \
+		wait $((PidPing=${!})) || \
 			rc="${?}"
-		PidSleep2=""
+		PidPing=""
 		[ ${rc} -le 127 ] || \
 			return 0
 		[ ${rc} -eq 0 ] || \
@@ -344,7 +347,7 @@ CheckConnectivity() {
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackListNetwork} -gt 0 ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
-		eval net${ConnectingTo}_blacklisted=\"network\" || :
+		HotspotBlackList ${ConnectingTo} "network"
 		_log "Blacklisting hotspot ${ConnectingTo}:'${WwanSsid}'"
 		WwanDisable
 		_log "Reason: ${NetworkAttempts} connectivity failures" \
@@ -423,10 +426,10 @@ WwanDisable() {
 WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
-	local ScanRequest WwanErr Status=0 Interval=1 Interval1=""
+	local ScanRequest WwanErr Status=0 Interval NoSleep
 	local ConnectingTo=0 ConnAttempts=1 NetworkAttempts
 	local PidDaemon="${$}"
-	local PidSleep="" PidSleep2=""
+	local PidSleep="" PidPing=""
 	local NetworkRestarted=0
 	local WIface WIfaceAP WIfaceSTA
 
@@ -435,6 +438,8 @@ WifiStatus() {
 	rm -f "/var/log/${NAME}" \
 		"/var/log/${NAME}.xtrace"
 	LoadConfig || exit 1
+	NoSleep="y"
+	Interval=${Sleep}
 
 	trap 'LoadConfig' HUP
 	trap 'ScanRequested' USR1
@@ -479,7 +484,7 @@ WifiStatus() {
 					if [ ${ConnectingTo} -gt 0 ] && \
 					[ ${BlackList} -gt 0 ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
-						eval net${ConnectingTo}_blacklisted=\"connect\" || :
+						HotspotBlackList ${ConnectingTo} "connect"
 						_log "Blacklisting hotspot ${ConnectingTo}:'${WwanSsid}'"
 						ListStat "${ConnAttempts} unsuccessful connection" \
 							"to ${ConnectingTo}:'${WwanSsid}'" &
