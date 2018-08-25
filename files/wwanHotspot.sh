@@ -27,8 +27,7 @@ _datetime() {
 }
 
 _applog() {
-	printf '%s %s\n' "$(_datetime)" \
-		"$(echo "${@}")" >> "/var/log/${NAME}"
+	printf '%s\n' "$(_datetime) $(echo "${@}")" >> "/var/log/${NAME}"
 }
 
 _log() {
@@ -96,9 +95,10 @@ ScanRequested() {
 		WwanErr=0
 		ScanRequest=${CfgSsidsCnt}
 		kill -TERM "${PidSleep}" || :
-	elif [ -n "${PidPing}" ]; then
+	else
 		NoSleep="y"
-		kill -TERM "${PidPing}" || :
+		[ -z "${PidPing}" ] || \
+			kill -TERM "${PidPing}" || :
 	fi
 }
 
@@ -124,6 +124,7 @@ ListStat() {
 	echo "BlackList=\"${BlackList}\""
 	echo "BlackListNetwork=\"${BlackListNetwork}\""
 	echo "PingWait=\"${PingWait}\""
+	echo "LogRotate=\"${LogRotate}\""
 	echo
 	local i=0
 	while [ $((i++)) -lt ${CfgSsidsCnt} ]; do
@@ -147,6 +148,14 @@ ListStatus() {
 	ScanRequested
 }
 
+BackupRotate() {
+	local f="${1}"
+	[ -f "${f}" ] || \
+		return 0
+	mv -f "${f}" "${f}_$(date +'%s')"
+	rm -f $(ls -1 "${f}_"* | head -qn -${LogRotate}) 2> /dev/null || :
+}
+
 LoadConfig() {
 	_log "Loading configuration."
 
@@ -158,6 +167,7 @@ LoadConfig() {
 	BlackList=3
 	BlackListNetwork=3
 	PingWait=5
+	LogRotate=3
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]+_" {print $1}') 2> /dev/null || :
 
@@ -171,6 +181,15 @@ LoadConfig() {
 	BlackList="${BlackList:-"3"}"
 	BlackListNetwork="${BlackListNetwork:-3}"
 	PingWait="${PingWait:-5}"
+	LogRotate="${LogRotate:-0}"
+
+	if [ ${LogRotate} -gt 0 ]; then
+		BackupRotate "/var/log/${NAME}"
+		BackupRotate "/var/log/${NAME}.xtrace"
+	else
+		rm -f "/var/log/${NAME}" \
+			"/var/log/${NAME}.xtrace"
+	fi
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
@@ -435,8 +454,6 @@ WifiStatus() {
 
 	trap '_exit' EXIT
 
-	rm -f "/var/log/${NAME}" \
-		"/var/log/${NAME}.xtrace"
 	LoadConfig || exit 1
 	NoSleep="y"
 	Interval=${Sleep}
