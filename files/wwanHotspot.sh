@@ -60,6 +60,7 @@ _ps_children() {
 
 HotspotBlackList(){
 	eval net${1}_blacklisted=\"${2} $(_datetime)\" || :
+	_log "Blacklisting hotspot ${1}:'${WwanSsid}'"
 }
 
 IsWifiActive() {
@@ -348,7 +349,6 @@ CheckConnectivity() {
 	[ ${BlackListNetwork} -gt 0 ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList ${ConnectingTo} "network"
-		_log "Blacklisting hotspot ${ConnectingTo}:'${WwanSsid}'"
 		WwanDisable
 		_log "Reason: ${NetworkAttempts} connectivity failures" \
 			"on ${ConnectingTo}:'${WwanSsid}'"
@@ -485,7 +485,6 @@ WifiStatus() {
 					[ ${BlackList} -gt 0 ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
 						HotspotBlackList ${ConnectingTo} "connect"
-						_log "Blacklisting hotspot ${ConnectingTo}:'${WwanSsid}'"
 						ListStat "${ConnAttempts} unsuccessful connection" \
 							"to ${ConnectingTo}:'${WwanSsid}'" &
 					fi
