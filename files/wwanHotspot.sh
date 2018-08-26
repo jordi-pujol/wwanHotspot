@@ -187,8 +187,7 @@ LoadConfig() {
 		BackupRotate "/var/log/${NAME}"
 		BackupRotate "/var/log/${NAME}.xtrace"
 	else
-		rm -f "/var/log/${NAME}" \
-			"/var/log/${NAME}.xtrace"
+		rm -f "/var/log/${NAME}"*
 	fi
 
 	if [ "${Debug}" = "xtrace" ]; then
@@ -576,8 +575,7 @@ WifiStatus() {
 			fi
 			if [ "${WwanDisabled}" != 1 ]; then
 				Interval=${Sleep}
-			elif [ ${ScanRequest} -gt 0 ] && \
-			[ -n "${ScanAuto}" ] && \
+			elif [ -n "${ScanAuto}" ] && \
 			! IsWanConnected; then
 				Interval=$((${Sleep}*3))
 			else
