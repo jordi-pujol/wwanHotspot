@@ -22,6 +22,12 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
+_is_integer() {
+	local n="${1}"
+	2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
+		sed -nre '/^[[:digit:]]+$/p')"
+}
+
 _datetime() {
 	date +'%Y-%m-%d %H:%M:%S'
 }
@@ -166,7 +172,7 @@ LoadConfig() {
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
 	BlackListNetwork=3
-	PingWait=5
+	PingWait=7
 	LogRotate=3
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]+_" {print $1}') 2> /dev/null || :
@@ -176,12 +182,18 @@ LoadConfig() {
 
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
-	Sleep="${Sleep:-"20"}"
-	SleepScanAuto="${SleepScanAuto:-"$((${Sleep}*15))"}"
-	BlackList="${BlackList:-"3"}"
-	BlackListNetwork="${BlackListNetwork:-3}"
-	PingWait="${PingWait:-5}"
-	LogRotate="${LogRotate:-0}"
+	Sleep="$(_is_integer "${Sleep}")" || \
+		Sleep=20
+	SleepScanAuto="$(_is_integer "${SleepScanAuto}")" || \
+		SleepScanAuto=$((${Sleep}*15))
+	BlackList="$(_is_integer "${BlackList}")" || \
+		BlackList=3
+	BlackListNetwork="$(_is_integer "${BlackListNetwork}")" || \
+		BlackListNetwork=3
+	PingWait="$(_is_integer "${PingWait}")" || \
+		PingWait=7
+	LogRotate="$(_is_integer "${LogRotate}")" || \
+		LogRotate=3
 
 	if [ ${LogRotate} -gt 0 ]; then
 		BackupRotate "/var/log/${NAME}"
