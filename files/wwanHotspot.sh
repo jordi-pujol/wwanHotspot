@@ -22,10 +22,12 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
-_is_integer() {
-	local n="${1}"
-	2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
-		sed -nre '/^[[:digit:]]+$/p')"
+_integer_value() {
+	local n="${1}" d="${2}" v 
+	v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
+	sed -nre '/^[[:digit:]]+$/p;q')")" && \
+		echo ${v} || \
+		echo ${d}
 }
 
 _datetime() {
@@ -126,6 +128,7 @@ ListStat() {
 	echo "Debug=\"${Debug}\""
 	echo "ScanAuto=\"${ScanAuto}\""
 	echo "Sleep=\"${Sleep}\""
+	echo "SleepDsc=\"${SleepDsc}\""
 	echo "SleepScanAuto=\"${SleepScanAuto}\""
 	echo "BlackList=\"${BlackList}\""
 	echo "BlackListNetwork=\"${BlackListNetwork}\""
@@ -169,6 +172,7 @@ LoadConfig() {
 	Debug="y"
 	ScanAuto="y"
 	Sleep=20
+	SleepDsc="$((${Sleep}*3))"
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
 	BlackListNetwork=3
@@ -182,18 +186,13 @@ LoadConfig() {
 
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
-	Sleep="$(_is_integer "${Sleep}")" || \
-		Sleep=20
-	SleepScanAuto="$(_is_integer "${SleepScanAuto}")" || \
-		SleepScanAuto=$((${Sleep}*15))
-	BlackList="$(_is_integer "${BlackList}")" || \
-		BlackList=3
-	BlackListNetwork="$(_is_integer "${BlackListNetwork}")" || \
-		BlackListNetwork=3
-	PingWait="$(_is_integer "${PingWait}")" || \
-		PingWait=7
-	LogRotate="$(_is_integer "${LogRotate}")" || \
-		LogRotate=3
+	Sleep="$(_integer_value "${Sleep}" 20)"
+	SleepDsc="$(_integer_value "${SleepDsc}" $((${Sleep}*3)) )"
+	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((${Sleep}*15)) )"
+	BlackList="$(_integer_value "${BlackList}" 3)"
+	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
+	PingWait="$(_integer_value "${PingWait}" 7)"
+	LogRotate="$(_integer_value "${LogRotate}" 3)"
 
 	if [ ${LogRotate} -gt 0 ]; then
 		BackupRotate "/var/log/${NAME}"
@@ -589,7 +588,7 @@ WifiStatus() {
 				Interval=${Sleep}
 			elif [ -n "${ScanAuto}" ] && \
 			! IsWanConnected; then
-				Interval=$((${Sleep}*3))
+				Interval=${SleepDsc}
 			else
 				Interval=${SleepScanAuto}
 			fi
