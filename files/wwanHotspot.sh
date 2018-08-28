@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.20 $
+#  $Revision: 1.21 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -66,8 +66,14 @@ _ps_children() {
 }
 
 HotspotBlackList(){
-	eval net${1}_blacklisted=\"${2} $(_datetime)\" || :
-	_log "Blacklisting hotspot ${1}:'${WwanSsid}'"
+	local hotspot=${1} cause=${2} expires=${3}
+	eval net${hotspot}_blacklisted=\"${cause} $(_datetime)\" || :
+	if [ ${expires} -eq 0 ]; then
+		_log "Blacklisting hotspot ${hotspot}:'${WwanSsid}'"
+	else
+		eval net${hotspot}_blacklistexp=\"$((${expires}+$(date --utc +'%s')))\" || :
+		_log "Blacklisting hotspot ${hotspot}:'${WwanSsid}' for ${expires} seconds"
+	fi
 }
 
 IsWifiActive() {
@@ -131,7 +137,9 @@ ListStat() {
 	echo "SleepDsc=\"${SleepDsc}\""
 	echo "SleepScanAuto=\"${SleepScanAuto}\""
 	echo "BlackList=\"${BlackList}\""
+	echo "BlackListExpires=\"${BlackListExpires}\""
 	echo "BlackListNetwork=\"${BlackListNetwork}\""
+	echo "BlackListNetworkExpires=\"${BlackListNetworkExpires}\""
 	echo "PingWait=\"${PingWait}\""
 	echo "LogRotate=\"${LogRotate}\""
 	echo
@@ -158,11 +166,15 @@ ListStatus() {
 }
 
 BackupRotate() {
-	local f="${1}"
-	[ -f "${f}" ] || \
-		return 0
-	mv -f "${f}" "${f}_$(date +'%s')"
-	rm -f $(ls -1 "${f}_"* | head -qn -${LogRotate}) 2> /dev/null || :
+	local f="${1}" r=${LogRotate}
+	[ -f "${f}" ] && \
+		mv -f "${f}" "${f}_$(date --utc +'%s')" || \
+		r=0
+	printf '%s\n' "${f}_"* | \
+	head -qn -${r} | \
+	while IFS= read -r f; do
+		rm -f "${f}"
+	done
 }
 
 LoadConfig() {
@@ -175,7 +187,9 @@ LoadConfig() {
 	SleepDsc="$((${Sleep}*3))"
 	SleepScanAuto="$((${Sleep}*15))"
 	BlackList=3
+	BlackListExpires=0
 	BlackListNetwork=3
+	BlackListNetworkExpires=$((10*60))
 	PingWait=7
 	LogRotate=3
 	unset $(set | awk -F '=' \
@@ -190,16 +204,14 @@ LoadConfig() {
 	SleepDsc="$(_integer_value "${SleepDsc}" $((${Sleep}*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((${Sleep}*15)) )"
 	BlackList="$(_integer_value "${BlackList}" 3)"
+	BlackListExpires="$(_integer_value "${BlackListExpires}" 0)"
 	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
+	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
 	PingWait="$(_integer_value "${PingWait}" 7)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
 
-	if [ ${LogRotate} -gt 0 ]; then
-		BackupRotate "/var/log/${NAME}"
-		BackupRotate "/var/log/${NAME}.xtrace"
-	else
-		rm -f "/var/log/${NAME}"*
-	fi
+	BackupRotate "/var/log/${NAME}"
+	BackupRotate "/var/log/${NAME}.xtrace"
 
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
@@ -364,7 +376,8 @@ CheckConnectivity() {
 		[ ${rc} -eq 0 ] || \
 			break
 		if [ "${Status}" = 2 ]; then
-			_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
+			[ -z "${Debug}" ] || \
+				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
 				"to ${CheckAddr} has been verified"
 		else
 			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
@@ -377,8 +390,8 @@ CheckConnectivity() {
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackListNetwork} -gt 0 ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
-		HotspotBlackList ${ConnectingTo} "network"
 		WwanDisable
+		HotspotBlackList ${ConnectingTo} "network" "${BlackListNetworkExpires}"
 		_log "Reason: ${NetworkAttempts} connectivity failures" \
 			"on ${ConnectingTo}:'${WwanSsid}'"
 		Status=1
@@ -391,7 +404,7 @@ CheckConnectivity() {
 }
 
 DoScan() {
-	local ssid blacklisted hidden scanned found_hidden n i
+	local ssid blacklisted hidden scanned found_hidden n i blacklistexp
 
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
@@ -419,6 +432,13 @@ DoScan() {
 		eval ssid=\"\${net${i}_ssid:-}\" && \
 		[ -n "${ssid}" ] || \
 			break
+
+		eval blacklistexp=\"\${net${i}_blacklistexp:-}\" || :
+		if [ -n "${blacklistexp}" ] && \
+		[ $(date --utc +'%s') -ge ${blacklistexp} ]; then
+			unset net${i}_blacklisted net${i}_blacklistexp || :
+			_log "Blacklisting has expired for hotspot ${i}:'${ssid}'"
+		fi
 
 		eval hidden=\"\${net${i}_hidden:-}\" || :
 		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
@@ -482,6 +502,7 @@ WifiStatus() {
 				ConnectingTo="$(ActiveSsidNbr)"
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
+				CheckConnectivity
 				Status=2
 				ScanRequest=0
 				NetworkAttempts=1
@@ -490,8 +511,8 @@ WifiStatus() {
 				[ -z "${Debug}" ] || \
 					_applog "Hotspot is already connected to" \
 						"${ConnectingTo}:'${WwanSsid}'"
+				CheckConnectivity
 			fi
-			CheckConnectivity
 			continue
 		fi
 		if [ ${NetworkRestarted} -gt 0 ]; then
@@ -511,7 +532,7 @@ WifiStatus() {
 					if [ ${ConnectingTo} -gt 0 ] && \
 					[ ${BlackList} -gt 0 ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
-						HotspotBlackList ${ConnectingTo} "connect"
+						HotspotBlackList ${ConnectingTo} "connect" "${BlackListExpires}"
 						ListStat "${ConnAttempts} unsuccessful connection" \
 							"to ${ConnectingTo}:'${WwanSsid}'" &
 					fi
