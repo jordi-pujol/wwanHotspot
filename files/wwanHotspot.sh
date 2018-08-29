@@ -44,6 +44,10 @@ _log() {
 }
 
 _sleep() {
+	if [ -n "${StatMsgs}" ]; then
+		ListStat &
+		StatMsgs=""
+	fi
 	if [ -n "${NoSleep}" ]; then
 		NoSleep=""
 		return 0
@@ -55,6 +59,10 @@ _sleep() {
 	[ -z "${Debug}" ] || \
 		_applog "sleeping ended"
 	PidSleep=""
+}
+
+AddStatMsg() {
+	StatMsgs="${StatMsgs:+"${StatMsgs}"$'\n'}$(_datetime) $(echo "${@}")"
 }
 
 _ps_children() {
@@ -127,21 +135,20 @@ _exit() {
 
 ListStat() {
 	exec > "/var/log/${NAME}.stat"
-	echo "${NAME} $(_datetime) status:"
-	[ ${#} -le 0 ] || \
-		echo "${@}"
+	echo "${NAME} status:"
+	echo "${StatMsgs}"
 	echo
 	echo "Debug=\"${Debug}\""
 	echo "ScanAuto=\"${ScanAuto}\""
-	echo "Sleep=\"${Sleep}\""
-	echo "SleepDsc=\"${SleepDsc}\""
-	echo "SleepScanAuto=\"${SleepScanAuto}\""
-	echo "BlackList=\"${BlackList}\""
-	echo "BlackListExpires=\"${BlackListExpires}\""
-	echo "BlackListNetwork=\"${BlackListNetwork}\""
-	echo "BlackListNetworkExpires=\"${BlackListNetworkExpires}\""
-	echo "PingWait=\"${PingWait}\""
-	echo "LogRotate=\"${LogRotate}\""
+	echo "Sleep=${Sleep}"
+	echo "SleepDsc=${SleepDsc}"
+	echo "SleepScanAuto=${SleepScanAuto}"
+	echo "BlackList=${BlackList}"
+	echo "BlackListExpires=${BlackListExpires}"
+	echo "BlackListNetwork=${BlackListNetwork}"
+	echo "BlackListNetworkExpires=${BlackListNetworkExpires}"
+	echo "PingWait=${PingWait}"
+	echo "LogRotate=${LogRotate}"
 	echo
 	local i=0
 	while [ $((i++)) -lt ${CfgSsidsCnt} ]; do
@@ -159,8 +166,6 @@ ListStat() {
 }
 
 ListStatus() {
-	ListStat &
-	wait "${!}" || :
 	Status=0
 	ScanRequested
 }
@@ -475,7 +480,7 @@ WwanDisable() {
 WifiStatus() {
 	# internal variables, daemon scope
 	local CfgSsids CfgSsidsCnt n IfaceWan WwanSsid WwanDisabled
-	local ScanRequest WwanErr Status=0 Interval NoSleep
+	local ScanRequest WwanErr Status=0 StatMsgs="" Interval NoSleep
 	local ConnectingTo=0 ConnAttempts=1 NetworkAttempts
 	local PidDaemon="${$}"
 	local PidSleep="" PidPing=""
@@ -503,11 +508,11 @@ WifiStatus() {
 				ConnectingTo="$(ActiveSsidNbr)"
 			if [ ${Status} -ne 2 ]; then
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
+				AddStatMsg "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				NetworkAttempts=1
 				CheckConnectivity
 				Status=2
 				ScanRequest=0
-				ListStat "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'" &
 			else
 				[ -z "${Debug}" ] || \
 					_applog "Hotspot is already connected to" \
@@ -525,17 +530,17 @@ WifiStatus() {
 			if [ ${Status} -ne 1 ]; then
 				if [ ${Status} -eq 2 ]; then
 					_log "Reason: Lost connection ${ConnectingTo}:'${WwanSsid}'"
-					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
+					AddStatMsg "Lost connection ${ConnectingTo}:'${WwanSsid}'"
 					ConnectingTo=0
 				else
 					_log "Reason: ${ConnAttempts} unsuccessful connection" \
+						"to ${ConnectingTo}:'${WwanSsid}'"
+					AddStatMsg "${ConnAttempts} unsuccessful connection" \
 						"to ${ConnectingTo}:'${WwanSsid}'"
 					if [ ${ConnectingTo} -gt 0 ] && \
 					[ ${BlackList} -gt 0 ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
 						HotspotBlackList ${ConnectingTo} "connect" "${BlackListExpires}"
-						ListStat "${ConnAttempts} unsuccessful connection" \
-							"to ${ConnectingTo}:'${WwanSsid}'" &
 					fi
 					[ $((ConnAttempts++)) ]
 				fi
@@ -573,9 +578,9 @@ WifiStatus() {
 				sleep 1
 				/etc/init.d/network restart
 				NetworkRestarted=2
-				WatchWifi 20 &
 				_log "Connecting to ${ConnectingTo}:'${WwanSsid}'..."
-				ListStat "Connecting to ${ConnectingTo}:'${WwanSsid}'..." &
+				AddStatMsg "Connecting to ${ConnectingTo}:'${WwanSsid}'..."
+				WatchWifi 20 &
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
@@ -583,9 +588,9 @@ WifiStatus() {
 				wifi up
 				_log "Enabling Hotspot client interface to" \
 					"${ConnectingTo}:'${WwanSsid}'..."
+				AddStatMsg "Enabling Hotspot client interface to" \
+					"${ConnectingTo}:'${WwanSsid}'..."
 				WatchWifi &
-				ListStat "Enabling Hotspot client interface to" \
-					"${ConnectingTo}:'${WwanSsid}'..." &
 			else
 				_applog "Hotspot client interface to" \
 					"${ConnectingTo}:'${WwanSsid}' is already enabled"
@@ -596,6 +601,8 @@ WifiStatus() {
 				ScanRequest=0
 				_log "Error: can't connect to Hotspots," \
 					"probably configuration is not correct"
+				AddStatMsg "Error: can't connect to Hotspots," \
+					"probably configuration is not correct"
 			else
 				Interval=${Sleep}
 			fi
@@ -603,8 +610,8 @@ WifiStatus() {
 			WwanErr=0
 			if [ ${Status} -ne 4 ]; then
 				_log "A Hotspot is not available"
+				AddStatMsg "A Hotspot is not available"
 				Status=4
-				ListStat "A Hotspot is not available" &
 			fi
 			if [ "${WwanDisabled}" != 1 ]; then
 				Interval=${Sleep}
