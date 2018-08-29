@@ -4,6 +4,8 @@ wwanHotspot v1.21
     A hotspot's blacklist expires after a time lapsus specified by these
     configuration settings.
   * Store dates using seconds from UTC Epoch.
+  * wwanHotspot.sh
+    Reset NetworkAttempts to 1 when CheckConnectivity() is successful.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 27 Aug 2018 20:03:03 +0200
 
