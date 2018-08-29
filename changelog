@@ -1,5 +1,9 @@
 wwanHotspot v1.21
 
+  * Better daemon performance:
+    - submit a subprocess for asynchronous tasks: WatchWifi()
+    - wait for subprocesses to finish before running a new iteration
+    - NoSleep after having disabled WWAN
   * BlackListExpires and BlackListNetworkExpires
     A hotspot's blacklist expires after a time lapsus specified by these
     configuration settings.
