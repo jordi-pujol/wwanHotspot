@@ -9,7 +9,8 @@ wwanHotspot v1.21
     configuration settings.
   * Store dates using seconds from UTC Epoch.
   * wwanHotspot.sh
-    Reset NetworkAttempts to 1 when CheckConnectivity() is successful.
+    - Reset NetworkAttempts to 1 when CheckConnectivity() is successful.
+    - Store status messages and call ListStat() at every iteration.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 27 Aug 2018 20:03:03 +0200
 
