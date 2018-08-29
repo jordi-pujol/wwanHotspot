@@ -66,7 +66,7 @@ _ps_children() {
 }
 
 HotspotBlackList(){
-	local hotspot=${1} cause=${2} expires=${3}
+	local hotspot="${1}" cause="${2}" expires="${3}"
 	eval net${hotspot}_blacklisted=\"${cause} $(_datetime)\" || :
 	if [ ${expires} -eq 0 ]; then
 		_log "Blacklisting hotspot ${hotspot}:'${WwanSsid}'"
@@ -342,7 +342,7 @@ ActiveSsidNbr() {
 }
 
 _ping() {
-	[ -n "${Debug}" ] || \
+	[ "${Debug}" = "xtrace" ] || \
 		exec > /dev/null 2>&1
 	ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
 }
@@ -376,6 +376,7 @@ CheckConnectivity() {
 		[ ${rc} -eq 0 ] || \
 			break
 		if [ "${Status}" = 2 ]; then
+			[ ${NetworkAttempts} -eq 1 ] && \
 			[ -z "${Debug}" ] || \
 				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
 				"to ${CheckAddr} has been verified"
@@ -383,6 +384,7 @@ CheckConnectivity() {
 			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
 				"to ${CheckAddr} has been verified"
 		fi
+		NetworkAttempts=1
 		return 0
 	done
 	_log "Error: ${NetworkAttempts} connectivity failures" \
@@ -502,10 +504,10 @@ WifiStatus() {
 				ConnectingTo="$(ActiveSsidNbr)"
 			if [ ${Status} != 2 ]; then
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
+				NetworkAttempts=1
 				CheckConnectivity
 				Status=2
 				ScanRequest=0
-				NetworkAttempts=1
 				ListStat "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'" &
 			else
 				[ -z "${Debug}" ] || \
