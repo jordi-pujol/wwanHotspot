@@ -104,7 +104,7 @@ WatchWifi() {
 }
 
 ScanRequested() {
-	_applog "Scan requested."
+	_applog "Scan requested"
 	if [ -n "${PidSleep}" ]; then
 		WwanErr=0
 		ScanRequest=${CfgSsidsCnt}
@@ -118,7 +118,7 @@ ScanRequested() {
 
 _exit() {
 	trap - EXIT HUP USR1 USR2
-	_log "Exiting."
+	_log "Exiting"
 	pids="$(_ps_children "${PidDaemon}")"
 	[ -z "${pids}" ] || \
 		kill -TERM ${pids} > /dev/null 2>&1 &
@@ -152,8 +152,8 @@ ListStat() {
 		echo "Hotspot client is not enabled."$'\n'
 	iwinfo
 	IsWanConnected && \
-		echo "WAN interface is connected." || \
-		echo "WAN interface is disconnected."
+		echo "WAN interface is connected" || \
+		echo "WAN interface is disconnected"
 	echo
 	ip route show
 }
@@ -178,7 +178,7 @@ BackupRotate() {
 }
 
 LoadConfig() {
-	_log "Loading configuration."
+	_log "Loading configuration"
 
 	# config variables, default values
 	Debug="y"
@@ -325,7 +325,7 @@ Scanning() {
 		[ ${i} -le 1 ] && \
 		echo "${err}" | grep -qse 'command failed: Network is down' || \
 			continue
-		_log "Error: Can't scan wifi, restarting the network."
+		_log "Error: Can't scan wifi, restarting the network"
 		/etc/init.d/network restart
 		sleep 20
 		WatchWifi
@@ -375,20 +375,19 @@ CheckConnectivity() {
 			return 0
 		[ ${rc} -eq 0 ] || \
 			break
-		if [ "${Status}" = 2 ]; then
-			[ ${NetworkAttempts} -eq 1 ] && \
+		if [ ${Status} -eq 2 -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
 				"to ${CheckAddr} has been verified"
 		else
+			NetworkAttempts=1
 			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
 				"to ${CheckAddr} has been verified"
 		fi
-		NetworkAttempts=1
 		return 0
 	done
-	_log "Error: ${NetworkAttempts} connectivity failures" \
-		"on ${ConnectingTo}:'${WwanSsid}'."
+	_log "Warning: ${NetworkAttempts} connectivity failures" \
+		"on ${ConnectingTo}:'${WwanSsid}'"
 	if [ ${ConnectingTo} -gt 0 ] && \
 	[ ${BlackListNetwork} -gt 0 ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
@@ -398,8 +397,6 @@ CheckConnectivity() {
 			"on ${ConnectingTo}:'${WwanSsid}'"
 		Status=1
 		ScanRequest=1
-		ListStat "${NetworkAttempts} connectivity failures" \
-			"on ${ConnectingTo}:'${WwanSsid}'" &
 		ConnectingTo=0
 	fi
 	[ $((NetworkAttempts++)) ]
@@ -460,7 +457,7 @@ DoScan() {
 			break
 	done
 	[ -z "${Debug}" ] || \
-		_applog "DoScan: No Hotspots available."
+		_applog "DoScan: No Hotspots available"
 	return 1
 }
 
@@ -471,7 +468,8 @@ WwanDisable() {
 	uci commit wireless
 	wifi down
 	wifi up
-	WatchWifi
+	WatchWifi &
+	NoSleep="y"
 }
 
 WifiStatus() {
@@ -495,6 +493,7 @@ WifiStatus() {
 	trap 'ListStatus' USR2
 
 	while _sleep; do
+		wait || :
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
@@ -502,7 +501,7 @@ WifiStatus() {
 			WwanErr=0
 			[ ${ConnectingTo} -gt 0 ] || \
 				ConnectingTo="$(ActiveSsidNbr)"
-			if [ ${Status} != 2 ]; then
+			if [ ${Status} -ne 2 ]; then
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				NetworkAttempts=1
 				CheckConnectivity
@@ -523,8 +522,8 @@ WifiStatus() {
 		fi
 		if IsWwanConnected "unknown"; then
 			WwanDisable
-			if [ ${Status} != 1 ]; then
-				if [ ${Status} = 2 ]; then
+			if [ ${Status} -ne 1 ]; then
+				if [ ${Status} -eq 2 ]; then
 					_log "Reason: Lost connection ${ConnectingTo}:'${WwanSsid}'"
 					ListStat "Lost connection ${ConnectingTo}:'${WwanSsid}'" &
 					ConnectingTo=0
@@ -574,8 +573,8 @@ WifiStatus() {
 				sleep 1
 				/etc/init.d/network restart
 				NetworkRestarted=2
+				WatchWifi 20 &
 				_log "Connecting to ${ConnectingTo}:'${WwanSsid}'..."
-				WatchWifi 20
 				ListStat "Connecting to ${ConnectingTo}:'${WwanSsid}'..." &
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
@@ -584,7 +583,7 @@ WifiStatus() {
 				wifi up
 				_log "Enabling Hotspot client interface to" \
 					"${ConnectingTo}:'${WwanSsid}'..."
-				WatchWifi
+				WatchWifi &
 				ListStat "Enabling Hotspot client interface to" \
 					"${ConnectingTo}:'${WwanSsid}'..." &
 			else
@@ -596,16 +595,16 @@ WifiStatus() {
 				Interval=${SleepScanAuto}
 				ScanRequest=0
 				_log "Error: can't connect to Hotspots," \
-					"probably configuration is not correct."
+					"probably configuration is not correct"
 			else
 				Interval=${Sleep}
 			fi
 		else
 			WwanErr=0
-			if [ ${Status} != 4 ]; then
-				_log "A Hotspot is not available."
+			if [ ${Status} -ne 4 ]; then
+				_log "A Hotspot is not available"
 				Status=4
-				ListStat "A Hotspot is not available." &
+				ListStat "A Hotspot is not available" &
 			fi
 			if [ "${WwanDisabled}" != 1 ]; then
 				Interval=${Sleep}
