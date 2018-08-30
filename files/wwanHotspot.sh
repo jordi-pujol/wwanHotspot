@@ -361,21 +361,19 @@ CheckConnectivity() {
 		return 0
 	while [ $((delay--)) -gt 0 ]; do
 		sleep 1
-		if echo "${check}" | \
-		sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
-		[ -n "$(ip -4 route show default dev ${WIface})" ]; then
-			CheckAddr="${check}"
-		else
-			CheckAddr="$(ip -4 route show dev "${WIface}" | \
-			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
-			s||\1|p;q0};${q1}')" || \
-				continue
-		fi
-		Interval=${Sleep}
-		if t=$(cat "/sys/class/net/${WIface}/statistics/rx_bytes") && \
-		[ ${t} -gt ${StaTraffic} ]; then
-			StaTraffic=${t}
-		else
+		CheckAddr=""
+		if ! t=$(cat "/sys/class/net/${WIface}/statistics/rx_bytes") || \
+		[ ${StaTraffic} -ge $((StaTraffic=${t})) ]; then
+			if echo "${check}" | \
+			sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{q0};{q1}' && \
+			[ -n "$(ip -4 route show default dev ${WIface})" ]; then
+				CheckAddr="${check}"
+			else
+				CheckAddr="$(ip -4 route show dev "${WIface}" | \
+				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)[[:blank:]]+.*|{
+				s||\1|p;q0};${q1}')" || \
+					continue
+			fi
 			rc=0
 			_ping &
 			wait $((PidPing=${!})) || \
@@ -386,14 +384,15 @@ CheckConnectivity() {
 			[ ${rc} -eq 0 ] || \
 				break
 		fi
+		Interval=${Sleep}
 		if [ ${Status} -eq 2 -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-				"to ${CheckAddr} has been verified"
+				"${CheckAddr:+"to ${CheckAddr} "}has been verified"
 		else
 			NetworkAttempts=1
 			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-				"to ${CheckAddr} has been verified"
+				"${CheckAddr:+"to ${CheckAddr} "}has been verified"
 		fi
 		return 0
 	done
