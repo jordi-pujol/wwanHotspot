@@ -1,16 +1,18 @@
 wwanHotspot v1.21
 
   * Better daemon performance:
-    - submit a subprocess for asynchronous tasks: WatchWifi()
+    - submit a subprocess for asynchronous tasks:
+      WatchWifi(), ListStat()
     - wait for subprocesses to finish before running a new iteration
     - NoSleep after having disabled WWAN
   * BlackListExpires and BlackListNetworkExpires
-    A hotspot's blacklist expires after a time lapsus specified by these
-    configuration settings.
+    A hotspot's blacklisting expires after a time lapsus specified by
+    these configuration settings.
   * Store dates using seconds from UTC Epoch.
   * wwanHotspot.sh
     - Reset NetworkAttempts to 1 when CheckConnectivity() is successful.
-    - Store status messages and call ListStat() at every iteration.
+    - At every iteration store status messages and call ListStat() only
+      once when the iteration is done.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 27 Aug 2018 20:03:03 +0200
 
