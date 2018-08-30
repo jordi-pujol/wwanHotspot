@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.21 $
+#  $Revision: 1.22 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -354,7 +354,7 @@ _ping() {
 }
 
 CheckConnectivity() {
-	local delay=20 check CheckAddr rc
+	local delay=20 check CheckAddr rc t
 	Interval=${SleepScanAuto}
 	eval check=\"\${net${ConnectingTo}_check:-}\" && \
 	[ -n "${check}" ] || \
@@ -372,15 +372,20 @@ CheckConnectivity() {
 				continue
 		fi
 		Interval=${Sleep}
-		rc=0
-		_ping &
-		wait $((PidPing=${!})) || \
-			rc="${?}"
-		PidPing=""
-		[ ${rc} -le 127 ] || \
-			return 0
-		[ ${rc} -eq 0 ] || \
-			break
+		if t=$(cat "/sys/class/net/${WIface}/statistics/rx_bytes") && \
+		[ ${t} -gt ${StaTraffic} ]; then
+			StaTraffic=${t}
+		else
+			rc=0
+			_ping &
+			wait $((PidPing=${!})) || \
+				rc="${?}"
+			PidPing=""
+			[ ${rc} -le 127 ] || \
+				return 0
+			[ ${rc} -eq 0 ] || \
+				break
+		fi
 		if [ ${Status} -eq 2 -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
@@ -484,7 +489,7 @@ WifiStatus() {
 	local ScanRequest WwanErr Status=0 StatMsgs="" Interval NoSleep
 	local ConnectingTo=0 ConnAttempts=1 NetworkAttempts
 	local PidDaemon="${$}"
-	local PidSleep="" PidPing=""
+	local PidSleep="" PidPing="" StaTraffic
 	local NetworkRestarted=0
 	local WIface WIfaceAP WIfaceSTA
 
@@ -511,6 +516,7 @@ WifiStatus() {
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				AddStatMsg "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				NetworkAttempts=1
+				StaTraffic=0
 				CheckConnectivity
 				Status=2
 				ScanRequest=0
