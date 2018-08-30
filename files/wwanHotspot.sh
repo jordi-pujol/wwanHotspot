@@ -45,6 +45,7 @@ _log() {
 
 _sleep() {
 	if [ -n "${StatMsgs}" ]; then
+		wait || :
 		ListStat &
 		StatMsgs=""
 	fi
