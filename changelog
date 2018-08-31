@@ -1,5 +1,7 @@
 wwanHotspot v1.22
 
+  * wwanHotspot.sh, DoScan():
+    - bugfix, may have not detected all hidden hotspots.
   * wwanHotspot.sh, CheckConnectivity():
     - Wait for interface setup to complete, until when system has
       established network routing.
