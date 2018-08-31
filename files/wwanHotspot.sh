@@ -88,7 +88,7 @@ HotspotBlackList(){
 IsWifiActive() {
 	local ssid="${1}" iface="${2:-"${WIface}"}" ssid1
 	ssid1="$(iwinfo "${iface}" info 2> /dev/null | \
-	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| {s||\1|p;q0}; ${q1}')" && \
+	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| s||\1|p')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
 
