@@ -120,8 +120,8 @@ ScanRequested() {
 		kill -TERM "${PidSleep}" || :
 	else
 		NoSleep="y"
-		[ -z "${PidPing}" ] || \
-			kill -TERM "${PidPing}" || :
+		[ -z "${PidCheckConn}" ] || \
+			kill -TERM "${PidCheckConn}" || :
 	fi
 }
 
@@ -354,7 +354,7 @@ _ping() {
 }
 
 CheckConnectivity() {
-	local delay=20 check rc t
+	local delay=20 check rc s
 	Interval=${SleepScanAuto}
 	eval check=\"\${net${ConnectingTo}_check:-}\" && \
 	[ -n "${check}" ] || \
@@ -367,35 +367,40 @@ CheckConnectivity() {
 			END{exit rc+1}')" || \
 				continue
 		fi
-		rc=""
-		if ! t=$(cat "/sys/class/net/${WIface}/statistics/rx_bytes") || \
-		[ ${Traffic} -ge $((Traffic=${t})) ]; then
+		rc=0
+		case "${check}" in
+		http://*)
+			CheckAddr="${check}"
+			s="${check##"http://"}"; s="${s%%/*}"
+			echo -e "GET ${check} HTTP/1.0\n\n" | \
+				nc "${s}" 80 > /dev/null 2>&1 &
+			;;
+		*)
 			if [ -z "${CheckAddr}" ]; then
 				CheckAddr="$(echo "${check}" | \
-				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|{p;q0};{q1}')" || \
+				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|p')" && \
+				[ -n "${CheckAddr}" ] || \
 				CheckAddr="${Gateway}"
 			fi
-			rc=0
 			_ping &
-			wait $((PidPing=${!})) || \
-				rc="${?}"
-			PidPing=""
-			! t=$(cat "/sys/class/net/${WIface}/statistics/rx_bytes") || \
-				Traffic=${t}
-			[ ${rc} -le 127 ] || \
-				return 0
-			[ ${rc} -eq 0 ] || \
-				break
-		fi
+			;;
+		esac
+		wait $((PidCheckConn=${!})) || \
+			rc="${?}"
+		PidCheckConn=""
+		[ ${rc} -le 127 ] || \
+			return 0
+		[ ${rc} -eq 0 ] || \
+			break
 		Interval=${Sleep}
 		if [ ${Status} -eq 2 -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-				"${rc:+"to ${CheckAddr} "}has been verified"
+				"to ${CheckAddr} has been verified"
 		else
 			NetworkAttempts=1
 			_log "Connectivity of ${ConnectingTo}:'${WwanSsid}'" \
-				"${rc:+"to ${CheckAddr} "}has been verified"
+				"to ${CheckAddr} has been verified"
 		fi
 		return 0
 	done
@@ -489,7 +494,7 @@ WifiStatus() {
 	local ScanRequest WwanErr Status=0 StatMsgs="" Interval NoSleep
 	local ConnectingTo=0 ConnAttempts=1 NetworkAttempts
 	local PidDaemon="${$}"
-	local PidSleep="" PidPing="" Traffic Gateway CheckAddr
+	local PidSleep="" PidCheckConn="" Gateway CheckAddr
 	local NetworkRestarted=0
 	local WIface WIfaceAP WIfaceSTA
 
@@ -516,7 +521,6 @@ WifiStatus() {
 				_log "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				AddStatMsg "Hotspot is connected to ${ConnectingTo}:'${WwanSsid}'"
 				NetworkAttempts=1
-				Traffic=0
 				Gateway=""
 				CheckAddr=""
 				CheckConnectivity
