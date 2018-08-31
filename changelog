@@ -5,8 +5,9 @@ wwanHotspot v1.22
   * wwanHotspot.sh, CheckConnectivity():
     - Wait for interface setup to complete, until when system has
       established network routing.
-    - Check network traffic using system statistics for the
-      STA network interface.
+    - Two ways to check connectivity of a hotspot:
+      - connect to an http page
+      - ping a version-4 IP
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 30 Aug 2018 10:30:23 +0200
 
