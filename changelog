@@ -1,8 +1,10 @@
 wwanHotspot v1.22
 
-  * wwanHotspot.sh
-    - Check network traffic reading system statistics from STA's network
-      interface.
+  * wwanHotspot.sh, CheckConnectivity():
+    - Wait for interface setup to complete, until when system has
+      established network routing.
+    - Check network traffic using system statistics for the
+      STA network interface.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 30 Aug 2018 10:30:23 +0200
 
