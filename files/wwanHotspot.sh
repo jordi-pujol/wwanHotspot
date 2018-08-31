@@ -428,12 +428,10 @@ DoScan() {
 		_applog "DoScan - Scanning"
 
 	scanned="$(Scanning | \
-	sed -nre '\|^[[:blank:]]+SSID: (.*)$| {
-	s||\1|p;h}
-	${x;/./{q0};q1}')" || \
+	sed -nre '\|^[[:blank:]]+(SSID: .*)$| s||\1|p')" && \
+	[ -n "${scanned}" ] || \
 		return 1
-	found_hidden="$(! echo "${scanned}" | grep -qsxe '' || \
-		echo "y")"
+	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -e 'SSID: ')"
 
 	n="$(ActiveSsidNbr)"
 	[ $((n++)) -lt ${CfgSsidsCnt} ] || \
@@ -455,8 +453,8 @@ DoScan() {
 		eval hidden=\"\${net${i}_hidden:-}\" || :
 		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
 		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
-			echo "${scanned}" | grep -qsxF "${hidden}" ) || \
-		echo "${scanned}" | grep -qsxF "${ssid}"; then
+			echo "${scanned}" | grep -qsxF "SSID: ${hidden}" ) || \
+		echo "${scanned}" | grep -qsxF "SSID: ${ssid}"; then
 			eval blacklisted=\"\${net${i}_blacklisted:-}\" || :
 			if [ -z "${blacklisted}" ]; then
 				echo "${i}"
