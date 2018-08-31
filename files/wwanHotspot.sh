@@ -436,7 +436,7 @@ DoScan() {
 	sed -nre '\|^[[:blank:]]+(SSID: .*)$| s||\1|p')" && \
 	[ -n "${scanned}" ] || \
 		return 1
-	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -e 'SSID: ')"
+	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -e 'SSID: ')" || :
 
 	n="$(ActiveSsidNbr)"
 	[ $((n++)) -lt ${CfgSsidsCnt} ] || \
