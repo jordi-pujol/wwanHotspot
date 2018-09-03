@@ -1,13 +1,15 @@
 wwanHotspot v1.22
 
-  * wwanHotspot.sh, DoScan():
-    - bugfix, may have not detected all hidden hotspots.
+  * wwanHotspot.sh:
+    A lot of bugfixes and did more extensive testing.
+    - DoScan(): bugfix, may have not detected all hidden hotspots.
   * wwanHotspot.sh, CheckConnectivity():
     - Wait for interface setup to complete, until when system has
       established network routing.
-    - Two ways to check connectivity of a hotspot:
-      - connect to an http page
-      - ping a version-4 IP
+    - A new way to check Internet connectivity of a hotspot:
+      - connect to an http:// or https:// URL
+        in this case package wget is recommended but not required.
+      - also we can ping a version-4 IP, as before
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 30 Aug 2018 10:30:23 +0200
 
