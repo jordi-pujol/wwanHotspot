@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.22 $
+#  $Revision: 1.23 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -53,13 +53,23 @@ _sleep() {
 	if [ -n "${NoSleep}" ]; then
 		NoSleep=""
 	else
-		[ -z "${Debug}" ] || \
-			_applog "sleeping ${Interval} seconds"
-		sleep ${Interval} > /dev/null 2>&1 &
-		wait $((PidSleep=${!})) || :
-		[ -z "${Debug}" ] || \
-			_applog "sleeping ended"
-		PidSleep=""
+		local e i
+		[ ${Status} -eq 4 ] && \
+		e="$(set | \
+		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
+		sort -n | head -qn 1)" && \
+		[ -n "${e}" ] && \
+		[ $((i=${e}+1-$(date --utc +'%s'))) -le ${Interval} ] || \
+			i=${Interval}
+		if [ ${i} -gt 0 ]; then
+			[ -z "${Debug}" ] || \
+				_applog "sleeping ${i} seconds"
+			sleep ${i} > /dev/null 2>&1 &
+			wait $((PidSleep=${!})) || :
+			[ -z "${Debug}" ] || \
+				_applog "sleeping ended"
+			PidSleep=""
+		fi
 	fi
 	wait || :
 }
@@ -347,13 +357,13 @@ Scanning() {
 			return 0
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
-		[ ${i} -le 1 ] && \
+		[ ${i} -le 2 ] && \
 		echo "${err}" | grep -qse 'command failed: Network is down' || \
 			continue
 		_log "Error: Can't scan wifi, restarting the network"
 		/etc/init.d/network restart
 		sleep 20
-		WatchWifi
+		WatchWifi 20
 	done
 	_log "Serious error: Can't scan wifi for access points"
 	return 1
@@ -403,12 +413,12 @@ CheckConnectivity() {
 		Interval=${Sleep}
 		[ -n "${CheckAddr}" ] || \
 			if CheckSrvr="$(echo "${check}" | \
-			sed -nre '\|http[s]?://([^/]+).*| s||\1|p')" && \
+			sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
 			[ -n "${CheckSrvr}" ]; then
 				CheckAddr="${check}"
 			else
 				CheckAddr="$(echo "${check}" | \
-				sed -nre '\|^(([[:digit:]]+[.]){3}[[:digit:]]+)$|p')" && \
+				sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')" && \
 				[ -n "${CheckAddr}" ] || \
 				CheckAddr="${Gateway}"
 			fi
