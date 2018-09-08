@@ -1,3 +1,11 @@
+wwanHotspot v1.23
+
+  * wwanHotspot.sh:
+    When STA is disabled and a hotspot blacklisting is just to expire,
+    then sleep only the interval of time remaining for blacklist expiration.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 4 Sep 2018 9:50:52 +0200
+
 wwanHotspot v1.22
 
   * wwanHotspot.sh:
