@@ -1,3 +1,13 @@
+wwanHotspot v1.24
+
+  * wwanHotspot.sh:
+    - Correct behaviour when BlackList=1.
+    - Define constants for status codes.
+    - More information messages.
+    - Define constants for output control codes.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 14 Sep 2018 19:45:22 +0200
+
 wwanHotspot v1.23
 
   * wwanHotspot.sh:
