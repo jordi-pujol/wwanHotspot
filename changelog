@@ -1,3 +1,14 @@
+wwanHotspot v1.25
+
+  * wwanHotspot.sh:
+    - Improve code layout.
+    - Constant value of NONE=0.
+    - Short information messages.
+    - Validate wget's response when it's used to check network connection
+      reliability.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 16 Sep 2018 11:23:51 +0200
+
 wwanHotspot v1.24
 
   * wwanHotspot.sh:
