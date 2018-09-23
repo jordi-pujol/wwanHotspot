@@ -1,3 +1,21 @@
+wwanHotspot v1.26
+
+  * New alternative method to specify hotspot's configuration.
+    To use this method the configuration script should populate the
+    values for a new hotspot before calling the function AddHotspot,
+    this will automatically increment the hotspots counter and store
+    the corresponding values.
+    The old method continues being valid also.
+    A configuration file can't mix both methods.
+  * wwanHotspot.sh:
+    - Better management of subprocesses that are doing interruptible tasks.
+    - CheckConn:
+      - set a watchdog to terminate the command on timeout.
+    - CheckConn:
+      - nc connects to port 80 for http or to 443 for https.
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 19 Sep 2018 15:28:53 +0200
+
 wwanHotspot v1.25
 
   * wwanHotspot.sh:
