@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.26 $
+#  $Revision: 1.27 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -30,6 +30,10 @@ _integer_value() {
 		echo ${d}
 }
 
+_UTCseconds() {
+	date --utc +'%s'
+}
+
 _datetime() {
 	date +'%Y-%m-%d %H:%M:%S'
 }
@@ -48,23 +52,22 @@ _msg() {
 }
 
 WaitSubprocess() {
-	local timeout="${1:-}" continue_on_signal="${2:-}" pid="${3:-${!}}" \
+	local timeout="${1:-}" dont_interrupt="${2:-}" pid="${3:-${!}}" \
 		pidw rc=""
 	if [ -n "${timeout}" ]; then
 		( sleep "${timeout}" && \
 		kill -TERM "${pid}" > /dev/null 2>&1 ) &
 		pidw=${!}
 	fi
-	while wait "${pid}" && rc=0 || rc=${rc:-${?}}; do
-		if ! kill -0 "${pid}" > /dev/null 2>&1; then
-			[ -z "${timeout}" ] || \
-				kill -TERM "${pidw}" > /dev/null 2>&1 || :
-			return ${rc}
-		fi
-		[ -n "${continue_on_signal}" ] && \
+	while wait "${pid}" && rc=0 || rc=${rc:-${?}};
+	kill -0 "${pid}" > /dev/null 2>&1; do
+		[ -n "${dont_interrupt}" ] && \
 			rc="" || \
 			kill -TERM "${pid}" > /dev/null 2>&1 || :
 	done
+	[ -z "${timeout}" -o ${rc} -eq 143 ] || \
+		kill -TERM "${pidw}" > /dev/null 2>&1 || :
+	return ${rc}
 }
 
 _sleep() {
@@ -75,13 +78,12 @@ _sleep() {
 			StatMsgs=""
 	fi
 	if [ -z "${NoSleep}" ]; then
-		local e i
+		local e="" i
 		[ ${Status} -eq ${DISABLED} ] && \
-		e="$(set | \
+		[ -n "${e:="$(set | \
 		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
-		sort -n | head -qn 1)" && \
-		[ -n "${e}" ] && \
-		[ $((i=${e}+1-$(date --utc +'%s'))) -le ${Interval} ] || \
+		sort -n | head -qn 1)"}" ] && \
+		[ $((i=${e}+1-$(_UTCseconds))) -le ${Interval} ] || \
 			i=${Interval}
 		if [ ${i} -gt 0 ]; then
 			[ -z "${Debug}" ] || \
@@ -111,7 +113,7 @@ HotspotBlackList() {
 		_log "${msg}"
 		AddStatMsg "${msg}"
 	else
-		eval net${HotSpot}_blacklistexp=\"$((${expires}+$(date --utc +'%s')))\" || :
+		eval net${HotSpot}_blacklistexp=\"$((${expires}+$(_UTCseconds)))\" || :
 		msg="Blacklisting ${HotSpot}:'${WwanSsid}' for ${expires} seconds"
 		_log "${msg}"
 		AddStatMsg "${msg}"
@@ -121,14 +123,13 @@ HotspotBlackList() {
 }
 
 BlackListExpired() {
-	local d="" exp hotspot ssid
-	while read -r exp hotspot; do
-		[ -n "${exp}" ] && \
-		[ ${d:="$(date --utc +'%s')"} -ge ${exp} ] || \
-			break
+	local d="" exp hotspot
+	while read -r exp hotspot && \
+	[ -n "${exp}" ] && \
+	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
 		unset net${hotspot}_blacklisted net${hotspot}_blacklistexp || :
-		eval ssid=\"\${net${hotspot}_ssid:-}\"
-		msg="Blacklisting has expired for ${hotspot}:'${ssid}'"
+		_msg "Blacklisting has expired for" \
+			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
 		_log "${msg}"
 		AddStatMsg "${msg}"
 	done << EOF
@@ -157,12 +158,10 @@ WatchWifi() {
 		iface="${WIface}-1"
 	ApSsid="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)" || :
 	ApDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" || :
-	while [ $((c--)) -gt 0 ]; do
+	while [ "${ApDisabled}" != 1 ] && \
+	! IsWifiActive "\"${ApSsid}\"" "${iface}" && \
+	[ $((c--)) -gt 0 ]; do
 		sleep 1
-		[ "${ApDisabled}" != 1 ] || \
-			break
-		! IsWifiActive "\"${ApSsid}\"" "${iface}" || \
-			break
 	done
 }
 
@@ -220,7 +219,7 @@ ListStatus() {
 BackupRotate() {
 	local f="${1}" r=${LogRotate}
 	[ -f "${f}" ] && \
-		mv -f "${f}" "${f}_$(date --utc +'%s')" || \
+		mv -f "${f}" "${f}_$(_UTCseconds)" || \
 		r=${NONE}
 	printf '%s\n' "${f}_"* | \
 	head -qn -${r} | \
@@ -340,10 +339,9 @@ LoadConfig() {
 
 	if [ ${HotSpots} -eq ${NONE} ]; then
 		local n=0 ssid
-		while [ $((n++)) ]; do
-			eval ssid=\"\${net${n}_ssid:-}\" && \
-			[ -n "${ssid}" ] || \
-				break
+		while [ $((n++)) ] && \
+		eval ssid=\"\${net${n}_ssid:-}\" && \
+		[ -n "${ssid}" ]; do
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
 			HotSpots=${n}
 		done
@@ -414,11 +412,12 @@ Scanning() {
 	return 1
 }
 
-ActiveSsidNbr() {
-	echo "${Ssids}" | \
+CurrentHotSpot() {
+	[ ${HotSpot} -ne ${NONE} ] || \
+	HotSpot="$(echo "${Ssids}" | \
 	awk -v ssid="${WwanSsid}" \
-		'$0 == ssid {n = NR; exit}
-		END{print n+0; exit (n+0 == 0)}'
+	'$0 == ssid {n = NR; exit}
+	END{print n+0; exit (n+0 == 0)}')"
 }
 
 CheckConn() {
@@ -447,10 +446,9 @@ CheckConn() {
 }
 
 CheckConnectivity() {
-	local check
+	local check=""
 	Interval=${SleepScanAuto}
-	eval check=\"\${net${HotSpot}_check:-}\" && \
-	[ -n "${check}" ] || \
+	[ -n "${check:="$(eval echo \"\${net${HotSpot}_check:-}\")"}" ] || \
 		return 0
 	local delay=20
 	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" | \
@@ -505,7 +503,7 @@ CheckConnectivity() {
 }
 
 DoScan() {
-	local ssid blacklisted hidden scanned found_hidden n i blacklistexp
+	local hidden scanned found_hidden n i
 
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
@@ -522,24 +520,26 @@ DoScan() {
 		return 1
 	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -F 'SSID: ')" || :
 
-	n="$(ActiveSsidNbr)" || :
+	CurrentHotSpot || :
+	n=${HotSpot}
 	[ $((n++)) -lt ${HotSpots} ] || \
 		n=1
 
 	i=${n}
 	while :; do
-		eval ssid=\"\${net${i}_ssid:-}\" && \
-		[ -n "${ssid}" ] || \
-			break
-
-		eval hidden=\"\${net${i}_hidden:-}\" || :
-		if [ "${hidden}" = "y" -a -n "${found_hidden}" ] || \
+		eval ssid=\"\${net${i}_ssid:-}\"
+		hidden=""
+		if echo "${scanned}" | grep -qsxF "SSID: ${ssid}" || \
+		[ "${hidden:="$(eval echo \"\${net${i}_hidden:-}\")"}" = "y" -a \
+		-n "${found_hidden}" ] || \
 		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
-			echo "${scanned}" | grep -qsxF "SSID: ${hidden}" ) || \
-		echo "${scanned}" | grep -qsxF "SSID: ${ssid}"; then
-			eval blacklisted=\"\${net${i}_blacklisted:-}\" || :
-			if [ -z "${blacklisted}" ]; then
-				echo "${i}"
+		echo "${scanned}" | grep -qsxF "SSID: ${hidden}" ); then
+			if [ -z "$(eval echo \"\${net${i}_blacklisted:-}\")" ]; then
+				[ ${HotSpot} -eq ${i} ] || \
+					ConnAttempts=1
+				HotSpot=${i}
+				[ -z "${Debug}" ] || \
+					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
 			_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
@@ -570,7 +570,7 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids HotSpots n msg IfaceWan WwanSsid WwanDisabled \
+	local Ssids ssid HotSpots msg IfaceWan WwanSsid WwanDisabled \
 		ScanRequest WwanErr Status=${NONE} StatMsgs="" Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
 		PidDaemon="${$}" \
@@ -587,18 +587,15 @@ WifiStatus() {
 	trap 'ListStatus' USR2
 
 	while _sleep; do
-		BlackListExpired
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
 			TryConnection=0
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
-				if [ ${HotSpot} -eq ${NONE} ]; then
-					HotSpot="$(ActiveSsidNbr)" || \
-						_log "Warning: Connected to a non-configured" \
-							"hotspot '${WwanSsid}'"
-				fi
+				CurrentHotSpot || \
+					_log "Warning: Connected to a non-configured" \
+					"hotspot '${WwanSsid}'"
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				_log "${msg}"
 				AddStatMsg "${msg}"
@@ -624,6 +621,7 @@ WifiStatus() {
 			continue
 		fi
 		if IsWwanConnected "unknown"; then
+			CurrentHotSpot || :
 			WwanDisable
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
@@ -657,25 +655,17 @@ WifiStatus() {
 			Interval=${Sleep}
 			continue
 		fi
-		if n="$(DoScan)"; then
-			local ssid
-			eval ssid=\"\${net${n}_ssid:-}\" || :
-			[ -z "${Debug}" ] || \
-				_applog "DoScan selected ${n}:'${ssid}'"
-			if [ ${HotSpot} -ne ${n} ]; then
-				HotSpot=${n}
-				ConnAttempts=1
-			fi
+		BlackListExpired
+		if DoScan; then
 			if [ "${ssid}" != "${WwanSsid}" ]; then
 				_log "Hotspot '${ssid}' found. Applying settings..."
 				WwanSsid="${ssid}"
 				WwanErr=${NONE}
-				local encrypt key
-				eval encrypt=\"\${net${n}_encrypt:-}\" || :
-				eval key=\"\${net${n}_key:-}\" || :
 				uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${ssid}"
-				uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
-				uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="$(
+					eval echo \"\${net${HotSpot}_encrypt:-}\")"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].key="$(
+					eval echo \"\${net${HotSpot}_key:-}\")"
 				[ "${WwanDisabled}" != 1 ] || \
 					uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
