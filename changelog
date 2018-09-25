@@ -2,7 +2,7 @@ wwanHotspot v1.27
 
   * wwanHotspot.sh:
     - Improve code layout.
-    - When connection is disabled check blacklist expiration just before
+    - When connection is disabled we'll check blacklist expiration just before
       scanning for hotspots.
  
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 25 Sep 2018 10:18:23 +0200
