@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.27 $
+#  $Revision: 1.28 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -43,8 +43,10 @@ _applog() {
 }
 
 _log() {
-	logger -t "${NAME}" "${@}"
-	_applog "syslog:" "${@}"
+	local p="daemon.${LogPrio:-"notice"}"
+	LogPrio=""
+	logger -t "${NAME}" -p "${p}" "${@}"
+	_applog "${p}:" "${@}"
 }
 
 _msg() {
@@ -56,17 +58,17 @@ WaitSubprocess() {
 		pidw rc=""
 	if [ -n "${timeout}" ]; then
 		( sleep "${timeout}" && \
-		kill -TERM "${pid}" > /dev/null 2>&1 ) &
+		kill -s TERM "${pid}" > /dev/null 2>&1 ) &
 		pidw=${!}
 	fi
 	while wait "${pid}" && rc=0 || rc=${rc:-${?}};
-	kill -0 "${pid}" > /dev/null 2>&1; do
+	kill -s 0 "${pid}" > /dev/null 2>&1; do
 		[ -n "${dont_interrupt}" ] && \
 			rc="" || \
-			kill -TERM "${pid}" > /dev/null 2>&1 || :
+			kill -s TERM "${pid}" > /dev/null 2>&1 || :
 	done
 	[ -z "${timeout}" -o ${rc} -eq 143 ] || \
-		kill -TERM "${pidw}" > /dev/null 2>&1 || :
+		kill -s TERM "${pidw}" > /dev/null 2>&1 || :
 	return ${rc}
 }
 
@@ -110,15 +112,15 @@ HotspotBlackList() {
 	eval net${HotSpot}_blacklisted=\"${cause} $(_datetime)\" || :
 	if [ ${expires} -eq ${NONE} ]; then
 		msg="Blacklisting ${HotSpot}:'${WwanSsid}'"
-		_log "${msg}"
+		LogPrio="warn" _log "${msg}"
 		AddStatMsg "${msg}"
 	else
 		eval net${HotSpot}_blacklistexp=\"$((${expires}+$(_UTCseconds)))\" || :
 		msg="Blacklisting ${HotSpot}:'${WwanSsid}' for ${expires} seconds"
-		_log "${msg}"
+		LogPrio="warn" _log "${msg}"
 		AddStatMsg "${msg}"
 	fi
-	_log "Reason:" "${reason}"
+	LogPrio="warn" _log "Reason:" "${reason}"
 	HotSpot=${NONE}
 }
 
@@ -130,7 +132,7 @@ BlackListExpired() {
 		unset net${hotspot}_blacklisted net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
-		_log "${msg}"
+		LogPrio="warn" _log "${msg}"
 		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
@@ -165,11 +167,19 @@ WatchWifi() {
 	done
 }
 
+_ps_children() {
+	local p
+	for p in $(pgrep -P "${1:-${$}}"); do
+		echo "${p}"
+		_ps_children "${p}"
+	done
+}
+
 _exit() {
-	trap - EXIT HUP USR1 USR2
-	_log "Exiting"
-	echo "${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
-	kill 0 || :
+	trap - EXIT INT HUP USR1 USR2
+	LogPrio="warn" _log "Exiting"
+	echo $'\n'"${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
+	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
 	wait || :
 }
 
@@ -255,7 +265,7 @@ AddHotspot() {
 
 LoadConfig() {
 	msg="Loading configuration"
-	_log "${msg}"
+	LogPrio="info" _log "${msg}"
 	AddStatMsg "${msg}"
 
 	# config variables, default values
@@ -310,7 +320,7 @@ LoadConfig() {
 			if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
 				[ -z "${WIfaceSTA}" ] || \
 					break 2
-				_log "Invalid AP+STA configuration. Exiting"
+				LogPrio="err" _log "Invalid AP+STA configuration. Exiting"
 				exit 1
 			fi
 			if [ "${m}" = "sta" ]; then
@@ -349,6 +359,7 @@ LoadConfig() {
 	if [ ${HotSpots} -eq ${NONE} ]; then
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -z "${WwanSsid}" ]; then
+			LogPrio="err"
 			_log "Invalid configuration. No hotspots specified. Exiting"
 			exit 1
 		fi
@@ -357,6 +368,7 @@ LoadConfig() {
 		HotSpots=1
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
+		LogPrio="err"
 		_log "Invalid configuration. Duplicate hotspots SSIDs. Exiting"
 		exit 1
 	fi
@@ -402,12 +414,14 @@ Scanning() {
 		[ ${i} -le 2 ] && \
 		echo "${err}" | grep -qsF 'command failed: Network is down' || \
 			continue
-		_log "Error: Can't scan wifi, restarting the network"
+		LogPrio="err"
+		_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network restart
 		sleep 20 &
 		WaitSubprocess || :
 		WatchWifi 20
 	done
+	LogPrio="err"
 	_log "Serious error: Can't scan wifi for access points"
 	return 1
 }
@@ -466,6 +480,7 @@ CheckConnectivity() {
 			CheckAddr="$(echo "${check}" | \
 			sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')"
 			[ -n "${CheckAddr:="${Gateway}"}" ] || \
+			LogPrio="err" \
 			_log "Serious Error: There is no default route" \
 				"for interface ${WIface}"
 		fi
@@ -490,7 +505,7 @@ CheckConnectivity() {
 		return 0
 	_msg "${NetworkAttempts} connectivity failures" \
 		"on ${HotSpot}:'${WwanSsid}'"
-	_log "Warning:" "${msg}"
+	LogPrio="warn" _log "${msg}"
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
 		WwanDisable
@@ -535,9 +550,9 @@ DoScan() {
 		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
 		echo "${scanned}" | grep -qsxF "SSID: ${hidden}" ); then
 			if [ -z "$(eval echo \"\${net${i}_blacklisted:-}\")" ]; then
-				[ ${HotSpot} -eq ${i} ] || \
-					ConnAttempts=1
-				HotSpot=${i}
+				[ ${HotSpot} -ne ${i} ] && \
+					ConnAttempts=1 && \
+					HotSpot=${i} || :
 				[ -z "${Debug}" ] || \
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
@@ -555,6 +570,7 @@ DoScan() {
 }
 
 WwanDisable() {
+	LogPrio="warn"
 	_log "Disabling wireless device for ${HotSpot}:'${WwanSsid}'"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=1
 	uci commit wireless
@@ -570,14 +586,16 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots msg IfaceWan WwanSsid WwanDisabled \
+	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
 		ScanRequest WwanErr Status=${NONE} StatMsgs="" Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
+		msg LogPrio="" \
 		PidDaemon="${$}" \
 		Gateway CheckAddr CheckSrvr \
 		TryConnection=0 WIface WIfaceAP WIfaceSTA
 
 	trap '_exit' EXIT
+	trap 'exit' INT
 
 	LoadConfig || exit 1
 	Interval=${Sleep}
@@ -594,7 +612,8 @@ WifiStatus() {
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
 				CurrentHotSpot || \
-					_log "Warning: Connected to a non-configured" \
+					LogPrio="warn" \
+					_log "Connected to a non-configured" \
 					"hotspot '${WwanSsid}'"
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				_log "${msg}"
@@ -616,10 +635,9 @@ WifiStatus() {
 			fi
 			continue
 		fi
-		if [ ${TryConnection} -gt 0 ]; then
-			[ $((TryConnection--)) ]
-			continue
-		fi
+		[ ${TryConnection} -gt 0 ] && \
+			[ $((TryConnection--)) ] && \
+			continue || :
 		if IsWwanConnected "unknown"; then
 			CurrentHotSpot || :
 			WwanDisable
@@ -645,7 +663,7 @@ WifiStatus() {
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
 					else
-						_log "Reason:" "${msg}"
+						LogPrio="warn" _log "Reason:" "${msg}"
 						[ $((ConnAttempts++)) ]
 					fi
 				fi
@@ -698,9 +716,9 @@ WifiStatus() {
 			if [ $((WwanErr++)) -gt ${HotSpots} ]; then
 				Interval=${SleepScanAuto}
 				ScanRequest=0
-				_msg "Error: can't connect to any hotspot," \
+				_msg "Can't connect to any hotspot," \
 					"probably configuration is not correct"
-				_log "${msg}"
+				LogPrio="err" _log "${msg}"
 				AddStatMsg "${msg}"
 			else
 				Interval=${Sleep}
