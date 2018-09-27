@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.27 $
+#  $Revision: 1.28 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -54,7 +54,7 @@ _wwan_network() {
 	return 1
 }
 
-service_running() {
+service_pid() {
 	local pid
 
 	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
@@ -62,8 +62,15 @@ service_running() {
 	echo "${pid}"
 }
 
+service_running() {
+	if ! pid="$(service_pid)"; then
+		echo "Error: Daemon is not running" >&2
+		return 1
+	fi
+}
+
 start_service() {
-	service_running > /dev/null && \
+	service_pid > /dev/null && \
 		echo "Warning: Daemon is already running" >&2 || \
 		echo "Info: Starting Daemon..." >&2
 	_wwan_network > /dev/null || \
@@ -77,21 +84,18 @@ start_service() {
 stop_service() {
 	local pid
 
-	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running" >&2
+	service_running || \
 		return 1
-	fi
 	echo "Info: Stopping Daemon..." >&2
 	local pids="${pid} $(_ps_children "${pid}")"
-	kill -TERM ${pids} > /dev/null 2>&1 &
+	kill -s INT ${pid} > /dev/null 2>&1
 	local try=0
-	while kill -0 ${pids} > /dev/null 2>&1 && \
+	while kill -s 0 ${pid} > /dev/null 2>&1 && \
 	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do
 		sleep 1
 	done
-	! kill -0 ${pids} > /dev/null 2>&1 || \
-		kill -INT ${pids} > /dev/null 2>&1 &
-	wait || :
+	! kill -s 0 ${pids} > /dev/null 2>&1 || \
+		kill -s KILL ${pids} > /dev/null 2>&1
 }
 
 service_triggers() {
@@ -109,34 +113,26 @@ service_triggers() {
 reload_service() {
 	local pid
 
-	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running" >&2
+	service_running || \
 		return 1
-	fi
 	echo "Info: Reloading Daemon config" >&2
-	#procd_send_signal "${NAME}"
-	kill -HUP $pid || :
+	kill -s HUP $pid || :
 }
 
 scan() {
 	local pid
 
-	if ! pid="$(service_running)"; then
-		echo "Error: Daemon is not running" >&2
+	service_running || \
 		return 1
-	fi
 	echo "Info: Requesting an scan to daemon" >&2
-	#procd_send_signal "${NAME}" "*" "USR1"
-	kill -USR1 $pid || :
+	kill -s USR1 $pid || :
 }
 
 status() {
 	local pid
 
-	if ! pid="$(service_running)"; then
-		echo "Daemon is not running" >&2
+	service_running || \
 		return 1
-	fi
 	echo "Daemon is running in process ${pid}" >&2
-	kill -USR2 $pid || :
+	kill -s USR2 $pid || :
 }
