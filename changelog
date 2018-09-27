@@ -1,3 +1,11 @@
+wwanHotspot v1.28
+
+  * Daemon will stop when receives an INT signal.
+  * Write messages to syslog specifying priority.
+    info notice warn err debug
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 26 Sep 2018 8:50:12 +0200
+
 wwanHotspot v1.27
 
   * wwanHotspot.sh:
