@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.28 $
+#  $Revision: 1.29 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -22,6 +22,10 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
+_tac() {
+	sed -e '1!G;h;$!d'
+}
+
 _integer_value() {
 	local n="${1}" d="${2}" v 
 	v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
@@ -36,6 +40,22 @@ _UTCseconds() {
 
 _datetime() {
 	date +'%Y-%m-%d %H:%M:%S'
+}
+
+_ps_children() {
+	local p
+	for p in $(pgrep -P "${1:-${$}}"); do
+		echo "${p}"
+		_ps_children "${p}"
+	done
+}
+
+_exit() {
+	trap - EXIT INT HUP USR1 USR2
+	LogPrio="warn" _log "Exiting"
+	echo $'\n'"$(_datetime) ${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
+	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
+	wait || :
 }
 
 _applog() {
@@ -67,15 +87,24 @@ WaitSubprocess() {
 			rc="" || \
 			kill -s TERM "${pid}" > /dev/null 2>&1 || :
 	done
-	[ -z "${timeout}" -o ${rc} -eq 143 ] || \
+	[ -z "${timeout}" ] || \
 		kill -s TERM "${pidw}" > /dev/null 2>&1 || :
 	return ${rc}
 }
 
-_sleep() {
+WaitChildren() {
+	local dont_interrupt="${1:-}" pid
+	for pid in $(_ps_children | _tac); do
+		WaitSubprocess "" "${dont_interrupt}" ${pid} || :
+	done
+}
+
+Settle() {
+	local pidReport=""
 	if [ -n "${StatMsgs}" ]; then
-		wait || :
-		ListStat &
+		WaitChildren "y"
+		Report &
+		pidReport=${!}
 		[ ${Status} -le ${CONNECTING} ] || \
 			StatMsgs=""
 	fi
@@ -99,8 +128,10 @@ _sleep() {
 				_applog "sleeping ended"
 		fi
 	fi
+	[ -z "${pidReport}" ] || \
+		WaitSubprocess "" "y" ${pidReport} || :
+	WaitChildren
 	NoSleep=""
-	wait || :
 }
 
 AddStatMsg() {
@@ -110,16 +141,13 @@ AddStatMsg() {
 HotspotBlackList() {
 	local cause="${1}" expires="${2}" reason="${3}"
 	eval net${HotSpot}_blacklisted=\"${cause} $(_datetime)\" || :
-	if [ ${expires} -eq ${NONE} ]; then
-		msg="Blacklisting ${HotSpot}:'${WwanSsid}'"
-		LogPrio="warn" _log "${msg}"
-		AddStatMsg "${msg}"
-	else
+	msg="Blacklisting ${HotSpot}:'${WwanSsid}'"
+	if [ ${expires} -gt ${NONE} ]; then
 		eval net${HotSpot}_blacklistexp=\"$((${expires}+$(_UTCseconds)))\" || :
-		msg="Blacklisting ${HotSpot}:'${WwanSsid}' for ${expires} seconds"
-		LogPrio="warn" _log "${msg}"
-		AddStatMsg "${msg}"
+		msg="${msg} for ${expires} seconds"
 	fi
+	LogPrio="warn" _log "${msg}"
+	AddStatMsg "${msg}"
 	LogPrio="warn" _log "Reason:" "${reason}"
 	HotSpot=${NONE}
 }
@@ -167,25 +195,10 @@ WatchWifi() {
 	done
 }
 
-_ps_children() {
-	local p
-	for p in $(pgrep -P "${1:-${$}}"); do
-		echo "${p}"
-		_ps_children "${p}"
-	done
-}
-
-_exit() {
-	trap - EXIT INT HUP USR1 USR2
-	LogPrio="warn" _log "Exiting"
-	echo $'\n'"${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
-	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
-	wait || :
-}
-
-ListStat() {
+Report() {
 	exec > "/var/log/${NAME}.stat"
-	echo "${NAME} status:"
+	echo "${NAME} status report."
+	echo
 	echo "${StatMsgs}"
 	echo
 	echo "STA network interface is ${WIface}"
@@ -196,14 +209,14 @@ ListStat() {
 	echo
 	echo "Debug=\"${Debug}\""
 	echo "ScanAuto=\"${ScanAuto}\""
-	echo "Sleep=${Sleep}"
-	echo "SleepDsc=${SleepDsc}"
-	echo "SleepScanAuto=${SleepScanAuto}"
+	echo "Sleep=${Sleep} seconds"
+	echo "SleepDsc=${SleepDsc} seconds"
+	echo "SleepScanAuto=${SleepScanAuto} seconds"
 	echo "BlackList=${BlackList}"
-	echo "BlackListExpires=${BlackListExpires}"
+	echo "BlackListExpires=${BlackListExpires} seconds"
 	echo "BlackListNetwork=${BlackListNetwork}"
-	echo "BlackListNetworkExpires=${BlackListNetworkExpires}"
-	echo "PingWait=${PingWait}"
+	echo "BlackListNetworkExpires=${BlackListNetworkExpires} seconds"
+	echo "PingWait=${PingWait} seconds"
 	echo "LogRotate=${LogRotate}"
 	echo
 	local i=0
@@ -438,21 +451,13 @@ CheckConn() {
 	[ "${Debug}" = "xtrace" ] || \
 		exec > /dev/null 2>&1
 	if [ -n "${CheckSrvr}" ]; then
-		local s w
-		if w="$(which wget)" && \
-		s="$(ifconfig "${WIface}" | \
-		awk '$1 == "inet" {print $2; rc=-1; exit}
-		END{exit rc+1}')"; then
-			"${w}" --spider -T ${PingWait} --no-check-certificate \
-			--bind-address "${s##"addr:"}" "${CheckAddr}" 2>&1 | \
+		if [ -n "${CheckInet}" ]; then
+			wget --spider -T ${PingWait} --no-check-certificate \
+			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
 			grep -qsF "Remote file exists"
 		else
-			local p
-			[ "${CheckAddr:0:8}" = "https://" ] && \
-				p=443 || \
-				p=80
 			echo "GET ${CheckAddr} HTTP/1.0${LF}${LF}" | \
-				nc "${CheckSrvr}" ${p}
+				nc "${CheckSrvr}" ${CheckPort}
 		fi
 	else
 		ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
@@ -476,6 +481,22 @@ CheckConnectivity() {
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
 		[ -n "${CheckSrvr}" ]; then
 			CheckAddr="${check}"
+			if [ -z "$(which wget)" ] ||  \
+			! CheckInet="$(ifconfig "${WIface}" | \
+			awk '$1 == "inet" {print $2; rc=-1; exit}
+			END{exit rc+1}')"; then
+				[ "${CheckAddr:0:8}" = "https://" ] && \
+					CheckPort=443 || \
+					CheckPort=80
+				if [ $(ip -4 route show default | \
+				awk '$1 == "default" && $NF != "linkdown" {c++}
+				END{print c+0}') -gt 1 ]; then
+					_msg "Using the nc utility to check URL connectivity" \
+						"while multiple default routes are enabled"
+					LogPrio="err" _log "${msg}"
+					AddStatMsg "Error:" "${msg}"
+				fi
+			fi
 		else
 			CheckAddr="$(echo "${check}" | \
 			sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')"
@@ -518,8 +539,6 @@ CheckConnectivity() {
 }
 
 DoScan() {
-	local hidden scanned found_hidden n i
-
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
 			_applog "Must not scan"
@@ -528,6 +547,8 @@ DoScan() {
 
 	[ -z "${Debug}" ] || \
 		_applog "DoScan - Scanning"
+
+	local hidden scanned found_hidden n i
 
 	scanned="$(Scanning | \
 	sed -nre '\|^[[:blank:]]+(SSID: .*)$| s||\1|p')" && \
@@ -557,7 +578,8 @@ DoScan() {
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
-			_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
+			[ ${Status} -eq ${DISABLED} -a -z "${Debug}" ] || \
+				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
 		fi
 		[ $((i++)) -lt ${HotSpots} ] || \
 			i=1
@@ -591,7 +613,7 @@ WifiStatus() {
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
 		msg LogPrio="" \
 		PidDaemon="${$}" \
-		Gateway CheckAddr CheckSrvr \
+		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection=0 WIface WIfaceAP WIfaceSTA
 
 	trap '_exit' EXIT
@@ -604,7 +626,7 @@ WifiStatus() {
 	trap 'NoSleep="y"' USR1
 	trap 'ListStatus' USR2
 
-	while _sleep; do
+	while Settle; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
@@ -614,13 +636,12 @@ WifiStatus() {
 				CurrentHotSpot || \
 					LogPrio="warn" \
 					_log "Connected to a non-configured" \
-					"hotspot '${WwanSsid}'"
+						"hotspot '${WwanSsid}'"
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				_log "${msg}"
 				AddStatMsg "${msg}"
 				NetworkAttempts=1
-				Gateway=""
-				CheckAddr=""
+				Gateway=""; CheckAddr=""; CheckInet=""
 				if CheckConnectivity; then
 					Status=${CONNECTED}
 					ScanRequest=0
