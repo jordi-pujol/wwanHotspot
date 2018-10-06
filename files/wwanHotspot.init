@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.28 $
+#  $Revision: 1.29 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -25,13 +25,20 @@
 START=99
 USE_PROCD=1
 #PROCD_DEBUG=1
+#INIT_TRACE="y"
 EXTRA_COMMANDS="scan status"
-EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"$'\n\t'"status"$'\t'"Status"
+EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"$'\n\t'"status"$'\t'"Update status report"
 
-NAME="wwanHotspot"
+${INIT_TRACE:+set -x}
+
+NAME="$(basename "${initscript}")"
 PROG="/usr/sbin/${NAME}"
 INIT="/etc/init.d/${NAME}"
 PIDFILE="/var/run/${NAME}.pid"
+SERVICE_SIG_STOP="INT"
+SERVICE_SIG_RELOAD="HUP"
+SERVICE_SIG_SCAN="USR1"
+SERVICE_SIG_STATUS="USR2"
 
 _ps_children() {
 	local p
@@ -58,7 +65,7 @@ service_pid() {
 	local pid
 
 	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
-	grep -Fqse "${PROG}" "/proc/${pid}/cmdline" && \
+	grep -qsF "${PROG}" "/proc/${pid}/cmdline" && \
 	echo "${pid}"
 }
 
@@ -88,14 +95,14 @@ stop_service() {
 		return 1
 	echo "Info: Stopping Daemon..." >&2
 	local pids="${pid} $(_ps_children "${pid}")"
-	kill -s INT ${pid} > /dev/null 2>&1
+	kill -s "${SERVICE_SIG_STOP}" ${pid} > /dev/null 2>&1
 	local try=0
 	while kill -s 0 ${pid} > /dev/null 2>&1 && \
-	[ $((try++)) -lt $SERVICE_STOP_TIME ]; do
+	[ $((try++)) -lt ${SERVICE_STOP_TIME} ]; do
 		sleep 1
 	done
 	! kill -s 0 ${pids} > /dev/null 2>&1 || \
-		kill -s KILL ${pids} > /dev/null 2>&1
+		kill -s "KILL" ${pids} > /dev/null 2>&1
 }
 
 service_triggers() {
@@ -115,8 +122,8 @@ reload_service() {
 
 	service_running || \
 		return 1
-	echo "Info: Reloading Daemon config" >&2
-	kill -s HUP $pid || :
+	echo "Info: Reloading configuration files" >&2
+	kill -s "${SERVICE_SIG_RELOAD}" ${pid} || :
 }
 
 scan() {
@@ -125,7 +132,7 @@ scan() {
 	service_running || \
 		return 1
 	echo "Info: Requesting an scan to daemon" >&2
-	kill -s USR1 $pid || :
+	kill -s "${SERVICE_SIG_SCAN}" ${pid} || :
 }
 
 status() {
@@ -133,6 +140,6 @@ status() {
 
 	service_running || \
 		return 1
-	echo "Daemon is running in process ${pid}" >&2
-	kill -s USR2 $pid || :
+	echo "Info: Daemon is running in process ${pid}" >&2
+	kill -s "${SERVICE_SIG_STATUS}" ${pid} || :
 }
