@@ -1,3 +1,15 @@
+wwanHotspot v1.29
+
+  * wwanHotspot.init:
+    - Improve code layout.
+  * wwanHotspot.sh:
+    - Improve code layout.
+    - Emit an error when there are multiple default routes
+      and we check URL connectivity using the nc utility.
+    - Wait for the Report() subprocess without interrupting.
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 30 Sep 2018 9:29:22 +0200
+
 wwanHotspot v1.28
 
   * Daemon will stop when receives an INT signal.
