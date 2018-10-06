@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.28 $
+#  $Revision: 1.29 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -47,8 +47,8 @@ _check_syntax() {
 	for f in ../files/* postinst prerm; do
 		busybox sh -n "${f}" || rc=1
 	done
-	[ -n "${DEBUG}" ] || \
-		set +o xtrace
+	{ [ -n "${DEBUG}" ] || \
+		set +o xtrace; } 2> /dev/null
 	return "${rc}"
 }
 
