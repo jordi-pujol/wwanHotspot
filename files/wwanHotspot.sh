@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.29 $
+#  $Revision: 1.30 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -22,10 +22,6 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
-_tac() {
-	sed -e '1!G;h;$!d'
-}
-
 _integer_value() {
 	local n="${1}" d="${2}" v 
 	v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
@@ -43,10 +39,10 @@ _datetime() {
 }
 
 _ps_children() {
-	local p
-	for p in $(pgrep -P "${1:-${$}}"); do
-		echo "${p}"
-		_ps_children "${p}"
+	local ppid=${1:-${$}} excl=${2:-0} pid
+	for pid in $(pgrep -P ${ppid} | grep -swvF ${excl}); do
+		_ps_children ${pid} ${excl}
+		echo ${pid}
 	done
 }
 
@@ -73,41 +69,42 @@ _msg() {
 	msg="$(echo "${@}")"
 }
 
-WaitSubprocess() {
-	local timeout="${1:-}" dont_interrupt="${2:-}" pid="${3:-${!}}" \
-		pidw rc=""
-	if [ -n "${timeout}" ]; then
-		( sleep "${timeout}" && \
-		kill -s TERM "${pid}" > /dev/null 2>&1 ) &
-		pidw=${!}
-	fi
-	while wait "${pid}" && rc=0 || rc=${rc:-${?}};
-	kill -s 0 "${pid}" > /dev/null 2>&1; do
-		[ -n "${dont_interrupt}" ] && \
-			rc="" || \
-			kill -s TERM "${pid}" > /dev/null 2>&1 || :
+_pids_active() {
+	local p rc=1
+	for p in "${@}"; do
+		if kill -s 0 ${p} > /dev/null 2>&1; then
+			echo ${p}
+			rc=0
+		fi
 	done
-	[ -z "${timeout}" ] || \
-		kill -s TERM "${pidw}" > /dev/null 2>&1 || :
 	return ${rc}
 }
 
-WaitChildren() {
-	local dont_interrupt="${1:-}" pid
-	for pid in $(_ps_children | _tac); do
-		WaitSubprocess "" "${dont_interrupt}" ${pid} || :
+WaitSubprocess() {
+	local timeout="${1:-}" dont_interrupt="${2:-}" pids pidw rc=""
+	if [ ${#} -gt 2 ]; then
+		shift 2
+		pids="$(echo "${@}")"
+	fi
+	[ -n "${pids:=${!}}" ] || \
+		return 255
+	if [ -n "${timeout}" ]; then
+		( sleep "${timeout}" && kill -s TERM ${pids} > /dev/null 2>&1 ) &
+		pidw=${!}
+	fi
+	while wait ${pids} && rc=0 || rc=${rc:-${?}};
+	pids="$(_pids_active ${pids})"; do
+		[ -n "${dont_interrupt}" ] && \
+			rc="" || \
+			kill -s TERM ${pids} > /dev/null 2>&1 || :
 	done
+	[ -z "${timeout}" ] || \
+		kill -s TERM ${pidw} > /dev/null 2>&1 || :
+	return ${rc}
 }
 
 Settle() {
-	local pidReport=""
-	if [ -n "${StatMsgs}" ]; then
-		WaitChildren "y"
-		Report &
-		pidReport=${!}
-		[ ${Status} -le ${CONNECTING} ] || \
-			StatMsgs=""
-	fi
+	local pidSleep=0
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} ] && \
@@ -120,17 +117,26 @@ Settle() {
 			[ -z "${Debug}" ] || \
 				_applog "sleeping ${i} seconds"
 			sleep ${i} > /dev/null 2>&1 &
-			if ! WaitSubprocess; then
-				WwanErr=${NONE}
-				ScanRequest=${HotSpots}
-			fi
-			[ -z "${Debug}" ] || \
-				_applog "sleeping ended"
+			pidSleep=${!}
 		fi
 	fi
-	[ -z "${pidReport}" ] || \
-		WaitSubprocess "" "y" ${pidReport} || :
-	WaitChildren
+	local pids="$(_ps_children "" ${pidSleep})"
+	[ -z "${pids}" ] || \
+		WaitSubprocess "" "y" ${pids} || :
+	if [ -n "${StatMsgs}" ]; then
+		Report &
+		[ ${Status} -le ${CONNECTING} ] || \
+			StatMsgs=""
+		WaitSubprocess "" "y" || :
+	fi
+	if [ ${pidSleep} -ne 0 ]; then
+		if ! WaitSubprocess "" "" ${pidSleep}; then
+			WwanErr=${NONE}
+			ScanRequest=${HotSpots}
+		fi
+		[ -z "${Debug}" ] || \
+			_applog "sleeping ended"
+	fi
 	NoSleep=""
 }
 
@@ -196,6 +202,7 @@ WatchWifi() {
 }
 
 Report() {
+	_applog "Writing status report"
 	exec > "/var/log/${NAME}.stat"
 	echo "${NAME} status report."
 	echo
@@ -465,9 +472,9 @@ CheckConn() {
 }
 
 CheckConnectivity() {
-	local check=""
+	local check="$(eval echo \"\${net${HotSpot}_check:-}\")"
 	Interval=${SleepScanAuto}
-	[ -n "${check:="$(eval echo \"\${net${HotSpot}_check:-}\")"}" ] || \
+	[ -n "${check}" ] || \
 		return 0
 	local delay=20
 	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" | \
@@ -501,9 +508,9 @@ CheckConnectivity() {
 			CheckAddr="$(echo "${check}" | \
 			sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')"
 			[ -n "${CheckAddr:="${Gateway}"}" ] || \
-			LogPrio="err" \
-			_log "Serious Error: There is no default route" \
-				"for interface ${WIface}"
+				LogPrio="err" \
+				_log "Serious Error: There is no default route" \
+					"for interface ${WIface}"
 		fi
 	local rc=0
 	CheckConn &
