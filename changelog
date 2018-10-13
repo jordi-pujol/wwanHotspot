@@ -1,3 +1,14 @@
+wwanHotspot v1.30
+
+  * wwanHotspot.sh:
+    - Write the report while waiting for expiration of the time interval
+      to execute a new cycle.
+  * wwanHotspot.init:
+    - When stopping the daemon be sure to stop also all children
+      processes, if any.
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 10 Oct 2018 19:02:12 +0200
+
 wwanHotspot v1.29
 
   * wwanHotspot.init:
