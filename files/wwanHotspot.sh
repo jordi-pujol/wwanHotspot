@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.30 $
+#  $Revision: 1.31 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -81,12 +81,9 @@ _pids_active() {
 }
 
 WaitSubprocess() {
-	local timeout="${1:-}" dont_interrupt="${2:-}" pids pidw rc=""
-	if [ ${#} -gt 2 ]; then
-		shift 2
-		pids="$(echo "${@}")"
-	fi
-	[ -n "${pids:=${!}}" ] || \
+	local timeout="${1:-}" dont_interrupt="${2:-}" pids="${3:-${!}}" \
+		pidw rc=""
+	[ -n "${pids}" ] || \
 		return 255
 	if [ -n "${timeout}" ]; then
 		( sleep "${timeout}" && kill -s TERM ${pids} > /dev/null 2>&1 ) &
@@ -98,8 +95,10 @@ WaitSubprocess() {
 			rc="" || \
 			kill -s TERM ${pids} > /dev/null 2>&1 || :
 	done
-	[ -z "${timeout}" ] || \
+	if [ -n "${timeout}" ]; then
 		kill -s TERM ${pidw} > /dev/null 2>&1 || :
+		wait ${pidw} || :
+	fi
 	return ${rc}
 }
 
@@ -122,7 +121,7 @@ Settle() {
 	fi
 	local pids="$(_ps_children "" ${pidSleep})"
 	[ -z "${pids}" ] || \
-		WaitSubprocess "" "y" ${pids} || :
+		WaitSubprocess "" "y" "${pids}" || :
 	if [ -n "${StatMsgs}" ]; then
 		Report &
 		[ ${Status} -le ${CONNECTING} ] || \
@@ -154,7 +153,7 @@ HotspotBlackList() {
 	fi
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
-	LogPrio="warn" _log "Reason:" "${reason}"
+	LogPrio="info" _log "Reason:" "${reason}"
 	HotSpot=${NONE}
 }
 
@@ -166,7 +165,7 @@ BlackListExpired() {
 		unset net${hotspot}_blacklisted net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
-		LogPrio="warn" _log "${msg}"
+		LogPrio="info" _log "${msg}"
 		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
@@ -332,35 +331,32 @@ LoadConfig() {
 	fi
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
+
 	local i=-1 j m d
 	WIfaceAP=""
 	WIfaceSTA=""
-	while [ -z "${WIfaceAP}" ]; do
-		while [ $((i++)) ]; do
-			if ! m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; then
-				[ -z "${WIfaceSTA}" ] || \
-					break 2
-				LogPrio="err" _log "Invalid AP+STA configuration. Exiting"
-				exit 1
-			fi
-			if [ "${m}" = "sta" ]; then
-				WIfaceSTA=${i}
-				d="$(uci -q get wireless.@wifi-iface[${i}].device)"
-				WIface="wlan$(iwinfo "${d}" info | \
-					sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
-				break
-			fi
-		done
+	while [ $((i++)) ] && \
+	m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; do
+		[ "${m}" = "sta" ] || \
+			continue
+		WIfaceSTA=${i}
+		d="$(uci -q get wireless.@wifi-iface[${i}].device)"
+		WIface="wlan$(iwinfo "${d}" info | \
+			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
 		j=-1
 		while [ $((j++)) ] && \
 		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
 			if [ "${m}" = "ap" ] && \
 			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${d}" ]; then
 				WIfaceAP=${j}
-				break
+				break 2
 			fi
 		done
 	done
+	if [ -z "${WIfaceSTA}" ]; then
+		LogPrio="err" _log "Invalid AP+STA configuration. Exiting"
+		exit 1
+	fi
 	_applog "STA network interface is ${WIface}"
 	_applog "Detected STA config in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
@@ -371,7 +367,8 @@ LoadConfig() {
 		local n=0 ssid
 		while [ $((n++)) ] && \
 		eval ssid=\"\${net${n}_ssid:-}\" && \
-		[ -n "${ssid}" ]; do
+		[ -n "${ssid}" ] && \
+		[ -n "$(eval echo \"\${net${n}_encrypt:-}\")" ]; do
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
 			HotSpots=${n}
 		done
