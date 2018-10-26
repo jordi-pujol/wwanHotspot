@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.31 $
+#  $Revision: 1.32 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -78,9 +78,8 @@ while [ -n "${1:-}" ]; do
 		_package_attrs
 		if [ -s "${PKG_IPK}" ]; then
 			rc=0
-			t="$(stat -c '%Y' "${PKG_IPK}")"
 			for f in ../files/* postinst prerm control; do
-				if [ $(stat -c '%Y' "${f}") -gt ${t} ]; then
+				if [ "${f}" -nt "${PKG_IPK}" ]; then
 					echo "File \"${f}\" has been modified." >&2
 					rc=1
 				fi
