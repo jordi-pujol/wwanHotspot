@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.31 $
+#  $Revision: 1.32 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -26,8 +26,10 @@ START=99
 USE_PROCD=1
 #PROCD_DEBUG=1
 #INIT_TRACE="y"
-EXTRA_COMMANDS="scan status"
-EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"$'\n\t'"status"$'\t'"Update status report"
+EXTRA_COMMANDS="network scan status"
+EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"\
+$'\n\t'"status"$'\t'"Update status report"\
+$'\n\t'"running"$'\t'"Check if daemon is active"
 
 ${INIT_TRACE:+set -x}
 
@@ -39,6 +41,7 @@ SERVICE_SIG_STOP="INT"
 SERVICE_SIG_RELOAD="HUP"
 SERVICE_SIG_SCAN="USR1"
 SERVICE_SIG_STATUS="USR2"
+SERVICE_SIG_NETWORK="ALRM"
 
 _ps_children() {
 	local p
@@ -76,6 +79,7 @@ service_pid() {
 	local pid
 	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
 	grep -qsF "${PROG}" "/proc/${pid}/cmdline" && \
+	kill -s 0 ${pid} > /dev/null 2>&1 && \
 	echo "${pid}"
 }
 
@@ -84,6 +88,7 @@ service_running() {
 		echo "Error: Daemon is not running" >&2
 		return 1
 	fi
+	echo "Info: Daemon is running in process ${pid}" >&2
 }
 
 start_service() {
@@ -119,9 +124,10 @@ service_triggers() {
 	local n
 	procd_open_trigger
 	for n in ${ifaces}; do
-		procd_add_interface_trigger "interface.*" "${n}" "${INIT}" scan
+		procd_add_interface_trigger "interface.*" "${n}" "${INIT}" network
 	done
 	procd_add_config_trigger "config.change" "${NAME}" "${INIT}" reload
+	procd_add_config_trigger "config.change" "network" "${INIT}" reload
 	procd_close_trigger
 }
 
@@ -131,6 +137,14 @@ reload_service() {
 		return 1
 	echo "Info: Reloading configuration files" >&2
 	kill -s "${SERVICE_SIG_RELOAD}" ${pid} || :
+}
+
+network() {
+	local pid
+	service_running || \
+		return 1
+	echo "Info: Advertising daemon of a network status change" >&2
+	kill -s "${SERVICE_SIG_NETWORK}" ${pid} || :
 }
 
 scan() {
@@ -145,6 +159,6 @@ status() {
 	local pid
 	service_running || \
 		return 1
-	echo "Info: Daemon is running in process ${pid}" >&2
+	echo "Info: Requesting an status report update to daemon" >&2
 	kill -s "${SERVICE_SIG_STATUS}" ${pid} || :
 }
