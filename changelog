@@ -1,3 +1,11 @@
+wwanHotspot v1.32
+
+  * Signal ALRM when network changes.
+  * wwanHotspot.sh WatchWifi():
+    prefer watching for STA instead of AP.
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 21 Oct 2018 10:20:30 +0200
+
 wwanHotspot v1.31
 
   * wwanHotspot.sh:
