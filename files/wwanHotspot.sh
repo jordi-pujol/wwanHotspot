@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.31 $
+#  $Revision: 1.32 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -39,15 +39,15 @@ _datetime() {
 }
 
 _ps_children() {
-	local ppid=${1:-${$}} excl=${2:-0} pid
-	for pid in $(pgrep -P ${ppid} | grep -swvF ${excl}); do
-		_ps_children ${pid} ${excl}
+	local ppid=${1:-${$}} excl="${2:-"0"}" pid
+	for pid in $(pgrep -P ${ppid} | grep -svwF "${excl}"); do
+		_ps_children ${pid} "${excl}"
 		echo ${pid}
 	done
 }
 
 _exit() {
-	trap - EXIT INT HUP USR1 USR2
+	trap - EXIT INT HUP ALRM USR1 USR2
 	LogPrio="warn" _log "Exiting"
 	echo $'\n'"$(_datetime) ${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
 	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
@@ -103,7 +103,7 @@ WaitSubprocess() {
 }
 
 Settle() {
-	local pidSleep=0
+	local pidSleep=""
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} ] && \
@@ -115,21 +115,21 @@ Settle() {
 		if [ ${i} -gt 0 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "sleeping ${i} seconds"
-			sleep ${i} > /dev/null 2>&1 &
+			sleep ${i} &
 			pidSleep=${!}
 		fi
 	fi
-	local pids="$(_ps_children "" ${pidSleep})"
+	local pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
-		WaitSubprocess "" "y" "${pids}" || :
+		WaitSubprocess ${Sleep} "y" "${pids}" || :
 	if [ -n "${StatMsgs}" ]; then
 		Report &
 		[ ${Status} -le ${CONNECTING} ] || \
 			StatMsgs=""
 		WaitSubprocess "" "y" || :
 	fi
-	if [ ${pidSleep} -ne 0 ]; then
-		if ! WaitSubprocess "" "" ${pidSleep}; then
+	if [ -n "${pidSleep}" ]; then
+		if ! WaitSubprocess "" "" "${pidSleep}"; then
 			WwanErr=${NONE}
 			ScanRequest=${HotSpots}
 		fi
@@ -162,7 +162,8 @@ BlackListExpired() {
 	while read -r exp hotspot && \
 	[ -n "${exp}" ] && \
 	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
-		unset net${hotspot}_blacklisted net${hotspot}_blacklistexp || :
+		unset net${hotspot}_blacklisted \
+			net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
 		LogPrio="info" _log "${msg}"
@@ -175,33 +176,30 @@ EOF
 }
 
 IsWifiActive() {
-	local ssid="${1}" iface="${2:-"${WIface}"}" ssid1
-	ssid1="$(iwinfo "${iface}" info 2> /dev/null | \
-	sed -nre '\|^'"${iface}"'[[:blank:]]+ESSID: (.+)$| s||\1|p')" && \
+	local ssid="${1:-"\"${WwanSsid}\""}" ssid1
+	ssid1="$(iwinfo "${WIface}" info 2> /dev/null | \
+	sed -nre '\|^'"${WIface}"'[[:blank:]]+ESSID: (.+)$| s||\1|p')" && \
 	[ "${ssid1}" = "${ssid}" ]
 }
 
 WatchWifi() {
-	local c="${1:-10}" iface ApSsid ApDisabled
-	if [ -z "${WIfaceAP}" ]; then
-		sleep ${c} &
-		WaitSubprocess || :
-		return 0
-	fi
-	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ] && \
-		iface="${WIface}" || \
-		iface="${WIface}-1"
-	ApSsid="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)" || :
-	ApDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" || :
-	while [ "${ApDisabled}" != 1 ] && \
-	! IsWifiActive "\"${ApSsid}\"" "${iface}" && \
+	local c="${1:-10}" ssid=""
+	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 ] || \
+		if [ -z "${WIfaceAP}" ] || \
+		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ] || \
+		! ssid="\"$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)\""; then
+			sleep ${c}
+			return 0
+		fi
+	while ! IsWifiActive "${ssid}" && \
 	[ $((c--)) -gt 0 ]; do
 		sleep 1
 	done
 }
 
 Report() {
-	_applog "Writing status report"
+	[ -z "${Debug}" ] || \
+		_applog "Writing status report"
 	exec > "/var/log/${NAME}.stat"
 	echo "${NAME} status report."
 	echo
@@ -238,10 +236,18 @@ Report() {
 		echo "WAN interface is disconnected"
 	echo
 	ip route show
+	[ -z "${Debug}" ] || \
+		_applog "End of status report"
 }
 
 ListStatus() {
 	AddStatMsg "Updating status report"
+	NoSleep="y"
+}
+
+NetworkChange() {
+	[ ${Status} -le ${CONNECTING} ] || \
+		AddStatMsg "Network status has changed"
 	NoSleep="y"
 }
 
@@ -335,19 +341,21 @@ LoadConfig() {
 	local i=-1 j m d
 	WIfaceAP=""
 	WIfaceSTA=""
-	while [ $((i++)) ] && \
+	while [ $((i++)) ];
 	m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; do
 		[ "${m}" = "sta" ] || \
 			continue
+		LogPrio="info" _log "Found STA config in wifi-iface ${i}"
 		WIfaceSTA=${i}
 		d="$(uci -q get wireless.@wifi-iface[${i}].device)"
 		WIface="wlan$(iwinfo "${d}" info | \
 			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
 		j=-1
-		while [ $((j++)) ] && \
+		while [ $((j++)) ];
 		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
 			if [ "${m}" = "ap" ] && \
 			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${d}" ]; then
+				LogPrio="info" _log "Found AP config in wifi-iface ${j}"
 				WIfaceAP=${j}
 				break 2
 			fi
@@ -365,7 +373,7 @@ LoadConfig() {
 
 	if [ ${HotSpots} -eq ${NONE} ]; then
 		local n=0 ssid
-		while [ $((n++)) ] && \
+		while [ $((n++)) ];
 		eval ssid=\"\${net${n}_ssid:-}\" && \
 		[ -n "${ssid}" ] && \
 		[ -n "$(eval echo \"\${net${n}_encrypt:-}\")" ]; do
@@ -407,7 +415,7 @@ IsWanConnected() {
 }
 
 IsWwanConnected() {
-	local ssid="${1:-"\"${WwanSsid}\""}"
+	local ssid="${1:-}"
 	[ "${WwanDisabled}" != 1 ] && \
 	IsWifiActive "${ssid}" && \
 	sleep 5 && \
@@ -445,10 +453,10 @@ Scanning() {
 
 CurrentHotSpot() {
 	[ ${HotSpot} -ne ${NONE} ] || \
-	HotSpot="$(echo "${Ssids}" | \
-	awk -v ssid="${WwanSsid}" \
-	'$0 == ssid {n = NR; exit}
-	END{print n+0; exit (n+0 == 0)}')"
+		HotSpot="$(echo "${Ssids}" | \
+			awk -v ssid="${WwanSsid}" \
+			'$0 == ssid {n = NR; exit}
+			END{print n+0; exit (n+0 == 0)}')"
 }
 
 CheckConn() {
@@ -513,8 +521,10 @@ CheckConnectivity() {
 	CheckConn &
 	WaitSubprocess ${PingWait} || rc=${?}
 	if [ ${rc} -eq 0 ]; then
-		_msg "Connectivity of ${HotSpot}:'${WwanSsid}'" \
-			"to ${CheckAddr} has been verified"
+		_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
+			"$(test "${CheckAddr}" != "${Gateway}" || \
+			echo "gateway:")${CheckAddr}" \
+			"has been verified"
 		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
@@ -539,6 +549,7 @@ CheckConnectivity() {
 		ScanRequest=1
 		return 1
 	fi
+	NoSleep=""
 	[ $((NetworkAttempts++)) ]
 }
 
@@ -627,6 +638,7 @@ WifiStatus() {
 	Interval=${Sleep}
 
 	trap 'LoadConfig' HUP
+	trap 'NetworkChange' ALRM
 	trap 'NoSleep="y"' USR1
 	trap 'ListStatus' USR2
 
@@ -719,6 +731,7 @@ WifiStatus() {
 				_log "${msg}"
 				AddStatMsg "${msg}"
 				WatchWifi 20 &
+				NoSleep="y"
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
@@ -730,6 +743,7 @@ WifiStatus() {
 				_log "${msg}"
 				AddStatMsg "${msg}"
 				WatchWifi &
+				NoSleep="y"
 			else
 				_msg "Client interface to" \
 					"${HotSpot}:'${WwanSsid}' is already enabled"
@@ -775,7 +789,7 @@ WifiStatus() {
 	done
 }
 
-set -o errexit -o nounset -o pipefail
+set -o errexit -o nounset -o pipefail +o noglob
 NAME="$(basename "${0}")"
 case "${1:-}" in
 start)
