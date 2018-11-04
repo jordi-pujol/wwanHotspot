@@ -1,3 +1,9 @@
+wwanHotspot v1.33
+
+  * Some code improvements.
+ 
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 04 Nov 2018 10:51:43 +0100
+
 wwanHotspot v1.32
 
   * Signal ALRM when network changes.
