@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.32 $
+#  $Revision: 1.33 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -55,18 +55,20 @@ _exit() {
 }
 
 _applog() {
-	printf '%s\n' "$(_datetime) $(echo "${@}")" >> "/var/log/${NAME}"
+	local msg="${@}"
+	printf '%s\n' "$(_datetime) ${msg}" >> "/var/log/${NAME}"
 }
 
 _log() {
-	local p="daemon.${LogPrio:-"notice"}"
+	local msg="${@}" \
+		p="daemon.${LogPrio:-"notice"}"
 	LogPrio=""
-	logger -t "${NAME}" -p "${p}" "${@}"
-	_applog "${p}:" "${@}"
+	logger -t "${NAME}" -p "${p}" "${msg}"
+	_applog "${p}:" "${msg}"
 }
 
 _msg() {
-	msg="$(echo "${@}")"
+	msg="${@}"
 }
 
 _pids_active() {
@@ -140,7 +142,8 @@ Settle() {
 }
 
 AddStatMsg() {
-	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}$(_datetime) $(echo "${@}")"
+	local msg="${@}"
+	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}$(_datetime) ${msg}"
 }
 
 HotspotBlackList() {
@@ -252,12 +255,12 @@ NetworkChange() {
 }
 
 BackupRotate() {
-	local f="${1}" r=${LogRotate}
+	local f="${1}" n=${LogRotate}
 	[ -f "${f}" ] && \
 		mv -f "${f}" "${f}_$(_UTCseconds)" || \
-		r=${NONE}
+		n=${NONE}
 	printf '%s\n' "${f}_"* | \
-	head -qn -${r} | \
+	head -qn -${n} | \
 	while IFS= read -r f; do
 		rm -f "${f}"
 	done
