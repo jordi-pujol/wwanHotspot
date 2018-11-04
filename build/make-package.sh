@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.32 $
+#  $Revision: 1.33 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -32,7 +32,7 @@ _control_value() {
 _package_attrs() {
 	[ -z "${PKG_IPK:-}" ] || \
 		return 0
-	echo "Parsing package attributes." >&2
+	echo "Parsing package attributes" >&2
 	PKG="$(_control_value "Package:")"
 	PKG_VERSION="$(_control_value "Version:")"
 	PKG_ARCH="$(_control_value "Architecture:")"
@@ -41,7 +41,7 @@ _package_attrs() {
 
 _check_syntax() {
 	local f rc=0
-	echo "Checking syntax." >&2
+	echo "Checking syntax" >&2
 	[ -n "${DEBUG}" ] || \
 		set -o xtrace
 	for f in ../files/* postinst prerm; do
@@ -53,7 +53,7 @@ _check_syntax() {
 }
 
 _cleanup() {
-	echo "Cleaning." >&2
+	echo "Cleaning" >&2
 	rm -vrf ./ipk
 	rm -vf ./control.tar.gz \
 		./data.tar.gz \
@@ -69,31 +69,33 @@ set -o errexit -o nounset +o noglob
 dir="$(dirname "${0}")"
 [ -z "${dir}" ] || \
 	cd "${dir}"
-[ -f "./control" -a -s "./control" ] || \
+if [ ! -f "./control" -o ! -s "./control" ]; then
+	echo "Invalid package" >&2
 	exit 1
+fi
 
-while [ -n "${1:-}" ]; do
-	case "${1}" in
+for cmd in "${@}"; do
+	case "${cmd}" in
 	all|build)
 		_package_attrs
 		if [ -s "${PKG_IPK}" ]; then
 			rc=0
 			for f in ../files/* postinst prerm control; do
 				if [ "${f}" -nt "${PKG_IPK}" ]; then
-					echo "File \"${f}\" has been modified." >&2
+					echo "File \"${f}\" has been modified" >&2
 					rc=1
 				fi
 			done
 			if [ "${rc}" = 0 ]; then
 				echo "Nothing to do" >&2
-				exit 0
+				continue
 			fi
-			echo "Some files have been modified. This package must be updated." >&2
+			echo "Some files have been modified. This package must be updated" >&2
 		fi
-		echo "Building package." >&2
+		echo "Building package" >&2
 		_check_syntax || exit 1
 		_cleanup
-		echo "Populating package directories." >&2
+		echo "Populating package directories" >&2
 		mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin
 		cp ../files/${PKG}.config ./ipk/etc/config/${PKG}
 		cp ../files/${PKG}.init ./ipk/etc/init.d/${PKG}
@@ -101,31 +103,29 @@ while [ -n "${1:-}" ]; do
 		chmod a+x ./ipk/etc/init.d/${PKG} ./ipk/usr/sbin/${PKG}
 		echo "2.0" > ./debian-binary
 		chmod a+x ./postinst ./prerm
-		echo "Compressing control files." >&2
+		echo "Compressing control files" >&2
 		tar --owner=0 --group=0 --format=gnu -czvpf control.tar.gz \
 			./control ./conffiles ./postinst ./prerm
 		#cd ./ipk; tar --owner=0 --group=0 -czvf ../data.tar.gz *; cd ..
-		echo "Compressing data files." >&2
+		echo "Compressing data files" >&2
 		tar --owner=0 --group=0 --format=gnu --transform 's|^.*ipk/|./|' \
 			--show-stored-names -czvpf data.tar.gz ipk/*
-		echo "Compressing package." >&2
+		echo "Compressing package" >&2
 		tar --owner=0 --group=0 --format=gnu -czvf "${PKG_IPK}" \
 			./debian-binary ./data.tar.gz ./control.tar.gz
-		echo "Package \"${PKG_IPK}\" has been created." >&2
-		exit 0
+		echo "Package \"${PKG_IPK}\" has been created" >&2
 		;;
 	check)
 		_check_syntax || exit 1
-		echo "Done." >&2
+		echo "Done" >&2
 		;;
 	clean)
 		_cleanup
-		echo "Done." >&2
+		echo "Done" >&2
 		;;
 	*)
 		echo "Usage '$0' all|build|clean|check" >&2
 		exit 1
 		;;
 	esac
-	shift
 done
