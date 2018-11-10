@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.33 $
+#  $Revision: 1.34 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -208,6 +208,7 @@ Report() {
 	echo
 	echo "${StatMsgs}"
 	echo
+	echo "Radio device is ${WDevice}"
 	echo "STA network interface is ${WIface}"
 	echo "Detected STA config in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
@@ -237,6 +238,8 @@ Report() {
 	IsWanConnected && \
 		echo "WAN interface is connected" || \
 		echo "WAN interface is disconnected"
+	echo
+	echo "Active default routes: $(ActiveDefaultRoutes)"
 	echo
 	ip route show
 	[ -z "${Debug}" ] || \
@@ -341,7 +344,7 @@ LoadConfig() {
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
-	local i=-1 j m d
+	local i=-1 j m
 	WIfaceAP=""
 	WIfaceSTA=""
 	while [ $((i++)) ];
@@ -350,14 +353,14 @@ LoadConfig() {
 			continue
 		LogPrio="info" _log "Found STA config in wifi-iface ${i}"
 		WIfaceSTA=${i}
-		d="$(uci -q get wireless.@wifi-iface[${i}].device)"
-		WIface="wlan$(iwinfo "${d}" info | \
+		WDevice="$(uci -q get wireless.@wifi-iface[${i}].device)"
+		WIface="wlan$(iwinfo "${WDevice}" info | \
 			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
 		j=-1
 		while [ $((j++)) ];
 		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
 			if [ "${m}" = "ap" ] && \
-			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${d}" ]; then
+			[ "$(uci -q get wireless.@wifi-iface[${j}].device)" = "${WDevice}" ]; then
 				LogPrio="info" _log "Found AP config in wifi-iface ${j}"
 				WIfaceAP=${j}
 				break 2
@@ -368,11 +371,10 @@ LoadConfig() {
 		LogPrio="err" _log "Invalid AP+STA configuration. Exiting"
 		exit 1
 	fi
-	_applog "STA network interface is ${WIface}"
-	_applog "Detected STA config in wifi-iface ${WIfaceSTA}"
-	[ -n "${WIfaceAP}" ] && \
-		_applog "Detected AP config in wifi-iface ${WIfaceAP}" || \
-		_applog "Non standard AP+STA configuration"
+	LogPrio="info" _log "Radio device is ${WDevice}"
+	LogPrio="info" _log "STA network interface is ${WIface}"
+	[ -n "${WIfaceAP}" ] || \
+		LogPrio="info" _log "Non standard AP+STA configuration"
 
 	if [ ${HotSpots} -eq ${NONE} ]; then
 		local n=0 ssid
@@ -411,6 +413,12 @@ LoadConfig() {
 	NoSleep="y"
 }
 
+ActiveDefaultRoutes() {
+	ip -4 route show default | \
+	awk '$1 == "default" && $NF != "linkdown" {n++}
+	END{print n+0}'
+}
+
 IsWanConnected() {
 	local status
 	status="$(cat "/sys/class/net/${IfaceWan}/operstate" 2> /dev/null)" && \
@@ -428,7 +436,7 @@ IsWwanConnected() {
 MustScan() {
 	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
 		return 0
-	[ -n "${ScanAuto}" ] && ! IsWanConnected
+	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq 0 ]
 }
 
 Scanning() {
@@ -503,11 +511,9 @@ CheckConnectivity() {
 				[ "${CheckAddr:0:8}" = "https://" ] && \
 					CheckPort=443 || \
 					CheckPort=80
-				if [ $(ip -4 route show default | \
-				awk '$1 == "default" && $NF != "linkdown" {c++}
-				END{print c+0}') -gt 1 ]; then
+				if [ $(ActiveDefaultRoutes) -gt 1 ]; then
 					_msg "Using the nc utility to check URL connectivity" \
-						"while multiple default routes are enabled"
+						"while several default routes are enabled"
 					LogPrio="err" _log "${msg}"
 					AddStatMsg "Error:" "${msg}"
 				fi
@@ -515,10 +521,16 @@ CheckConnectivity() {
 		else
 			CheckAddr="$(echo "${check}" | \
 			sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')"
-			[ -n "${CheckAddr:="${Gateway}"}" ] || \
-				LogPrio="err" \
-				_log "Serious Error: There is no default route" \
-					"for interface ${WIface}"
+			if [ -z "${CheckAddr:="${Gateway}"}" ]; then
+				_msg "Serious Error: no default route for" \
+					"${HotSpot}:'${WwanSsid}'." \
+					"Disabling connectivity check."
+				LogPrio="err" _log "${msg}"
+				[ -z "${StatMsgs}" ] || \
+					AddStatMsg "${msg}"
+				unset net${HotSpot}_check
+				return 0
+			fi
 		fi
 	local rc=0
 	CheckConn &
@@ -614,8 +626,8 @@ WwanDisable() {
 	_log "Disabling wireless device for ${HotSpot}:'${WwanSsid}'"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=1
 	uci commit wireless
-	wifi down
-	wifi up
+	wifi down "${WDevice}"
+	wifi up "${WDevice}"
 	WwanDisabled=1
 	NoSleep="y"
 	WatchWifi &
@@ -632,7 +644,7 @@ WifiStatus() {
 		msg LogPrio="" \
 		PidDaemon="${$}" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
-		TryConnection=0 WIface WIfaceAP WIfaceSTA
+		TryConnection=0 WIface WIfaceAP WIfaceSTA WDevice
 
 	trap '_exit' EXIT
 	trap 'exit' INT
@@ -738,8 +750,8 @@ WifiStatus() {
 			elif [ "${WwanDisabled}" = 1 ]; then
 				uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
-				wifi down
-				wifi up
+				wifi down "${WDevice}"
+				wifi up "${WDevice}"
 				TryConnection=2
 				_msg "Enabling client interface to" \
 					"${HotSpot}:'${WwanSsid}'..."
@@ -782,7 +794,7 @@ WifiStatus() {
 		if [ "${WwanDisabled}" != 1 ]; then
 			Interval=${Sleep}
 		elif [ -n "${ScanAuto}" ] && \
-		! IsWanConnected; then
+		[ $(ActiveDefaultRoutes) -eq 0 ]; then
 			Interval=${SleepDsc}
 		else
 			Interval=${SleepScanAuto}
