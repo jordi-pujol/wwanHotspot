@@ -1,3 +1,15 @@
+wwanHotspot v1.34
+
+  * When possible don't reset the whole wireless network, change
+    the status only of the radio device corresponding to the STA wifi
+    interface.
+  * Look for the number of active default routes instead of checking the
+    status of the WAN interface.
+  * Better management of the rare situation when routing for the STA 
+    interface is wrong and has not a gateway.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 07 Nov 2018 11:15:30 +0100
+
 wwanHotspot v1.33
 
   * Some code improvements.
