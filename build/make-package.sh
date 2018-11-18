@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.34 $
+#  $Revision: 1.35 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -23,7 +23,7 @@
 #************************************************************************
 
 _control_value() {
-	awk -v var="${1}" '$1 == var {$1 = ""
+	awk -v var="${1}" '$1 == var {$1=""
 		gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
 		print; rc=-1; exit}
 		END{exit rc+1}' < control
