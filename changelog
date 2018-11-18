@@ -1,3 +1,19 @@
+wwanHotspot v1.35
+
+  * wwanHotspot.sh
+    - Settle(): Faster response when an external signal interrupts
+      while the daemon is sleeping.
+    - IsWifiActive(): Be sure that we are checking the right interface
+      for the active SSID.
+    - Variable msg must be local for all functions that use it.
+    - CheckConnectivity(): Default sleeping interval is SleepDsc when
+      ScanAuto is enabled.
+    - WwanReset(): unifying WWAN reset action into a common function.
+    - Output connection messages in more logical order.
+    - Report(): Code coherency, use printf instead of echo.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 11 Nov 2018 08:22:23 +0100
+
 wwanHotspot v1.34
 
   * When possible don't reset the whole wireless network, change
@@ -8,7 +24,7 @@ wwanHotspot v1.34
   * Better management of the rare situation when routing for the STA 
     interface is wrong and has not a gateway.
 
- -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 07 Nov 2018 11:15:30 +0100
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 07 Nov 2018 11:15:30 +0100
 
 wwanHotspot v1.33
 
