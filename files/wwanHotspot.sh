@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.35 $
+#  $Revision: 1.36 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -181,21 +181,19 @@ EOF
 }
 
 IsWifiActive() {
-	local ssid="${1:-"\"${WwanSsid}\""}" mode="${2:-"Client"}" ssid1
-	ssid1="$(iwinfo "${WIface}" info 2> /dev/null | \
-		awk -v iface="${WIface}" -v mode="${mode}" \
+	iwinfo "${WIface}" info 2> /dev/null | \
+	awk -v iface="${WIface}" \
+	-v ssid="${1:-"\"${WwanSsid}\""}" \
+	-v mode="${2:-"Client"}" \
 		'$1 == iface && $2 == "ESSID:" {
-			$1=""; $2=""
+			$2=""; $1=""
 			gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
-			ssid=$0
+			ssid1=$0
 			next }
 		$1 == "Mode:" {
-			if (ssid && $2 == mode) {
-				print ssid
-				rc=-1 }
+			rc=-(ssid == ssid1 && $2 == mode)
 			exit }
-		END{ exit rc+1 }')" && \
-	[ "${ssid1}" = "${ssid}" ]
+		END{exit rc+1}'
 }
 
 WatchWifi() {
@@ -217,7 +215,7 @@ WatchWifi() {
 
 WwanReset() {
 	local disable="${1:-"1"}" msg
-	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En" )abling" \
+	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling" \
 		"wireless interface to ${HotSpot}:'${WwanSsid}'"
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
@@ -260,9 +258,13 @@ Report() {
 		echo
 	done
 	iwinfo
-	IsWanConnected && \
-		printf '%s\n\n' "WAN interface is connected" || \
-		printf '%s\n\n' "WAN interface is disconnected"
+	if [ -n "${IfaceWan}" ]; then
+		IsWanConnected && \
+			printf '%s\n\n' "WAN interface is connected" || \
+			printf '%s\n\n' "WAN interface is disconnected"
+	else
+		printf '%s\n\n' "There is no WAN interface"
+	fi
 	printf '%s\n\n' "Active default routes: $(ActiveDefaultRoutes)"
 	ip route show
 	[ -z "${Debug}" ] || \
@@ -312,7 +314,10 @@ AddHotspot() {
 			AddStatMsg "${msg}"
 		fi
 	else
-		_applog "Error: AddHotspot, No ssid or encrypt specified"
+		LogPrio="err"
+		_log "AddHotspot, Invalid config." \
+			"No ssid or encrypt specified. Exiting"
+		exit 1
 	fi
 	unset net_ssid net_encrypt net_key net_hidden net_blacklisted net_check
 }
@@ -403,8 +408,13 @@ LoadConfig() {
 		local n=0 ssid
 		while [ $((n++)) ];
 		eval ssid=\"\${net${n}_ssid:-}\" && \
-		[ -n "${ssid}" ] && \
-		[ -n "$(eval echo \"\${net${n}_encrypt:-}\")" ]; do
+		[ -n "${ssid}" ]; do
+			if [ -z "$(eval echo \"\${net${n}_encrypt:-}\")" ]; then
+				LogPrio="err"
+				_log "Invalid config" \
+					"Hotspot ${n}, no encryption specified. Exiting"
+				exit 1
+			fi
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
 			HotSpots=${n}
 		done
@@ -654,7 +664,6 @@ WifiStatus() {
 		ScanRequest WwanErr Status=${NONE} StatMsgs="" Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
 		msg LogPrio="" \
-		PidDaemon="${$}" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection=0 WIface WIfaceAP WIfaceSTA WDevice
 
@@ -742,7 +751,7 @@ WifiStatus() {
 				WwanSsid="${ssid}"
 				_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
 				WwanErr=${NONE}
-				uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${ssid}"
+				uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 				uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="$(
 					eval echo \"\${net${HotSpot}_encrypt:-}\")"
 				uci set wireless.@wifi-iface[${WIfaceSTA}].key="$(
