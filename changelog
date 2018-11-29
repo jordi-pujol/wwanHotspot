@@ -1,6 +1,8 @@
 wwanHotspot v1.36
 
   * Some code improvements.
+  * Document that we are checking for active default routes instead of
+    active WAN interface.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 27 Nov 2018 21:03:34 +0100
 
