@@ -1,3 +1,12 @@
+wwanHotspot v1.37
+
+  * wwanHotspot.sh
+    - Activate the indicator "NoSleep" only when an interrupt occurs.
+      The daemon gets results faster when acting with calm.
+  * Some code improvements.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 01 Dec 2018 10:55:40 +0100
+
 wwanHotspot v1.36
 
   * Some code improvements.
