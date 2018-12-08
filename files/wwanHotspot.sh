@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.36 $
+#  $Revision: 1.37 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -217,13 +217,12 @@ WwanReset() {
 	local disable="${1:-"1"}" msg
 	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling" \
 		"wireless interface to ${HotSpot}:'${WwanSsid}'"
-	LogPrio="warn" _log "${msg}"
+	_log "${msg}"
 	AddStatMsg "${msg}"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=${disable}
 	uci commit wireless
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
-	NoSleep="y"
 	WatchWifi &
 }
 
@@ -480,7 +479,7 @@ Scanning() {
 			return 0
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
-		[ ${i} -le 2 ] && \
+		[ ${i} -eq 2 ] && \
 		echo "${err}" | grep -qsF 'command failed: Network is down' || \
 			continue
 		LogPrio="err"
@@ -521,19 +520,20 @@ CheckConn() {
 }
 
 CheckConnectivity() {
-	local check="$(eval echo \"\${net${HotSpot}_check:-}\")" msg
-	[ -n "${ScanAuto}" ] && \
-		Interval=${SleepDsc} || \
-		Interval=${SleepScanAuto}
-	[ -n "${check}" ] || \
+	local check="$(eval echo \"\${net${HotSpot}_check:-}\")"
+	if [ -z "${check}" ]; then
+		[ -n "${ScanAuto}" ] && \
+			Interval=${SleepDsc} || \
+			Interval=${SleepScanAuto}
 		return 0
-	local delay=${Sleep}
+	fi
+	Interval=${Sleep}
+	local delay=${Sleep} msg
 	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" | \
 	awk '$1 == "default" {print $3; exit}')"}" ] && \
 	[ $((delay--)) -gt 0 ]; do
 		sleep 1
 	done
-	Interval=${Sleep}
 	[ -n "${CheckAddr}" ] || \
 		if CheckSrvr="$(echo "${check}" | \
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
@@ -766,7 +766,6 @@ WifiStatus() {
 				_log "${msg}"
 				AddStatMsg "${msg}"
 				WatchWifi ${Sleep} &
-				NoSleep="y"
 			elif [ "${WwanDisabled}" = 1 ]; then
 				WwanReset 0
 				TryConnection=2
