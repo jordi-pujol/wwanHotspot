@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.36 $
+#  $Revision: 1.37 $
 #
 #  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -130,34 +130,30 @@ service_triggers() {
 	procd_close_trigger
 }
 
-reload_service() {
+_signal() {
 	local pid
 	service_running || \
 		return 1
-	echo "Info: Reloading configuration files" >&2
-	kill -s "${SERVICE_SIG_RELOAD}" ${pid} || :
+	echo "Info:" "${1}" >&2
+	kill -s "${2}" ${pid} > /dev/null 2>&1 || :
+}
+
+reload_service() {
+	_signal "Reloading configuration files" \
+		"${SERVICE_SIG_RELOAD}"
 }
 
 network() {
-	local pid
-	service_running || \
-		return 1
-	echo "Info: Advertising daemon of a network status change" >&2
-	kill -s "${SERVICE_SIG_NETWORK}" ${pid} || :
+	_signal "Advertising daemon of a network status change" \
+		"${SERVICE_SIG_NETWORK}"
 }
 
 scan() {
-	local pid
-	service_running || \
-		return 1
-	echo "Info: Requesting an scan to daemon" >&2
-	kill -s "${SERVICE_SIG_SCAN}" ${pid} || :
+	_signal "Requesting an scan to daemon" \
+		"${SERVICE_SIG_SCAN}"
 }
 
 status() {
-	local pid
-	service_running || \
-		return 1
-	echo "Info: Requesting an status report update to daemon" >&2
-	kill -s "${SERVICE_SIG_STATUS}" ${pid} || :
+	_signal "Requesting an status report update to daemon" \
+		"${SERVICE_SIG_STATUS}"
 }
