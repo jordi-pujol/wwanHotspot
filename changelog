@@ -1,3 +1,10 @@
+wwanHotspot v1.38
+
+  * wwanHotspot.sh
+    - Clear status messages only on status change.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 03 Apr 2019 09:31:49 +0200
+
 wwanHotspot v1.37
 
   * wwanHotspot.sh

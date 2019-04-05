@@ -3,9 +3,9 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.37 $
+#  $Revision: 1.38 $
 #
-#  Copyright (C) 2017-2018 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -124,9 +124,10 @@ Settle() {
 	local pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
-	if [ -n "${StatMsgs}" ]; then
+	if [ -n "${StatMsgsChgd}" ]; then
+		StatMsgsChgd=""
 		Report &
-		[ ${Status} -le ${CONNECTING} ] || \
+		[ ${Status} -le ${CONNECTED} ] || \
 			StatMsgs=""
 		WaitSubprocess "" "y" || :
 	fi
@@ -146,6 +147,7 @@ Settle() {
 AddStatMsg() {
 	local msg="${@}"
 	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}$(_datetime) ${msg}"
+	StatMsgsChgd="y"
 }
 
 HotspotBlackList() {
@@ -159,6 +161,7 @@ HotspotBlackList() {
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
 	LogPrio="info" _log "Reason:" "${reason}"
+	AddStatMsg "Reason:" "${reason}"
 	HotSpot=${NONE}
 }
 
@@ -187,7 +190,7 @@ IsWifiActive() {
 	-v mode="${2:-"Client"}" \
 		'$1 == iface && $2 == "ESSID:" {
 			$2=""; $1=""
-			gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
+			gsub("^"FS"+|"FS"+$", "")
 			ssid1=$0
 			next }
 		$1 == "Mode:" {
@@ -218,6 +221,7 @@ WwanReset() {
 	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling" \
 		"wireless interface to ${HotSpot}:'${WwanSsid}'"
 	_log "${msg}"
+	StatMsgs=""
 	AddStatMsg "${msg}"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=${disable}
 	uci commit wireless
@@ -271,6 +275,7 @@ Report() {
 }
 
 ListStatus() {
+	StatMsgs=""
 	AddStatMsg "Updating status report"
 	NoSleep="y"
 }
@@ -561,7 +566,7 @@ CheckConnectivity() {
 					"${HotSpot}:'${WwanSsid}'." \
 					"Disabling connectivity check."
 				LogPrio="err" _log "${msg}"
-				[ -z "${StatMsgs}" ] || \
+				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
 				unset net${HotSpot}_check
 				return 0
@@ -596,8 +601,7 @@ CheckConnectivity() {
 		ScanRequest=1
 		return 1
 	fi
-	[ -z "${StatMsgs}" ] || \
-		AddStatMsg "${msg}"
+	AddStatMsg "${msg}"
 	NoSleep=""
 	[ $((NetworkAttempts++)) ]
 }
@@ -658,10 +662,11 @@ DoScan() {
 WifiStatus() {
 	# constants
 	readonly LF=$'\n' \
-		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
+		NONE=0 DISABLING=1 CONNECTING=2 CONNECTED=3 DISABLED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
-		ScanRequest WwanErr Status=${NONE} StatMsgs="" Interval NoSleep \
+		ScanRequest WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
+		Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
 		msg LogPrio="" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
@@ -702,7 +707,7 @@ WifiStatus() {
 				msg="Already connected to ${HotSpot}:'${WwanSsid}'"
 				[ -z "${Debug}" ] || \
 					_applog "${msg}"
-				[ -z "${StatMsgs}" ] || \
+				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
 			fi
 			continue
@@ -723,7 +728,7 @@ WifiStatus() {
 					msg="Disabling wireless STA device, Again ?"
 					[ -z "${Debug}" ] || \
 						_applog "${msg}"
-					[ -z "${StatMsgs}" ] || \
+					[ -z "${StatMsgsChgd}" ] || \
 						AddStatMsg "${msg}"
 				fi
 				if [ ${HotSpot} -ne ${NONE} ]; then
@@ -773,7 +778,7 @@ WifiStatus() {
 				_msg "Client interface to" \
 					"${HotSpot}:'${WwanSsid}' is already enabled"
 				_applog "${msg}"
-				[ -z "${StatMsgs}" ] || \
+				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
 			fi
 			Status=${CONNECTING}
