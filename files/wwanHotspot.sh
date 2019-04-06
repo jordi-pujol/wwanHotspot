@@ -724,7 +724,7 @@ WifiStatus() {
 			else
 				if [ ${Status} -eq ${DISABLING} ]; then
 					msg="Disabling wireless STA device, Again ?"
-					[ -z "${Debug}" ] || \
+					[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 						_applog "${msg}"
 					[ -z "${StatMsgsChgd}" ] || \
 						AddStatMsg "${msg}"
@@ -775,7 +775,8 @@ WifiStatus() {
 			else
 				_msg "Client interface to" \
 					"${HotSpot}:'${WwanSsid}' is already enabled"
-				_applog "${msg}"
+				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
+					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
 			fi
