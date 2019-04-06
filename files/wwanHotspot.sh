@@ -703,7 +703,7 @@ WifiStatus() {
 				fi
 			elif CheckConnectivity; then
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
-				[ -z "${Debug}" ] || \
+				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
