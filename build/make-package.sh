@@ -74,6 +74,9 @@ if [ ! -f "./control" -o ! -s "./control" ]; then
 	exit 1
 fi
 
+[ ${#} -gt 0 ] || \
+	set -- "build"
+
 for cmd in "${@}"; do
 	case "${cmd}" in
 	all|build)

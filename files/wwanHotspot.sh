@@ -127,8 +127,6 @@ Settle() {
 	if [ -n "${StatMsgsChgd}" ]; then
 		StatMsgsChgd=""
 		Report &
-		[ ${Status} -le ${CONNECTED} ] || \
-			StatMsgs=""
 		WaitSubprocess "" "y" || :
 	fi
 	if [ -n "${pidSleep}" ]; then
@@ -662,7 +660,7 @@ DoScan() {
 WifiStatus() {
 	# constants
 	readonly LF=$'\n' \
-		NONE=0 DISABLING=1 CONNECTING=2 CONNECTED=3 DISABLED=4
+		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
 		ScanRequest WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
@@ -680,7 +678,7 @@ WifiStatus() {
 
 	trap 'LoadConfig' HUP
 	trap 'NetworkChange' ALRM
-	trap 'NoSleep="y"' USR1
+	trap 'NoSleep="y"; StatMsgsChgd="y"' USR1
 	trap 'ListStatus' USR2
 
 	while Settle; do
@@ -704,7 +702,7 @@ WifiStatus() {
 					ScanRequest=0
 				fi
 			elif CheckConnectivity; then
-				msg="Already connected to ${HotSpot}:'${WwanSsid}'"
+				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				[ -z "${Debug}" ] || \
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
@@ -802,7 +800,7 @@ WifiStatus() {
 			_log "${msg}"
 			AddStatMsg "${msg}"
 			Status=${DISABLED}
-		elif [ -n "${StatMsgs}" ]; then
+		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"
 			AddStatMsg "${msg}"
 		fi
