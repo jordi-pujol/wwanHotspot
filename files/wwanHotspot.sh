@@ -298,29 +298,28 @@ BackupRotate() {
 }
 
 AddHotspot() {
-	if [ -n "${net_ssid:-}" -a -n "${net_encrypt:-}" ]; then
-		Ssids="${Ssids:+"${Ssids}${LF}"}${net_ssid}"
-		[ $((HotSpots++)) ]
-		eval net${HotSpots}_ssid=\"${net_ssid}\"
-		eval net${HotSpots}_encrypt=\"${net_encrypt}\"
-		[ -z "${net_key:-}" ] || \
-			eval net${HotSpots}_key=\"${net_key}\"
-		[ -z "${net_hidden:-}" ] || \
-			eval net${HotSpots}_hidden=\"${net_hidden}\"
-		[ -z "${net_blacklisted:-}" ] || \
-			eval net${HotSpots}_blacklisted=\"${net_blacklisted}\"
-		[ -z "${net_check:-}" ] || \
-			eval net${HotSpots}_check=\"${net_check}\"
-		if [ -n "${Debug}" ]; then
-			local msg="Adding new hotspot ${HotSpots}:'${net_ssid}'"
-			_applog "${msg}"
-			AddStatMsg "${msg}"
-		fi
-	else
+	if [ -z "${net_ssid:-}" -o -z "${net_encrypt:-}" ]; then
 		LogPrio="err"
 		_log "AddHotspot, Invalid config." \
 			"No ssid or encrypt specified. Exiting"
 		exit 1
+	fi
+	Ssids="${Ssids:+"${Ssids}${LF}"}${net_ssid}"
+	[ $((HotSpots++)) ]
+	eval net${HotSpots}_ssid=\"${net_ssid}\"
+	eval net${HotSpots}_encrypt=\"${net_encrypt}\"
+	[ -z "${net_key:-}" ] || \
+		eval net${HotSpots}_key=\"${net_key}\"
+	[ -z "${net_hidden:-}" ] || \
+		eval net${HotSpots}_hidden=\"${net_hidden}\"
+	[ -z "${net_blacklisted:-}" ] || \
+		eval net${HotSpots}_blacklisted=\"${net_blacklisted}\"
+	[ -z "${net_check:-}" ] || \
+		eval net${HotSpots}_check=\"${net_check}\"
+	if [ -n "${Debug}" ]; then
+		local msg="Adding new hotspot ${HotSpots}:'${net_ssid}'"
+		_applog "${msg}"
+		AddStatMsg "${msg}"
 	fi
 	unset net_ssid net_encrypt net_key net_hidden net_blacklisted net_check
 }
