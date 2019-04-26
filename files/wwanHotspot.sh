@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.39 $
+#  $Revision: 1.40 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -148,6 +148,10 @@ AddStatMsg() {
 	StatMsgsChgd="y"
 }
 
+GetRxBytes() {
+	cat "/sys/class/net/${WIface}/statistics/rx_bytes"
+}
+
 HotspotBlackList() {
 	local cause="${1}" expires="${2}" reason="${3}" msg
 	eval net${HotSpot}_blacklisted=\"${cause} $(_datetime)\" || :
@@ -253,6 +257,7 @@ Report() {
 	printf '%s\n' "BlackListNetwork=${BlackListNetwork}"
 	printf '%s\n' "BlackListNetworkExpires=${BlackListNetworkExpires} seconds"
 	printf '%s\n' "PingWait=${PingWait} seconds"
+	printf '%s\n' "MinRxBPS=${MinRxBPS} bytes per second"
 	printf '%s\n\n' "LogRotate=${LogRotate}"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
@@ -341,6 +346,7 @@ LoadConfig() {
 	BlackListNetwork=3
 	BlackListNetworkExpires=$((10*60))
 	PingWait=7
+	MinRxBPS=1024
 	LogRotate=3
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
@@ -360,6 +366,7 @@ LoadConfig() {
 	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
 	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
 	PingWait="$(_integer_value "${PingWait}" 7)"
+	MinRxBPS="$(_integer_value "${MinRxBPS}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
 
 	BackupRotate "/var/log/${NAME}"
@@ -532,7 +539,7 @@ CheckConnectivity() {
 		return 0
 	fi
 	Interval=${Sleep}
-	local delay=${Sleep} msg
+	local delay=${Sleep} msg rc
 	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" | \
 	awk '$1 == "default" {print $3; exit}')"}" ] && \
 	[ $((delay--)) -gt 0 ]; do
@@ -571,12 +578,32 @@ CheckConnectivity() {
 				return 0
 			fi
 		fi
-	CheckConn &
-	if WaitSubprocess ${PingWait}; then
-		_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
-			"$(test "${CheckAddr}" != "${Gateway}" || \
-			echo "gateway:")${CheckAddr}" \
-			"has been verified"
+	rc=1
+	if [ ${MinRxBPS} -ne 0 ]; then
+		local b=$(($(GetRxBytes) - ${RxBytes})) \
+			t=$(($(_UTCseconds) - ${CheckTime}))
+		if [ ${t} -gt 0 ] && \
+		[ $((${b} / ${t})) -gt ${MinRxBPS} ]; then
+			rc=0
+			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
+				"the external network is working"
+		fi
+		[ -z "${Debug}" ] || \
+			_applog "Received ${b} bytes per ${t} seconds"
+	fi
+	if [ ${rc} -ne 0 ]; then
+		CheckConn &
+		rc=0
+		WaitSubprocess ${PingWait} && \
+			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
+				"$(test "${CheckAddr}" != "${Gateway}" || \
+				echo "gateway:")${CheckAddr}" \
+				"has been verified" || \
+			rc=${?}
+	fi
+	CheckTime=$(_UTCseconds)
+	RxBytes=$(GetRxBytes)
+	if [ ${rc} -eq 0 ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
@@ -586,7 +613,7 @@ CheckConnectivity() {
 			AddStatMsg "${msg}"
 		fi
 		return 0
-	elif [ ${?} -gt 127 -a ${?} -ne 143 ]; then
+	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
 		return 0
 	fi
 	_msg "${NetworkAttempts} connectivity failures" \
@@ -666,7 +693,7 @@ WifiStatus() {
 	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
 		ScanRequest WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
 		Interval NoSleep \
-		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts \
+		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection=0 WIface WIfaceAP WIfaceSTA WDevice
@@ -695,6 +722,8 @@ WifiStatus() {
 						"hotspot '${WwanSsid}'"
 				NetworkAttempts=1
 				Gateway=""; CheckAddr=""; CheckInet=""
+				CheckTime=$(_UTCseconds)
+				RxBytes=$(GetRxBytes)
 				if CheckConnectivity; then
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
