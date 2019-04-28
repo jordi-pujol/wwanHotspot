@@ -257,7 +257,7 @@ Report() {
 	printf '%s\n' "BlackListNetwork=${BlackListNetwork}"
 	printf '%s\n' "BlackListNetworkExpires=${BlackListNetworkExpires} seconds"
 	printf '%s\n' "PingWait=${PingWait} seconds"
-	printf '%s\n' "MinRxBPS=${MinRxBPS} bytes per second"
+	printf '%s\n' "MinRxBps=${MinRxBps} bytes per second"
 	printf '%s\n\n' "LogRotate=${LogRotate}"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
@@ -346,7 +346,7 @@ LoadConfig() {
 	BlackListNetwork=3
 	BlackListNetworkExpires=$((10*60))
 	PingWait=7
-	MinRxBPS=1024
+	MinRxBps=1024
 	LogRotate=3
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
@@ -366,7 +366,7 @@ LoadConfig() {
 	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
 	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
 	PingWait="$(_integer_value "${PingWait}" 7)"
-	MinRxBPS="$(_integer_value "${MinRxBPS}" 1024)"
+	MinRxBps="$(_integer_value "${MinRxBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
 
 	BackupRotate "/var/log/${NAME}"
@@ -579,17 +579,17 @@ CheckConnectivity() {
 			fi
 		fi
 	rc=1
-	if [ ${MinRxBPS} -ne 0 ]; then
+	if [ ${MinRxBps} -ne 0 ]; then
 		local b=$(($(GetRxBytes) - ${RxBytes})) \
 			t=$(($(_UTCseconds) - ${CheckTime}))
 		if [ ${t} -gt 0 ] && \
-		[ $((${b} / ${t})) -gt ${MinRxBPS} ]; then
+		[ $((${b} / ${t})) -gt ${MinRxBps} ]; then
 			rc=0
 			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
 				"the external network is working"
 		fi
 		[ -z "${Debug}" ] || \
-			_applog "Received ${b} bytes per ${t} seconds"
+			_applog "Received ${b} bytes in ${t} seconds"
 	fi
 	if [ ${rc} -ne 0 ]; then
 		CheckConn &

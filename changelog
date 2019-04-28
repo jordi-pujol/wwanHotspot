@@ -1,7 +1,7 @@
 wwanHotspot v1.40
 
   * Check the connection activity watching network traffic.
-    MinRxBPS = Minimum received bytes per second to consider
+    MinRxBps = Minimum received bytes per second to consider
       that a network connection is active.
     If traffic is detected then don't need to reach the network.
     Normally there is a little traffic due to connection control
