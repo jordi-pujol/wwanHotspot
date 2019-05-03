@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.40 $
+#  $Revision: 1.41 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -112,7 +112,7 @@ Settle() {
 		[ -n "${e:="$(set | \
 		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
 		sort -n | head -qn 1)"}" ] && \
-		[ $((i=${e}+1-$(_UTCseconds))) -le ${Interval} ] || \
+		[ $((i=e+1-$(_UTCseconds))) -le ${Interval} ] || \
 			i=${Interval}
 		if [ ${i} -gt 0 ]; then
 			[ -z "${Debug}" ] || \
@@ -157,7 +157,7 @@ HotspotBlackList() {
 	eval net${HotSpot}_blacklisted=\"${cause} $(_datetime)\" || :
 	msg="Blacklisting ${HotSpot}:'${WwanSsid}'"
 	if [ ${expires} -gt ${NONE} ]; then
-		eval net${HotSpot}_blacklistexp=\"$((${expires}+$(_UTCseconds)))\" || :
+		eval net${HotSpot}_blacklistexp=\"$((expires+$(_UTCseconds)))\" || :
 		msg="${msg} for ${expires} seconds"
 	fi
 	LogPrio="warn" _log "${msg}"
@@ -202,7 +202,7 @@ IsWifiActive() {
 }
 
 WatchWifi() {
-	local c="${1:-"$((${Sleep}/2))"}" ssid="" mode=""
+	local c="${1:-"$((Sleep/2))"}" ssid="" mode=""
 	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		if [ -z "${WIfaceAP}" ] || \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ]; then
@@ -339,8 +339,8 @@ LoadConfig() {
 	Debug=""
 	ScanAuto="y"
 	Sleep=20
-	SleepDsc="$((${Sleep}*3))"
-	SleepScanAuto="$((${Sleep}*15))"
+	SleepDsc="$((Sleep*3))"
+	SleepScanAuto="$((Sleep*15))"
 	BlackList=3
 	BlackListExpires=${NONE}
 	BlackListNetwork=3
@@ -359,8 +359,8 @@ LoadConfig() {
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
 	Sleep="$(_integer_value "${Sleep}" 20)"
-	SleepDsc="$(_integer_value "${SleepDsc}" $((${Sleep}*3)) )"
-	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((${Sleep}*15)) )"
+	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
+	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
 	BlackList="$(_integer_value "${BlackList}" 3)"
 	BlackListExpires="$(_integer_value "${BlackListExpires}" ${NONE})"
 	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
@@ -579,11 +579,11 @@ CheckConnectivity() {
 			fi
 		fi
 	rc=1
-	if [ ${MinRxBps} -ne 0 ]; then
-		local b=$(($(GetRxBytes) - ${RxBytes})) \
-			t=$(($(_UTCseconds) - ${CheckTime}))
+	if [ ${MinRxBps} -ne 0 -a -n "${CheckTime}" ]; then
+		local b=$(($(GetRxBytes)-RxBytes)) \
+			t=$(($(_UTCseconds)-CheckTime))
 		if [ ${t} -gt 0 ] && \
-		[ $((${b} / ${t})) -gt ${MinRxBps} ]; then
+		[ $((b/t)) -gt ${MinRxBps} ]; then
 			rc=0
 			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
 				"the external network is working"
@@ -591,6 +591,8 @@ CheckConnectivity() {
 		[ -z "${Debug}" ] || \
 			_applog "Received ${b} bytes in ${t} seconds"
 	fi
+	CheckTime=$(_UTCseconds)
+	RxBytes=$(GetRxBytes)
 	if [ ${rc} -ne 0 ]; then
 		CheckConn &
 		rc=0
@@ -601,8 +603,6 @@ CheckConnectivity() {
 				"has been verified" || \
 			rc=${?}
 	fi
-	CheckTime=$(_UTCseconds)
-	RxBytes=$(GetRxBytes)
 	if [ ${rc} -eq 0 ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
@@ -721,9 +721,7 @@ WifiStatus() {
 					_log "Connected to a non-configured" \
 						"hotspot '${WwanSsid}'"
 				NetworkAttempts=1
-				Gateway=""; CheckAddr=""; CheckInet=""
-				CheckTime=$(_UTCseconds)
-				RxBytes=$(GetRxBytes)
+				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckConnectivity; then
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"

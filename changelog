@@ -1,3 +1,10 @@
+wwanHotspot v1.41
+
+  * CheckConnectivity. Don't compare traffic until second iteration.
+  * Code cleanup.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 28 Apr 2019 09:26:54 +0200
+
 wwanHotspot v1.40
 
   * Check the connection activity watching network traffic.
