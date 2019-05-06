@@ -1,8 +1,11 @@
 wwanHotspot v1.41
 
-  * CheckConnectivity. Don't compare traffic until second iteration.
-  * More explanative messages in status report.
-  * Config file: Some options are not required, will assign the default value.
+  * wwanHotspot.sh
+    - CheckConnectivity. Don't compare traffic until second iteration.
+    - More explanative messages in status report.
+  * wwanHotspot.config
+    - Comment out some options that are not required,
+      the daemon assigns the corresponding default value.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 28 Apr 2019 09:26:54 +0200
 
