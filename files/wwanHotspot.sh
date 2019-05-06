@@ -239,26 +239,32 @@ Report() {
 	exec > "/var/log/${NAME}.stat"
 	printf '%s\n\n' "${NAME} status report."
 	printf '%s\n\n' "${StatMsgs}"
-	[ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 ] || \
-		printf '%s\n\n' "Hotspot client is not enabled"
+	printf '%s %s%s\n\n' "Hotspot client is" \
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 || \
+		echo "not ")" "enabled"
 	printf '%s\n' "Radio device is ${WDevice}"
 	printf '%s\n' "STA network interface is ${WIface}"
 	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
 		printf '%s\n\n' "Detected AP config in wifi-iface ${WIfaceAP}" || \
 		printf '%s\n\n' "Non standard AP+STA configuration"
-	printf '%s\n' "Debug=\"${Debug}\""
-	printf '%s\n' "ScanAuto=\"${ScanAuto}\""
-	printf '%s\n' "Sleep=${Sleep} seconds"
-	printf '%s\n' "SleepDsc=${SleepDsc} seconds"
-	printf '%s\n' "SleepScanAuto=${SleepScanAuto} seconds"
-	printf '%s\n' "BlackList=${BlackList}"
-	printf '%s\n' "BlackListExpires=${BlackListExpires} seconds"
-	printf '%s\n' "BlackListNetwork=${BlackListNetwork}"
-	printf '%s\n' "BlackListNetworkExpires=${BlackListNetworkExpires} seconds"
-	printf '%s\n' "PingWait=${PingWait} seconds"
-	printf '%s\n' "MinRxBps=${MinRxBps} bytes per second"
-	printf '%s\n\n' "LogRotate=${LogRotate}"
+	printf '%s="%s"\n' "Debug" "${Debug}"
+	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
+	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
+	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
+	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
+	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
+		"$(test ${BlackList} -eq 0 && echo "Disabled" || echo "errors")"
+	printf '%s=%d %s\n' "BlackListExpires" "${BlackListExpires}" \
+		"$(test ${BlackListExpires} -eq 0 && echo "Never" || echo "seconds")"
+	printf '%s=%d %s\n' "BlackListNetwork" "${BlackListNetwork}" \
+		"$(test ${BlackListNetwork} -eq 0 && echo "Disabled" || echo "errors")"
+	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
+		"$(test ${BlackListNetworkExpires} -eq 0 && echo "Never" || echo "seconds")"
+	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
+	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
+		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
+	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
 		set | grep -se "^net${i}_" | sort -r
@@ -583,7 +589,7 @@ CheckConnectivity() {
 		local b=$(($(GetRxBytes)-RxBytes)) \
 			t=$(($(_UTCseconds)-CheckTime))
 		if [ ${t} -gt 0 ] && \
-		[ $((b/t)) -gt ${MinRxBps} ]; then
+		[ $((b/t)) -ge ${MinRxBps} ]; then
 			rc=0
 			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
 				"the external network is working"

@@ -1,7 +1,8 @@
 wwanHotspot v1.41
 
   * CheckConnectivity. Don't compare traffic until second iteration.
-  * Code cleanup.
+  * More explanative messages in status report.
+  * Config file: Some options are not required, will assign the default value.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 28 Apr 2019 09:26:54 +0200
 
