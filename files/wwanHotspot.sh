@@ -240,8 +240,8 @@ Report() {
 	printf '%s\n\n' "${NAME} status report."
 	printf '%s\n\n' "${StatMsgs}"
 	printf '%s %s%s\n\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 || \
-		echo "not ")" "enabled"
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
+		echo "en" || echo "dis")" "abled"
 	printf '%s\n' "Radio device is ${WDevice}"
 	printf '%s\n' "STA network interface is ${WIface}"
 	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
@@ -272,9 +272,8 @@ Report() {
 	done
 	iwinfo
 	if [ -n "${IfaceWan}" ]; then
-		IsWanConnected && \
-			printf '%s\n\n' "WAN interface is connected" || \
-			printf '%s\n\n' "WAN interface is disconnected"
+			printf '%s%s%s\n\n' "WAN interface is " \
+			"$(IsWanConnected || echo "dis")" "connected"
 	else
 		printf '%s\n\n' "There is no WAN interface"
 	fi
