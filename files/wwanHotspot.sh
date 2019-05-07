@@ -272,7 +272,7 @@ Report() {
 	done
 	iwinfo
 	if [ -n "${IfaceWan}" ]; then
-			printf '%s%s%s\n\n' "WAN interface is " \
+		printf '%s%s%s\n\n' "WAN interface is " \
 			"$(IsWanConnected || echo "dis")" "connected"
 	else
 		printf '%s\n\n' "There is no WAN interface"
