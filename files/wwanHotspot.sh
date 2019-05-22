@@ -789,10 +789,12 @@ WifiStatus() {
 					fi
 				fi
 			fi
-			Status=${DISABLING}
 			ScanRequest=1
 			Interval=${Sleep}
-			continue
+			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISABLING} ]; then
+				Status=${DISABLING}
+				continue
+			fi
 		fi
 		BlackListExpired
 		if DoScan; then
