@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.41 $
+#  $Revision: 1.42 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -239,9 +239,6 @@ Report() {
 	exec > "/var/log/${NAME}.stat"
 	printf '%s\n\n' "${NAME} status report."
 	printf '%s\n\n' "${StatMsgs}"
-	printf '%s %s%s\n\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
-		echo "en" || echo "dis")" "abled"
 	printf '%s\n' "Radio device is ${WDevice}"
 	printf '%s\n' "STA network interface is ${WIface}"
 	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
@@ -265,6 +262,12 @@ Report() {
 	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
 		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
+	printf '%s %s\n' "Current hotspot client is" "${HotSpot}:'${WwanSsid:-}'"
+	printf '%s %s%s\n' "Hotspot client is" \
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
+		echo "en" || echo "dis")" "abled"
+	printf '%s%s %s\n\n' "Wifi connection is" \
+		"$(IsWifiActive || echo " not")" "active"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
 		set | grep -se "^net${i}_" | sort -r
@@ -695,7 +698,7 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
+	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
 		ScanRequest WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
 		Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
@@ -746,15 +749,25 @@ WifiStatus() {
 		[ ${TryConnection} -gt 0 ] && \
 			[ $((TryConnection--)) ] && \
 			continue || :
+		if [ -z "${WIfaceAP}" ] && \
+		[ "${WwanDisabled}" = 1 ]; then
+			CurrentHotSpot || :
+			WwanReset 0
+		fi
 		if IsWwanConnected "unknown"; then
 			CurrentHotSpot || :
-			WwanReset
+			if [ -z "${WIfaceAP}" ]; then
+				[ ${Status} -eq ${NONE} ] || \
+					StatMsgs=""
+			else
+				WwanReset
+			fi
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
 				_log "Reason:" "${msg}"
 				AddStatMsg "${msg}"
 				HotSpot=${NONE}
-			else
+			elif [ -n "${WIfaceAP}" ]; then
 				if [ ${Status} -eq ${DISABLING} ]; then
 					msg="Disabling wireless STA device, Again ?"
 					[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \

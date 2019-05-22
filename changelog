@@ -1,3 +1,13 @@
+wwanHotspot v1.42
+
+  * wwanHotspot.sh
+    Configuration of one hotspot client interface alone in a radio device
+      does work; has been tested successfully.
+    Report(): print also the name of the currently configured hotspot and
+      the wifi active status.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 11 May 2019 09:29:24 +0200
+
 wwanHotspot v1.41
 
   * wwanHotspot.sh
