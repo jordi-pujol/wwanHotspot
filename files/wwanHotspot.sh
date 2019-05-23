@@ -844,7 +844,7 @@ WifiStatus() {
 		fi
 		WwanErr=${NONE}
 		msg="A hotspot is not available"
-		if [ ${Status} -ne ${DISABLED} ]; then
+		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
 			_log "${msg}"
 			AddStatMsg "${msg}"
 			Status=${DISABLED}
