@@ -753,6 +753,8 @@ WifiStatus() {
 		[ "${WwanDisabled}" = 1 ]; then
 			CurrentHotSpot || :
 			WwanReset 0
+			Interval=${Sleep}
+			continue
 		fi
 		if IsWwanConnected "unknown"; then
 			CurrentHotSpot || :
