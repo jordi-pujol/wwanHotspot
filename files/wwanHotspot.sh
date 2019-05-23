@@ -262,18 +262,18 @@ Report() {
 	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
 		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
-	printf '%s %s\n' "Current hotspot client is" "${HotSpot}:'${WwanSsid:-}'"
-	printf '%s %s%s\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
-		echo "en" || echo "dis")" "abled"
-	printf '%s%s %s\n\n' "Wifi connection is" \
-		"$(IsWifiActive || echo " not")" "active"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
 		set | grep -se "^net${i}_" | sort -r
 		echo
 	done
 	iwinfo
+	printf '%s %s\n' "Current hotspot client is" "${HotSpot}:'${WwanSsid:-}'"
+	printf '%s %s%s\n' "Hotspot client is" \
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
+		echo "en" || echo "dis")" "abled"
+	printf '%s%s %s\n\n' "Wifi connection is" \
+		"$(IsWifiActive || echo " not")" "active"
 	if [ -n "${IfaceWan}" ]; then
 		printf '%s%s%s\n\n' "WAN interface is " \
 			"$(IsWanConnected || echo "dis")" "connected"
@@ -792,7 +792,8 @@ WifiStatus() {
 			Interval=${Sleep}
 			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISABLING} ]; then
 				Status=${DISABLING}
-				continue
+				[ -z "${WIfaceAP}" ] || \
+					continue
 			fi
 		fi
 		BlackListExpired
