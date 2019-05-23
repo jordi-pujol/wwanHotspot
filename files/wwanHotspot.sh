@@ -756,26 +756,25 @@ WifiStatus() {
 		fi
 		if IsWwanConnected "unknown"; then
 			CurrentHotSpot || :
-			if [ -z "${WIfaceAP}" ]; then
-				[ ${Status} -eq ${NONE} ] || \
-					StatMsgs=""
-			else
+			[ -z "${WIfaceAP}" ] || \
 				WwanReset
-			fi
 			if [ ${Status} -eq ${CONNECTED} ]; then
+				[ -n "${WIfaceAP}" ] || \
+					StatMsgs=""
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
 				_log "Reason:" "${msg}"
 				AddStatMsg "${msg}"
 				HotSpot=${NONE}
-			elif [ -n "${WIfaceAP}" ]; then
-				if [ ${Status} -eq ${DISABLING} ]; then
+			else
+				if [ -n "${WIfaceAP}" ] && \
+				[ ${Status} -eq ${DISABLING} ]; then
 					msg="Disabling wireless STA device, Again ?"
 					[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 						_applog "${msg}"
 					[ -z "${StatMsgsChgd}" ] || \
 						AddStatMsg "${msg}"
 				fi
-				if [ ${HotSpot} -ne ${NONE} ]; then
+				if [ ${Status} -eq ${CONNECTING} ]; then
 					_msg "${ConnAttempts} unsuccessful connection" \
 						"to ${HotSpot}:'${WwanSsid}'"
 					AddStatMsg "${msg}"
