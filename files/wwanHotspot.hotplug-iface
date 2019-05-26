@@ -1,0 +1,12 @@
+#!/bin/sh
+
+COMMAND=/etc/init.d/wwanHotspot
+#exec >> "/tmp/20-wwanHotspot-$(date +'%Y-%m-%d_%H:%M:%S').log" 2>&1
+#set -x
+
+[ "$ACTION" = "ifup" -a "$INTERFACE" = "loopback" ] && {
+	$COMMAND running && {
+		$COMMAND reload
+        }
+}
+

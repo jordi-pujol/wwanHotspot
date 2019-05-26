@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.42 $
+#  $Revision: 1.43 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -219,14 +219,16 @@ WatchWifi() {
 }
 
 WwanReset() {
-	local disable="${1:-"1"}" msg
-	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling" \
-		"wireless interface to ${HotSpot}:'${WwanSsid}'"
+	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
+	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling wireless" \
+		"$([ "${iface}" = "${WIfaceSTA}" ] && \
+			echo "interface to ${HotSpot}:'${WwanSsid}'" || \
+			echo "Access Point")"
 	_log "${msg}"
-	[ ${Status} -eq ${NONE} ] || \
+	[ "${iface}" != "${WIfaceSTA}" -o ${Status} -eq ${NONE} ] || \
 		StatMsgs=""
 	AddStatMsg "${msg}"
-	uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=${disable}
+	uci set wireless.@wifi-iface[${iface}].disabled=${disable}
 	uci commit wireless
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
@@ -508,8 +510,6 @@ Scanning() {
 		WaitSubprocess || :
 		WatchWifi ${Sleep}
 	done
-	LogPrio="err"
-	_log "Serious error: Can't scan wifi for access points"
 	return 1
 }
 
@@ -652,7 +652,17 @@ DoScan() {
 
 	local hidden scanned found_hidden n i
 
-	scanned="$(Scanning | \
+	if ! scanned="$(Scanning)"; then
+		LogPrio="err"
+		_log "Serious error: Can't scan wifi for access points"
+		ScanErr="y"
+		return 1
+	fi
+	if [ -n "${ScanErr}" ]; then
+		_log "Wifi scan for access points has been successful"
+		ScanErr=""
+	fi
+	scanned="$(echo "${scanned}" | \
 	sed -nre '\|^[[:blank:]]+(SSID: .*)$| s||\1|p')" && \
 	[ -n "${scanned}" ] || \
 		return 1
@@ -699,7 +709,7 @@ WifiStatus() {
 		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
-		ScanRequest WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
+		ScanRequest ScanErr="" WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
 		Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
@@ -749,10 +759,10 @@ WifiStatus() {
 		[ ${TryConnection} -gt 0 ] && \
 			[ $((TryConnection--)) ] && \
 			continue || :
-		if [ -z "${WIfaceAP}" ] && \
-		[ "${WwanDisabled}" = 1 ]; then
+		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
+		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ]; then
 			CurrentHotSpot || :
-			WwanReset 0
+			WwanReset 0 "${WIfaceAP}"
 			Interval=${Sleep}
 			continue
 		fi
