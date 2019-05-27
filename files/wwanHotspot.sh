@@ -124,11 +124,6 @@ Settle() {
 	local pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
-	if [ -n "${StatMsgsChgd}" ]; then
-		StatMsgsChgd=""
-		Report &
-		WaitSubprocess "" "y" || :
-	fi
 	if [ -n "${pidSleep}" ]; then
 		[ -z "${NoSleep}" ] || \
 			kill -s TERM ${pidSleep} > /dev/null 2>&1 || :
@@ -138,6 +133,11 @@ Settle() {
 		fi
 		[ -z "${Debug}" ] || \
 			_applog "sleeping ended"
+	fi
+	if [ -n "${StatMsgsChgd}" ]; then
+		StatMsgsChgd=""
+		Report &
+		WaitSubprocess "" "y" || :
 	fi
 	NoSleep=""
 }
@@ -760,7 +760,8 @@ WifiStatus() {
 			[ $((TryConnection--)) ] && \
 			continue || :
 		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
-		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ]; then
+		( [ -n "${WIfaceAP}" ] && \
+		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ] ); then
 			CurrentHotSpot || :
 			WwanReset 0 "${WIfaceAP}"
 			Interval=${Sleep}
