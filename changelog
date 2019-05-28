@@ -4,8 +4,7 @@ wwanHotspot v1.43
     - The Access Point will be allways enabled in an AP+STA configuration.
     - A successful scanning will be logged out when previously has been
       detected an scanning serious error.
-  * Reload the daemon when hotplug detects that the network has been
-    restarted.
+  * hotplug will reload the daemon when the network has been restarted.
   * Do the Report() at the end of Settle().
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 25 May 2019 20:48:25 +0200
