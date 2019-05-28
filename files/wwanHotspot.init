@@ -29,7 +29,8 @@ USE_PROCD=1
 EXTRA_COMMANDS="network scan status"
 EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"\
 $'\n\t'"status"$'\t'"Update status report"\
-$'\n\t'"running"$'\t'"Check if daemon is active"
+$'\n\t'"running"$'\t'"Check if daemon is active"\
+$'\n\t'"enabled"$'\t'"Check if daemon is enabled"
 
 ${INIT_TRACE:+set -x}
 
