@@ -5,7 +5,6 @@ wwanHotspot v1.43
     - A successful scanning will be logged out when previously has been
       detected an scanning serious error.
   * hotplug will reload the daemon when the network has been restarted.
-  * Do the Report() at the end of Settle().
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 25 May 2019 20:48:25 +0200
 
