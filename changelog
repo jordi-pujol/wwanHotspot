@@ -2,7 +2,7 @@ wwanHotspot v1.43
 
   * wwanHotspot.sh
     - The Access Point will be allways enabled in an AP+STA configuration.
-    - A successful scanning will be logged out when previously has been
+    - A successful scanning will be logged when previously has been
       detected an scanning serious error.
   * hotplug will reload the daemon when the network has been restarted.
 
