@@ -4,6 +4,7 @@ wwanHotspot v1.43
     - The Access Point will be allways enabled in an AP+STA configuration.
     - A successful scanning will be logged when previously has been
       detected an scanning serious error.
+    - Better checking blacklisted hotspots in an STA only configuration.
   * hotplug will reload the daemon when the network has been restarted.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 25 May 2019 20:48:25 +0200

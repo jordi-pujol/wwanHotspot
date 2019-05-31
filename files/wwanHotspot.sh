@@ -108,7 +108,8 @@ Settle() {
 	local pidSleep=""
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
-		[ ${Status} -eq ${DISABLED} ] && \
+		[ ${Status} -eq ${DISABLED} \
+		-o \( -z "${WIfaceAP}" -a ${Status} -eq ${DISABLING} \) ] && \
 		[ -n "${e:="$(set | \
 		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
 		sort -n | head -qn 1)"}" ] && \
@@ -690,7 +691,8 @@ DoScan() {
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
-			[ ${Status} -eq ${DISABLED} -a -z "${Debug}" ] || \
+			[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
+			-a -z "${Debug}" ] || \
 				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
 		fi
 		[ $((i++)) -lt ${HotSpots} ] || \
