@@ -109,7 +109,7 @@ Settle() {
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
-		-o \( -z "${WIfaceAP}" -a ${Status} -eq ${DISABLING} \) ] && \
+		-o \( -z "${WIfaceAP}" -a ${Status} -eq ${DISCONNECTED} \) ] && \
 		[ -n "${e:="$(set | \
 		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
 		sort -n | head -qn 1)"}" ] && \
@@ -632,7 +632,7 @@ CheckConnectivity() {
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
 		WwanReset
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
-		Status=${DISABLING}
+		Status=${DISCONNECTED}
 		ScanRequest=1
 		return 1
 	fi
@@ -708,7 +708,7 @@ DoScan() {
 WifiStatus() {
 	# constants
 	readonly LF=$'\n' \
-		NONE=0 DISABLING=1 CONNECTING=2 DISABLED=3 CONNECTED=4
+		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
 		ScanRequest ScanErr="" WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
@@ -782,7 +782,7 @@ WifiStatus() {
 				HotSpot=${NONE}
 			else
 				if [ -n "${WIfaceAP}" ] && \
-				[ ${Status} -eq ${DISABLING} ]; then
+				[ ${Status} -eq ${DISCONNECTED} ]; then
 					msg="Disabling wireless STA device, Again ?"
 					[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 						_applog "${msg}"
@@ -805,8 +805,8 @@ WifiStatus() {
 			fi
 			ScanRequest=1
 			Interval=${Sleep}
-			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISABLING} ]; then
-				Status=${DISABLING}
+			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISCONNECTED} ]; then
+				Status=${DISCONNECTED}
 				[ -z "${WIfaceAP}" ] || \
 					continue
 			fi

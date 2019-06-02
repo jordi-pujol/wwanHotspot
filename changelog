@@ -6,6 +6,8 @@ wwanHotspot v1.43
       detected an scanning serious error.
     - Better checking blacklisted hotspots in an STA only configuration.
   * hotplug will reload the daemon when the network has been restarted.
+  * wwanHotspot.init
+    don't start at system boot, only when interfaces come up.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 25 May 2019 20:48:25 +0200
 

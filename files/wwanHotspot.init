@@ -77,15 +77,13 @@ _pids_active() {
 }
 
 service_pid() {
-	local pid
 	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
 	grep -qsF "${PROG}" "/proc/${pid}/cmdline" && \
-	kill -s 0 ${pid} > /dev/null 2>&1 && \
-	echo "${pid}"
+	kill -s 0 ${pid} > /dev/null 2>&1
 }
 
 service_running() {
-	if ! pid="$(service_pid)"; then
+	if ! service_pid; then
 		echo "Error: Daemon is not running" >&2
 		return 1
 	fi
@@ -93,8 +91,13 @@ service_running() {
 }
 
 start_service() {
-	service_pid > /dev/null && \
-		echo "Warning: Daemon is already running" >&2 || \
+	if [ "${action:-}" = "boot" ]; then
+		logger -p daemon.info -t "${NAME}" "Not starting at system boot"
+		return 0
+	fi
+	local pid
+	service_pid && \
+		echo "Warning: Daemon is already running in process ${pid}" >&2 || \
 		echo "Info: Starting Daemon..." >&2
 	_wwan_network > /dev/null || \
 		return 1
@@ -134,7 +137,7 @@ service_triggers() {
 _signal() {
 	local pid
 	service_running || \
-		return 1
+		exit 1
 	echo "Info:" "${1}" >&2
 	kill -s "${2}" ${pid} > /dev/null 2>&1 || :
 }
