@@ -106,8 +106,9 @@ start_service() {
 
 stop_service() {
 	local pid try=0
-	service_running || \
-		exit 0
+	service_running || {
+		[ "${action}" = "restart" ] && return 0 || exit 0
+	}
 	echo "Info: Stopping Daemon..." >&2
 	local pids="${pid} $(_ps_children "${pid}")"
 	kill -s "${SERVICE_SIG_STOP}" ${pid} > /dev/null 2>&1
