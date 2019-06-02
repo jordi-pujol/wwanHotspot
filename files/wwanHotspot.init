@@ -76,18 +76,15 @@ _pids_active() {
 	return ${rc}
 }
 
-service_pid() {
-	pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
-	grep -qsF "${PROG}" "/proc/${pid}/cmdline" && \
-	kill -s 0 ${pid} > /dev/null 2>&1
-}
-
 service_running() {
-	if ! service_pid; then
-		echo "Error: Daemon is not running" >&2
+	if pid="$(cat "${PIDFILE}" 2> /dev/null)" && \
+	grep -qsF "${PROG}" "/proc/${pid}/cmdline" && \
+	kill -s 0 ${pid} > /dev/null 2>&1; then
+		echo "Info: Daemon is running in process ${pid}" >&2
+	else
+		echo "Daemon is not running" >&2
 		return 1
 	fi
-	echo "Info: Daemon is running in process ${pid}" >&2
 }
 
 start_service() {
@@ -96,9 +93,9 @@ start_service() {
 		return 0
 	fi
 	local pid
-	service_pid && \
-		echo "Warning: Daemon is already running in process ${pid}" >&2 || \
-		echo "Info: Starting Daemon..." >&2
+	! service_running || \
+		exit 0
+	echo "Info: Starting Daemon..." >&2
 	_wwan_network > /dev/null || \
 		return 1
 	procd_open_instance
@@ -110,7 +107,7 @@ start_service() {
 stop_service() {
 	local pid try=0
 	service_running || \
-		return 1
+		exit 0
 	echo "Info: Stopping Daemon..." >&2
 	local pids="${pid} $(_ps_children "${pid}")"
 	kill -s "${SERVICE_SIG_STOP}" ${pid} > /dev/null 2>&1
