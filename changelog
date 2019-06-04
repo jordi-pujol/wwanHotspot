@@ -9,7 +9,7 @@ wwanHotspot v1.43
   * wwanHotspot.init
     don't start at system boot, wait for interfaces come up.
 
- -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 25 May 2019 20:48:25 +0200
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 04 Jun 2019 10:12:01 +0200
 
 wwanHotspot v1.42
 
