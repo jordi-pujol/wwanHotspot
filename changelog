@@ -1,3 +1,10 @@
+wwanHotspot v1.44
+
+  * send a network signal when Hotplug detects a change on interface status.
+  * better management of blacklisted hotspots in an STA only configuration.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 04 Jun 2019 10:12:01 +0200
+
 wwanHotspot v1.43
 
   * wwanHotspot.sh

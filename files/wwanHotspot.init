@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.43 $
+#  $Revision: 1.44 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -29,6 +29,7 @@ USE_PROCD=1
 EXTRA_COMMANDS="network scan status"
 EXTRA_HELP=$'\t'"scan"$'\t'"Scan now"\
 $'\n\t'"status"$'\t'"Update status report"\
+$'\n\t'"network"$'\t'"Network status change"\
 $'\n\t'"running"$'\t'"Check if daemon is active"\
 $'\n\t'"enabled"$'\t'"Check if daemon is enabled"
 

@@ -6,7 +6,7 @@ COMMAND="/etc/init.d/wwanHotspot"
 
 if [ "${ACTION}" = "ifup" -a "${INTERFACE}" = "lan" ]; then
 	if "${COMMAND}" running; then
-		"${COMMAND}" reload
+		"${COMMAND}" network
 	elif "${COMMAND}" enabled; then
 		"${COMMAND}" restart
 	fi
