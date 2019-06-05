@@ -2,8 +2,9 @@ wwanHotspot v1.44
 
   * send a network signal when Hotplug detects a change on interface status.
   * better management of blacklisted hotspots in an STA only configuration.
-  * when connecting to a different hotspot don't restart network if
-    the wireless STA interface is still enabled.
+  * if the wireless STA interface is still enabled when connecting to a
+    different hotspot reset only the corresponding Wifi radio device,
+    and don't restart the whole network.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 04 Jun 2019 10:12:01 +0200
 

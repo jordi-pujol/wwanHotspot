@@ -675,7 +675,6 @@ DoScan() {
 		return 1
 	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -F 'SSID: ')" || :
 
-	CurrentHotSpot || :
 	n=${HotSpot}
 	[ $((n++)) -lt ${HotSpots} ] || \
 		n=1
@@ -821,16 +820,15 @@ WifiStatus() {
 		[ ${TryConnection} -gt 0 ] && \
 			[ $((TryConnection--)) ] && \
 			continue || :
+		CurrentHotSpot || :
 		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
 		( [ -n "${WIfaceAP}" ] && \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ] ); then
-			CurrentHotSpot || :
 			WwanReset 0 "${WIfaceAP}"
 			Interval=${Sleep}
 			continue
 		fi
 		if IsWwanConnected "unknown"; then
-			CurrentHotSpot || :
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				[ -n "${WIfaceAP}" ] || \
 					StatMsgs=""
@@ -863,15 +861,12 @@ WifiStatus() {
 			fi
 			ScanRequest=1
 			Interval=${Sleep}
-			! HotSpotLookup || \
-				continue
-			[ -z "${WIfaceAP}" ] || \
-				WwanReset
-			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISCONNECTED} ]; then
+			if ! HotSpotLookup; then
+				[ -z "${WIfaceAP}" -o "${WwanDisabled}" = 1 ] || \
+					WwanReset
 				Status=${DISCONNECTED}
-				[ -z "${WIfaceAP}" ] || \
-					continue
 			fi
+			continue
 		fi
 		! HotSpotLookup || \
 			continue
