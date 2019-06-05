@@ -831,8 +831,13 @@ WifiStatus() {
 				[ "${WwanDisabled}" != 1 ] || \
 					uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 				uci commit wireless
+				if [ -z "${WIfaceAP}" ]; then
+					wifi down "${WDevice}"
+					wifi up "${WDevice}"
+				else
+					/etc/init.d/network restart
+				fi
 				sleep 1
-				/etc/init.d/network restart
 				TryConnection=2
 				msg="Connecting to ${HotSpot}:'${WwanSsid}'..."
 				_log "${msg}"
