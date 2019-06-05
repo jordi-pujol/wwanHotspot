@@ -512,7 +512,7 @@ Scanning() {
 			continue
 		LogPrio="err"
 		_log "Can't scan wifi, restarting the network"
-		/etc/init.d/network restart
+		/etc/init.d/network reload
 		sleep ${Sleep} &
 		WaitSubprocess || :
 		WatchWifi ${Sleep}
@@ -711,6 +711,60 @@ DoScan() {
 	return 1
 }
 
+HotSpotLookup() {
+	BlackListExpired
+	DoScan || \
+		return 1
+	if [ "${ssid}" != "${WwanSsid}" ]; then
+		WwanSsid="${ssid}"
+		_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
+		WwanErr=${NONE}
+		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="$(
+			eval echo \"\${net${HotSpot}_encrypt:-}\")"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key="$(
+			eval echo \"\${net${HotSpot}_key:-}\")"
+		[ "${WwanDisabled}" != 1 ] || \
+			uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
+		uci commit wireless
+		if [ "${WwanDisabled}" != 1 ]; then
+			wifi down "${WDevice}"
+			wifi up "${WDevice}"
+		else
+			/etc/init.d/network reload
+		fi
+		sleep 1
+		TryConnection=2
+		msg="Connecting to ${HotSpot}:'${WwanSsid}'..."
+		_log "${msg}"
+		AddStatMsg "${msg}"
+		WatchWifi ${Sleep} &
+	elif [ "${WwanDisabled}" = 1 ]; then
+		WwanReset 0
+		TryConnection=2
+	else
+		_msg "Client interface to" \
+			"${HotSpot}:'${WwanSsid}' is already enabled"
+		[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
+			_applog "${msg}"
+		[ -z "${StatMsgsChgd}" ] || \
+			AddStatMsg "${msg}"
+	fi
+	Status=${CONNECTING}
+	if [ $((WwanErr++)) -gt ${HotSpots} ]; then
+		Interval=${SleepScanAuto}
+		ScanRequest=0
+		_msg "Can't connect to any hotspot," \
+			"probably configuration is not correct"
+		LogPrio="err" _log "${msg}"
+		AddStatMsg "${msg}"
+	else
+		Interval=${Sleep}
+	fi
+	[ ${ScanRequest} -le 0 ] || \
+		[ $((ScanRequest--)) ]
+}
+
 WifiStatus() {
 	# constants
 	readonly LF=$'\n' \
@@ -777,8 +831,6 @@ WifiStatus() {
 		fi
 		if IsWwanConnected "unknown"; then
 			CurrentHotSpot || :
-			[ -z "${WIfaceAP}" ] || \
-				WwanReset
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				[ -n "${WIfaceAP}" ] || \
 					StatMsgs=""
@@ -811,64 +863,18 @@ WifiStatus() {
 			fi
 			ScanRequest=1
 			Interval=${Sleep}
+			! HotSpotLookup || \
+				continue
+			[ -z "${WIfaceAP}" ] || \
+				WwanReset
 			if [ -n "${WIfaceAP}" -o ${Status} -ne ${DISCONNECTED} ]; then
 				Status=${DISCONNECTED}
 				[ -z "${WIfaceAP}" ] || \
 					continue
 			fi
 		fi
-		BlackListExpired
-		if DoScan; then
-			if [ "${ssid}" != "${WwanSsid}" ]; then
-				WwanSsid="${ssid}"
-				_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
-				WwanErr=${NONE}
-				uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-				uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="$(
-					eval echo \"\${net${HotSpot}_encrypt:-}\")"
-				uci set wireless.@wifi-iface[${WIfaceSTA}].key="$(
-					eval echo \"\${net${HotSpot}_key:-}\")"
-				[ "${WwanDisabled}" != 1 ] || \
-					uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
-				uci commit wireless
-				if [ -z "${WIfaceAP}" ]; then
-					wifi down "${WDevice}"
-					wifi up "${WDevice}"
-				else
-					/etc/init.d/network restart
-				fi
-				sleep 1
-				TryConnection=2
-				msg="Connecting to ${HotSpot}:'${WwanSsid}'..."
-				_log "${msg}"
-				AddStatMsg "${msg}"
-				WatchWifi ${Sleep} &
-			elif [ "${WwanDisabled}" = 1 ]; then
-				WwanReset 0
-				TryConnection=2
-			else
-				_msg "Client interface to" \
-					"${HotSpot}:'${WwanSsid}' is already enabled"
-				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
-					_applog "${msg}"
-				[ -z "${StatMsgsChgd}" ] || \
-					AddStatMsg "${msg}"
-			fi
-			Status=${CONNECTING}
-			if [ $((WwanErr++)) -gt ${HotSpots} ]; then
-				Interval=${SleepScanAuto}
-				ScanRequest=0
-				_msg "Can't connect to any hotspot," \
-					"probably configuration is not correct"
-				LogPrio="err" _log "${msg}"
-				AddStatMsg "${msg}"
-			else
-				Interval=${Sleep}
-			fi
-			[ ${ScanRequest} -le 0 ] || \
-				[ $((ScanRequest--)) ]
+		! HotSpotLookup || \
 			continue
-		fi
 		WwanErr=${NONE}
 		msg="A hotspot is not available"
 		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
