@@ -222,6 +222,20 @@ WatchWifi() {
 
 WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
+
+	if [ -z "${WIfaceAP}" ] && \
+	[ ${disable} -eq 1 ]; then
+		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "\$unknown\$" ] || \
+			return 0
+		uci set wireless.@wifi-iface[${iface}].ssid="\$unknown\$"
+	else
+		local disabled
+		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
+		[ ${disabled:-"0"} -ne ${disable} ] || \
+			return 0
+		uci set wireless.@wifi-iface[${iface}].disabled=${disable}
+	fi
+
 	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling wireless" \
 		"$([ "${iface}" = "${WIfaceSTA}" ] && \
 			echo "interface to ${HotSpot}:'${WwanSsid}'" || \
@@ -230,12 +244,7 @@ WwanReset() {
 	[ "${iface}" != "${WIfaceSTA}" -o ${Status} -eq ${NONE} ] || \
 		StatMsgs=""
 	AddStatMsg "${msg}"
-	if [ -z "${WIfaceAP}" ] && \
-	[ ${disable} -eq 1 ]; then
-		uci set wireless.@wifi-iface[${iface}].ssid="\$unknown\$"
-	else
-		uci set wireless.@wifi-iface[${iface}].disabled=${disable}
-	fi
+
 	uci commit wireless
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
@@ -253,7 +262,7 @@ Report() {
 	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
 	[ -n "${WIfaceAP}" ] && \
 		printf '%s\n\n' "Detected AP config in wifi-iface ${WIfaceAP}" || \
-		printf '%s\n\n' "Non standard AP+STA configuration"
+		printf '%s\n\n' "Non standard STA only configuration"
 	printf '%s="%s"\n' "Debug" "${Debug}"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
@@ -429,7 +438,7 @@ LoadConfig() {
 	LogPrio="info" _log "Radio device is ${WDevice}"
 	LogPrio="info" _log "STA network interface is ${WIface}"
 	[ -n "${WIfaceAP}" ] || \
-		LogPrio="info" _log "Non standard AP+STA configuration"
+		LogPrio="info" _log "Non standard STA only configuration"
 
 	if [ ${HotSpots} -eq ${NONE} ]; then
 		local n=0 ssid
@@ -679,6 +688,7 @@ DoScan() {
 	[ $((n++)) -lt ${HotSpots} ] || \
 		n=1
 
+	local rc=1
 	i=${n}
 	while :; do
 		eval ssid=\"\${net${i}_ssid:-}\"
@@ -696,6 +706,7 @@ DoScan() {
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
+			rc=2
 			[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
 			-a -z "${Debug}" ] || \
 				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
@@ -707,13 +718,13 @@ DoScan() {
 	done
 	[ -z "${Debug}" ] || \
 		_applog "DoScan: No Hotspots available"
-	return 1
+	return ${rc}
 }
 
 HotSpotLookup() {
 	BlackListExpired
 	DoScan || \
-		return 1
+		return ${?}
 	if [ "${ssid}" != "${WwanSsid}" ]; then
 		WwanSsid="${ssid}"
 		_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
@@ -835,7 +846,6 @@ WifiStatus() {
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
 				_log "Reason:" "${msg}"
 				AddStatMsg "${msg}"
-				HotSpot=${NONE}
 			else
 				if [ -n "${WIfaceAP}" ] && \
 				[ ${Status} -eq ${DISCONNECTED} ]; then
@@ -861,15 +871,23 @@ WifiStatus() {
 			fi
 			ScanRequest=1
 			Interval=${Sleep}
-			if ! HotSpotLookup; then
-				[ -z "${WIfaceAP}" -o "${WwanDisabled}" = 1 ] || \
-					WwanReset
-				Status=${DISCONNECTED}
-			fi
+			local rc
+			HotSpotLookup && \
+				continue || \
+				rc=${?}
+			[ ${rc} -eq 1 -a -z "${WIfaceAP}" ] || {
+				WwanReset
+				HotSpot=${NONE}
+			}
+			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
+				StatMsgsChgd="y"
+			Status=${DISCONNECTED}
+			Interval=${SleepDsc}
+			[ -z "${WIfaceAP}" ] || \
+				continue
+		elif HotSpotLookup; then
 			continue
 		fi
-		! HotSpotLookup || \
-			continue
 		WwanErr=${NONE}
 		msg="A hotspot is not available"
 		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
