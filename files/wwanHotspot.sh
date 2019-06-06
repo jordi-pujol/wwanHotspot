@@ -706,7 +706,7 @@ DoScan() {
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
-			rc=2
+			[ $((rc++)) ]
 			[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
 			-a -z "${Debug}" ] || \
 				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
@@ -869,8 +869,6 @@ WifiStatus() {
 					fi
 				fi
 			fi
-			ScanRequest=1
-			Interval=${Sleep}
 			local rc
 			HotSpotLookup && \
 				continue || \
@@ -883,6 +881,7 @@ WifiStatus() {
 				StatMsgsChgd="y"
 			Status=${DISCONNECTED}
 			Interval=${SleepDsc}
+			ScanRequest=1
 			[ -z "${WIfaceAP}" ] || \
 				continue
 		elif HotSpotLookup; then
