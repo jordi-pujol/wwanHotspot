@@ -214,6 +214,7 @@ WatchWifi() {
 		ssid="\"$(uci -q get wireless.@wifi-iface[${WIfaceAP}].ssid)\""
 		mode="Master"
 	fi
+	sleep $((Sleep/2))
 	while ! IsWifiActive "${ssid}" "${mode}" && \
 	[ $((c--)) -gt 0 ]; do
 		sleep 1
@@ -225,9 +226,9 @@ WwanReset() {
 
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
-		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "\$unknown\$" ] || \
+		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "\$blacklisted\$" ] || \
 			return 0
-		uci set wireless.@wifi-iface[${iface}].ssid="\$unknown\$"
+		uci set wireless.@wifi-iface[${iface}].ssid="\$blacklisted\$"
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
@@ -476,6 +477,7 @@ LoadConfig() {
 	WwanErr=${NONE}
 	ScanRequest=${HotSpots}
 	HotSpot=${NONE}
+	WwanSsid=""
 	ConnAttempts=1
 	Status=${NONE}
 	AddStatMsg "Configuration reloaded"
@@ -522,8 +524,6 @@ Scanning() {
 		LogPrio="err"
 		_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network reload
-		sleep ${Sleep} &
-		WaitSubprocess || :
 		WatchWifi ${Sleep}
 	done
 	return 1
@@ -706,7 +706,8 @@ DoScan() {
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
 			fi
-			[ $((rc++)) ]
+			[ "${ssid}" != "${WwanSsid}" ] || \
+				rc=2
 			[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
 			-a -z "${Debug}" ] || \
 				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
@@ -743,7 +744,6 @@ HotSpotLookup() {
 		else
 			/etc/init.d/network reload
 		fi
-		sleep 1
 		TryConnection=2
 		msg="Connecting to ${HotSpot}:'${WwanSsid}'..."
 		_log "${msg}"
@@ -873,14 +873,19 @@ WifiStatus() {
 			HotSpotLookup && \
 				continue || \
 				rc=${?}
-			[ ${rc} -eq 1 -a -z "${WIfaceAP}" ] || {
+			if [ ${rc} -eq 1 -a -z "${WIfaceAP}" ]; then
+				NoSleep="y"
+			else
 				WwanReset
-				HotSpot=${NONE}
-			}
+				Interval=${Sleep}
+				[ -n "${WIfaceAP}" ] || {
+					HotSpot=${NONE}
+					WwanSsid=""
+				}
+			fi
 			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
 				StatMsgsChgd="y"
 			Status=${DISCONNECTED}
-			Interval=${SleepDsc}
 			ScanRequest=1
 			[ -z "${WIfaceAP}" ] || \
 				continue
