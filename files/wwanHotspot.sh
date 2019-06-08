@@ -554,7 +554,7 @@ CheckConn() {
 	fi
 }
 
-CheckConnectivity() {
+CheckNetworking() {
 	local check="$(eval echo \"\${net${HotSpot}_check:-}\")"
 	if [ -z "${check}" ]; then
 		[ -n "${ScanAuto}" ] && \
@@ -582,7 +582,7 @@ CheckConnectivity() {
 					CheckPort=443 || \
 					CheckPort=80
 				if [ $(ActiveDefaultRoutes) -gt 1 ]; then
-					_msg "Using the nc utility to check URL connectivity" \
+					_msg "Using the nc utility to check networking to URL" \
 						"while several default routes are enabled"
 					LogPrio="err" _log "${msg}"
 					AddStatMsg "Error:" "${msg}"
@@ -594,7 +594,7 @@ CheckConnectivity() {
 			if [ -z "${CheckAddr:="${Gateway}"}" ]; then
 				_msg "Serious Error: no default route for" \
 					"${HotSpot}:'${WwanSsid}'." \
-					"Disabling connectivity check."
+					"Disabling networking check."
 				LogPrio="err" _log "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
@@ -603,25 +603,27 @@ CheckConnectivity() {
 			fi
 		fi
 	rc=1
-	if [ ${MinRxBps} -ne 0 -a -n "${CheckTime}" ]; then
-		local b=$(($(GetRxBytes)-RxBytes)) \
-			t=$(($(_UTCseconds)-CheckTime))
-		if [ ${t} -gt 0 ] && \
-		[ $((b/t)) -ge ${MinRxBps} ]; then
-			rc=0
-			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
-				"the external network is working"
+	if [ ${MinRxBps} -ne 0 ]; then
+		if [ -n "${CheckTime}" ]; then
+			local b=$(($(GetRxBytes)-RxBytes)) \
+				t=$(($(_UTCseconds)-CheckTime))
+			if [ ${t} -gt 0 ] && \
+			[ $((b/t)) -ge ${MinRxBps} ]; then
+				rc=0
+				_msg "Networking of ${HotSpot}:'${WwanSsid}' to" \
+					"the external network is working"
+			fi
+			[ -z "${Debug}" ] || \
+				_applog "Network received ${b} bytes in ${t} seconds"
 		fi
-		[ -z "${Debug}" ] || \
-			_applog "Received ${b} bytes in ${t} seconds"
+		CheckTime=$(_UTCseconds)
+		RxBytes=$(GetRxBytes)
 	fi
-	CheckTime=$(_UTCseconds)
-	RxBytes=$(GetRxBytes)
 	if [ ${rc} -ne 0 ]; then
 		CheckConn &
 		rc=0
 		WaitSubprocess ${PingWait} && \
-			_msg "Connectivity of ${HotSpot}:'${WwanSsid}' to" \
+			_msg "Networking of ${HotSpot}:'${WwanSsid}' to" \
 				"$(test "${CheckAddr}" != "${Gateway}" || \
 				echo "gateway:")${CheckAddr}" \
 				"has been verified" || \
@@ -640,7 +642,8 @@ CheckConnectivity() {
 	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
 		return 0
 	fi
-	_msg "${NetworkAttempts} connectivity failures" \
+	_msg "${NetworkAttempts} networking" \
+		"failure$([ ${NetworkAttempts} -le 1 ] || echo "s")" \
 		"on ${HotSpot}:'${WwanSsid}'"
 	LogPrio="warn" _log "${msg}"
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
@@ -812,14 +815,14 @@ WifiStatus() {
 						"hotspot '${WwanSsid}'"
 				NetworkAttempts=1
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
-				if CheckConnectivity; then
+				if CheckNetworking; then
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
 					AddStatMsg "${msg}"
 					Status=${CONNECTED}
 					ScanRequest=0
 				fi
-			elif CheckConnectivity; then
+			elif CheckNetworking; then
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 					_applog "${msg}"
@@ -856,7 +859,8 @@ WifiStatus() {
 						AddStatMsg "${msg}"
 				fi
 				if [ ${Status} -eq ${CONNECTING} ]; then
-					_msg "${ConnAttempts} unsuccessful connection" \
+					_msg "${ConnAttempts} unsuccessful" \
+						"connection$([ ${ConnAttempts} -le 1 ] || echo "s")" \
 						"to ${HotSpot}:'${WwanSsid}'"
 					AddStatMsg "${msg}"
 					if [ ${BlackList} -ne ${NONE} ] && \
