@@ -537,7 +537,7 @@ CurrentHotSpot() {
 			END{print n+0; exit (n+0 == 0)}')"
 }
 
-CheckConn() {
+CheckNetw() {
 	[ "${Debug}" = "xtrace" ] || \
 		exec > /dev/null 2>&1
 	if [ -n "${CheckSrvr}" ]; then
@@ -614,13 +614,13 @@ CheckNetworking() {
 					"the external network is working"
 			fi
 			[ -z "${Debug}" ] || \
-				_applog "Network received ${b} bytes in ${t} seconds"
+				_applog "STA interface received ${b} bytes in ${t} seconds"
 		fi
 		CheckTime=$(_UTCseconds)
 		RxBytes=$(GetRxBytes)
 	fi
 	if [ ${rc} -ne 0 ]; then
-		CheckConn &
+		CheckNetw &
 		rc=0
 		WaitSubprocess ${PingWait} && \
 			_msg "Networking of ${HotSpot}:'${WwanSsid}' to" \
