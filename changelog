@@ -8,7 +8,7 @@ wwanHotspot v1.44
       and don't restart the whole network.
     - lookup for another available hotspot before disabling a disconnected
       hotspot.
-    - rename procedures CheckConnection to CheckNetworking and modify the
+    - rename procedures CheckConnectivity to CheckNetworking and modify the
       corresponding text messages.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 09 Jun 2019 09:38:42 +0200
