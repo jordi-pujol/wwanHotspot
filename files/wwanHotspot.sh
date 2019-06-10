@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.44 $
+#  $Revision: 1.45 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -877,9 +877,7 @@ WifiStatus() {
 			HotSpotLookup && \
 				continue || \
 				rc=${?}
-			if [ ${rc} -eq 1 -a -z "${WIfaceAP}" ]; then
-				NoSleep="y"
-			else
+			if [ ${rc} -ne 1 -o -n "${WIfaceAP}" ]; then
 				WwanReset
 				Interval=${Sleep}
 				[ -n "${WIfaceAP}" ] || {
@@ -905,6 +903,8 @@ WifiStatus() {
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"
 			AddStatMsg "${msg}"
+		else
+			StatMsgs=""
 		fi
 		if [ "${WwanDisabled}" != 1 ]; then
 			Interval=${Sleep}
