@@ -221,14 +221,38 @@ WatchWifi() {
 	done
 }
 
+AnotherHotspot() {
+	local n=0
+	while [ $((n++)) ];
+	eval ssid=\"\${net${n}_ssid:-}\" && \
+	[ -n "${ssid}" ]; do
+		[ -z "$(eval echo \"\${net${n}_blacklisted:-}\")" ] || \
+			continue
+		HotSpot=${n}
+		WwanSsid="${ssid}"
+		return 0
+	done
+	HotSpot=${NONE}
+	ssid="\$blacklisted\$"
+	WwanSsid=""
+}
+
 WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
 
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
-		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "\$blacklisted\$" ] || \
+		local ssid
+		AnotherHotspot
+		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "${ssid}" ] || \
 			return 0
-		uci set wireless.@wifi-iface[${iface}].ssid="\$blacklisted\$"
+		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+		if [ ${HotSpot} -ne ${NONE} ]; then
+			uci set wireless.@wifi-iface[${iface}].encryption="$(
+				eval echo \"\${net${HotSpot}_encrypt:-}\")"
+			uci set wireless.@wifi-iface[${iface}].key="$(
+				eval echo \"\${net${HotSpot}_key:-}\")"
+		fi
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
@@ -291,7 +315,7 @@ Report() {
 	printf '%s %s%s\n' "Hotspot client is" \
 		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
 		echo "en" || echo "dis")" "abled"
-	printf '%s%s %s\n\n' "Wifi connection is" \
+	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
 		"$(IsWifiActive || echo " not")" "active"
 	if [ -n "${IfaceWan}" ]; then
 		printf '%s%s%s\n\n' "WAN interface is " \
@@ -648,8 +672,8 @@ CheckNetworking() {
 	LogPrio="warn" _log "${msg}"
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
-		WwanReset
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
+		WwanReset
 		Status=${DISCONNECTED}
 		ScanRequest=1
 		return 1
@@ -873,24 +897,19 @@ WifiStatus() {
 					fi
 				fi
 			fi
-			local rc
-			HotSpotLookup && \
-				continue || \
-				rc=${?}
-			if [ ${rc} -ne 1 -o -n "${WIfaceAP}" ]; then
+			if HotSpotLookup; then
+				continue
+			elif [ ${?} -ne 1 -o -n "${WIfaceAP}" ]; then
 				WwanReset
-				Interval=${Sleep}
-				[ -n "${WIfaceAP}" ] || {
-					HotSpot=${NONE}
-					WwanSsid=""
-				}
 			fi
 			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
 				StatMsgsChgd="y"
 			Status=${DISCONNECTED}
 			ScanRequest=1
-			[ -z "${WIfaceAP}" ] || \
+			if [ -n "${WIfaceAP}" ]; then
+				Interval=${Sleep}
 				continue
+			fi
 		elif HotSpotLookup; then
 			continue
 		fi
@@ -906,7 +925,7 @@ WifiStatus() {
 		else
 			StatMsgs=""
 		fi
-		if [ "${WwanDisabled}" != 1 ]; then
+		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}
 		elif [ -n "${ScanAuto}" ] && \
 		[ $(ActiveDefaultRoutes) -eq 0 ]; then
