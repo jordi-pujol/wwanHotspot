@@ -227,12 +227,10 @@ AnotherHotspot() {
 		[ -z "$(eval echo \"\${net${n}_blacklisted:-}\")" ] || \
 			continue
 		HotSpot=${n}
-		WwanSsid="${ssid}"
 		return 0
 	done
 	HotSpot=${NONE}
 	ssid="\$blacklisted\$"
-	WwanSsid=""
 }
 
 WwanReset() {
@@ -244,6 +242,7 @@ WwanReset() {
 		AnotherHotspot
 		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "${ssid}" ] || \
 			return 0
+		WwanSsid="${ssid}"
 		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
 		if [ ${HotSpot} -ne ${NONE} ]; then
 			uci set wireless.@wifi-iface[${iface}].encryption="$(
