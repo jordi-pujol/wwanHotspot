@@ -165,8 +165,6 @@ HotspotBlackList() {
 	AddStatMsg "${msg}"
 	LogPrio="info" _log "Reason:" "${reason}"
 	AddStatMsg "Reason:" "${reason}"
-	HotSpot=${NONE}
-	WwanSsid=""
 }
 
 BlackListExpired() {
@@ -871,7 +869,7 @@ WifiStatus() {
 				[ -n "${WIfaceAP}" ] || \
 					StatMsgs=""
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
-				_log "Reason:" "${msg}"
+				_log "${msg}"
 				AddStatMsg "${msg}"
 			else
 				if [ -n "${WIfaceAP}" ] && \
@@ -892,7 +890,7 @@ WifiStatus() {
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
 					else
-						LogPrio="warn" _log "Reason:" "${msg}"
+						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]
 					fi
 				fi
