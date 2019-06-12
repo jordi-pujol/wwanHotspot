@@ -250,18 +250,22 @@ WwanReset() {
 			uci set wireless.@wifi-iface[${iface}].key="$(
 				eval echo \"\${net${HotSpot}_key:-}\")"
 		fi
+		_msg "$([ ${HotSpot} -ne ${NONE} ] && \
+			echo "Selecting a non blacklisted" || \
+			echo "Blacklisting current")" \
+			"hotspot for the STA interface"
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
 		[ ${disabled:-"0"} -ne ${disable} ] || \
 			return 0
 		uci set wireless.@wifi-iface[${iface}].disabled=${disable}
+		_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling wireless" \
+			"$([ "${iface}" = "${WIfaceSTA}" ] && \
+				echo "interface to ${HotSpot}:'${WwanSsid}'" || \
+				echo "Access Point")"
 	fi
 
-	_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling wireless" \
-		"$([ "${iface}" = "${WIfaceSTA}" ] && \
-			echo "interface to ${HotSpot}:'${WwanSsid}'" || \
-			echo "Access Point")"
 	_log "${msg}"
 	[ "${iface}" != "${WIfaceSTA}" -o ${Status} -eq ${NONE} ] || \
 		StatMsgs=""
