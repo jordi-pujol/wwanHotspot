@@ -251,7 +251,7 @@ WwanReset() {
 				eval echo \"\${net${HotSpot}_key:-}\")"
 		fi
 		_msg "$([ ${HotSpot} -ne ${NONE} ] && \
-			echo "Selecting a non blacklisted" || \
+			echo "Selecting ${HotSpot}:'${ssid}' non blacklisted" || \
 			echo "Blacklisting current")" \
 			"hotspot for the STA interface"
 	else
