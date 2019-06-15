@@ -249,11 +249,11 @@ WwanReset() {
 				eval echo \"\${net${HotSpot}_encrypt:-}\")"
 			uci set wireless.@wifi-iface[${iface}].key="$(
 				eval echo \"\${net${HotSpot}_key:-}\")"
+			msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
+		else
+			msg="Blacklisting current"
 		fi
-		_msg "$([ ${HotSpot} -ne ${NONE} ] && \
-			echo "Selecting ${HotSpot}:'${ssid}' non blacklisted" || \
-			echo "Blacklisting current")" \
-			"hotspot for the STA interface"
+		msg="${msg} hotspot for the STA interface"
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :

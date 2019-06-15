@@ -3,6 +3,8 @@ wwanHotspot v1.45
   * wwanHotspot.sh
     - In an STA only configuration wait Interval=Sleep when disconnected.
     - Clear Status messages when no hotspot is available.
+    - In an STA only configuration echo more explanative messages when
+      selecting another hotspot.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 09 Jun 2019 09:38:42 +0200
 
