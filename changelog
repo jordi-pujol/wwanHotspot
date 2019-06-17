@@ -1,3 +1,10 @@
+wwanHotspot v1.46
+
+  * wwanHotspot.sh
+    - Reset variable ScanErr
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sun, 09 Jun 2019 09:38:42 +0200
+
 wwanHotspot v1.45
 
   * wwanHotspot.sh

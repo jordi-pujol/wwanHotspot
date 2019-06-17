@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.45 $
+#  $Revision: 1.46 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -499,6 +499,7 @@ LoadConfig() {
 	fi
 
 	TryConnection=0
+	ScanErr=""
 	WwanErr=${NONE}
 	ScanRequest=${HotSpots}
 	HotSpot=${NONE}
@@ -831,6 +832,7 @@ WifiStatus() {
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
+			ScanErr=""
 			TryConnection=0
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
