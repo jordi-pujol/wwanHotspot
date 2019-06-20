@@ -810,7 +810,7 @@ WifiStatus() {
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
-		ScanRequest ScanErr="" WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
+		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
 		Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
@@ -832,8 +832,8 @@ WifiStatus() {
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if IsWwanConnected; then
-			ScanErr=""
 			TryConnection=0
+			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
 				CurrentHotSpot || \
