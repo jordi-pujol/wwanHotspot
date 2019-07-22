@@ -1,3 +1,10 @@
+wwanHotspot v1.47
+
+  * wwanHotspot.sh HotSpotLookup:
+    - Clear status messages when connecting to a different hotspot.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 22 Jun 2019 09:26:49 +0200
+
 wwanHotspot v1.46
 
   * wwanHotspot.sh

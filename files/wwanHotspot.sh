@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.46 $
+#  $Revision: 1.47 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -752,9 +752,12 @@ DoScan() {
 }
 
 HotSpotLookup() {
+	local clrmsgs="${1:-}"
 	BlackListExpired
 	DoScan || \
 		return ${?}
+	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
+		StatMsgs=""
 	if [ "${ssid}" != "${WwanSsid}" ]; then
 		WwanSsid="${ssid}"
 		_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
@@ -913,7 +916,7 @@ WifiStatus() {
 				Interval=${Sleep}
 				continue
 			fi
-		elif HotSpotLookup; then
+		elif HotSpotLookup "y"; then
 			continue
 		fi
 		WwanErr=${NONE}
