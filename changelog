@@ -1,3 +1,10 @@
+wwanHotspot v1.48
+
+  * hotplug-iface: faster management when interface wwan goes down.
+  * Daemon: modify the status report at exit.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 27 Jul 2019 10:38:21 +0200
+
 wwanHotspot v1.47
 
   * wwanHotspot.sh HotSpotLookup:

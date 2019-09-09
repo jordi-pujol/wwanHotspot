@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.47 $
+#  $Revision: 1.48 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -48,8 +48,10 @@ _ps_children() {
 
 _exit() {
 	trap - EXIT INT HUP ALRM USR1 USR2
-	LogPrio="warn" _log "Exiting"
-	printf '\n%s\n' "$(_datetime) ${NAME} daemon exit ..." >> "/var/log/${NAME}.stat"
+	local msg="$(_datetime) Daemon exit"
+	LogPrio="warn" _log "Exit"
+	sed -i -re '/^$/ {N; /Radio device is/ s/^/'"${msg}"'\n/}' \
+		 "/var/log/${NAME}.stat"
 	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
 	wait || :
 }

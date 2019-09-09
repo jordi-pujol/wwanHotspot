@@ -1,13 +1,45 @@
 #!/bin/sh
 
 COMMAND="/etc/init.d/wwanHotspot"
-#exec >> "/tmp/99-wwanHotspot-$(date +'%Y-%m-%d_%H:%M:%S').log" 2>&1
 #set -x
 
-if [ "${ACTION}" = "ifup" -a "${INTERFACE}" = "lan" ]; then
+_isset() {
+	set -o | \
+	awk -v i="${1}" -v s="${2:-"on"}" \
+	'$1 == v && $2 == s {rc=-1;exit}
+	END{exit rc+1}'
+}
+
+_wwan_network() {
+	local i=-1 m
+	while [ $((i++)) ] && \
+	m="$(uci -q get wireless.@wifi-iface[${i}].mode)"; do
+		[ "${m}" = "sta" ] || \
+			continue
+		uci -q get wireless.@wifi-iface[${i}].network
+		return 0
+	done
+	echo "Error: Can't find the STA interface" >&2
+	return 1
+}
+
+if _isset "xtrace"; then
+	exec >> "/tmp/99-wwanHotspot-$(date +'%Y-%m-%d_%H:%M:%S').log" 2>&1
+fi
+
+if [ "${ACTION}" = "ifup" -a "${INTERFACE}" = "lan" ] || \
+( [ "${ACTION}" = "ifdown" ] && \
+sta_network="$(_wwan_network)" && \
+[ "$INTERFACE" = "${sta_network}" ] ); then
 	if "${COMMAND}" running; then
 		"${COMMAND}" network
 	elif "${COMMAND}" enabled; then
 		"${COMMAND}" restart
+	fi
+	if _isset "xtrace"; then
+		logger -t "wwanHotspot.iface" -p "hotplug.debug" \
+			"action='$ACTION'" \
+			"devicename='$DEVICENAME' devname='$DEVNAME' devpath='$DEVPATH'" \
+			"product='$PRODUCT' type='$TYPE' interface='$INTERFACE'"
 	fi
 fi
