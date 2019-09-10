@@ -50,8 +50,10 @@ _exit() {
 	trap - EXIT INT HUP ALRM USR1 USR2
 	local msg="$(_datetime) Daemon exit"
 	LogPrio="warn" _log "Exit"
-	sed -i -re '/^$/ {N; /Radio device is/ s/^/'"${msg}"'\n/}' \
-		 "/var/log/${NAME}.stat"
+	grep -qse "^Radio device is" "/var/log/${NAME}.stat" && \
+		sed -i -re '/^$/ {N; /Radio device is/ s/^/'"${msg}"'\n/}' \
+			"/var/log/${NAME}.stat" || \
+		echo "${msg}" >> "/var/log/${NAME}.stat"
 	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
 	wait || :
 }
