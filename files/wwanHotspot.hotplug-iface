@@ -6,7 +6,7 @@ COMMAND="/etc/init.d/wwanHotspot"
 _isset() {
 	set -o | \
 	awk -v i="${1}" -v s="${2:-"on"}" \
-	'$1 == v && $2 == s {rc=-1;exit}
+	'$1 == i && $2 == s {rc=-1;exit}
 	END{exit rc+1}'
 }
 
