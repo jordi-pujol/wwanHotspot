@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.48 $
+#  $Revision: 1.49 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -48,12 +48,8 @@ _ps_children() {
 
 _exit() {
 	trap - EXIT INT HUP ALRM USR1 USR2
-	local msg="$(_datetime) Daemon exit"
 	LogPrio="warn" _log "Exit"
-	grep -qse "^Radio device is" "/var/log/${NAME}.stat" && \
-		sed -i -re '/^$/ {N; /Radio device is/ s/^/'"${msg}"'\n/}' \
-			"/var/log/${NAME}.stat" || \
-		echo "${msg}" >> "/var/log/${NAME}.stat"
+	AddStatMsg "Daemon exit"
 	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
 	wait || :
 }
@@ -129,11 +125,12 @@ Settle() {
 	local pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
-	if [ -n "${StatMsgsChgd}" ]; then
-		StatMsgsChgd=""
+	if [ -n "${UpdateReport}" ]; then
+		UpdateReport=""
 		Report &
 		WaitSubprocess "" "y" || :
 	fi
+	StatMsgsChgd=""
 	if [ -n "${pidSleep}" ]; then
 		[ -z "${NoSleep}" ] || \
 			kill -s TERM ${pidSleep} > /dev/null 2>&1 || :
@@ -148,8 +145,19 @@ Settle() {
 }
 
 AddStatMsg() {
-	local msg="${@}"
-	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}$(_datetime) ${msg}"
+	local msg="$(_datetime) ${@}"
+
+	awk -v msg="${msg}" \
+		'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
+			else b=0
+			print ""} 
+		/^$/ && b != 2 {b=1; next}
+		1
+		END{if (b != 2) print msg}' \
+		< "/var/log/${NAME}.stat" > "/var/log/${NAME}.stat.part"
+	mv -f "/var/log/${NAME}.stat.part" "/var/log/${NAME}.stat"
+
+	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}${msg}"
 	StatMsgsChgd="y"
 }
 
@@ -207,6 +215,7 @@ IsWifiActive() {
 
 WatchWifi() {
 	local c="${1:-"$((Sleep/2))"}" ssid="" mode=""
+	UpdateReport="y"
 	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		if [ -z "${WIfaceAP}" ] || \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ]; then
@@ -278,6 +287,7 @@ WwanReset() {
 	uci commit wireless
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
+	UpdateReport="y"
 	WatchWifi &
 }
 
@@ -338,12 +348,22 @@ ListStatus() {
 	StatMsgs=""
 	AddStatMsg "Updating status report"
 	NoSleep="y"
+	UpdateReport="y"
 }
 
 NetworkChange() {
 	[ ${Status} -le ${CONNECTING} ] || \
 		AddStatMsg "Network status has changed"
 	NoSleep="y"
+}
+
+PleaseScan() {
+	if [ ${Status} -eq ${CONNECTED} ]; then
+		AddStatMsg "Received an Scan Request when a Hotspot is already connected"
+	else
+		AddStatMsg "Received an Scan Request"
+		NoSleep="y"
+	fi
 }
 
 BackupRotate() {
@@ -388,8 +408,6 @@ AddHotspot() {
 LoadConfig() {
 	local msg="Loading configuration"
 	LogPrio="info" _log "${msg}"
-	StatMsgs=""
-	AddStatMsg "${msg}"
 
 	# config variables, default values
 	Debug=""
@@ -428,6 +446,7 @@ LoadConfig() {
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
 
+	: > "/var/log/${NAME}.stat"
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
 		set -o xtrace
@@ -435,6 +454,9 @@ LoadConfig() {
 		set +o xtrace
 		exec >> "/var/log/${NAME}" 2>&1
 	fi
+
+	StatMsgs=""
+	AddStatMsg "${msg}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
@@ -509,6 +531,7 @@ LoadConfig() {
 	HotSpot=${NONE}
 	WwanSsid=""
 	ConnAttempts=1
+	UpdateReport="y"
 	Status=${NONE}
 	AddStatMsg "Configuration reloaded"
 	NoSleep="y"
@@ -796,6 +819,7 @@ HotSpotLookup() {
 		[ -z "${StatMsgsChgd}" ] || \
 			AddStatMsg "${msg}"
 	fi
+	UpdateReport="y"
 	Status=${CONNECTING}
 	if [ $((WwanErr++)) -gt ${HotSpots} ]; then
 		Interval=${SleepScanAuto}
@@ -818,7 +842,7 @@ WifiStatus() {
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
 		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
-		Interval NoSleep \
+		UpdateReport="" Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
@@ -832,7 +856,7 @@ WifiStatus() {
 
 	trap 'LoadConfig' HUP
 	trap 'NetworkChange' ALRM
-	trap 'NoSleep="y"; StatMsgsChgd="y"' USR1
+	trap 'PleaseScan' USR1
 	trap 'ListStatus' USR2
 
 	while Settle; do
@@ -853,6 +877,7 @@ WifiStatus() {
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
 					AddStatMsg "${msg}"
+					UpdateReport="y"
 					Status=${CONNECTED}
 					ScanRequest=0
 				fi
@@ -914,6 +939,7 @@ WifiStatus() {
 			fi
 			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
 				StatMsgsChgd="y"
+			UpdateReport="y"
 			Status=${DISCONNECTED}
 			ScanRequest=1
 			if [ -n "${WIfaceAP}" ]; then
@@ -928,6 +954,7 @@ WifiStatus() {
 		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
 			_log "${msg}"
 			AddStatMsg "${msg}"
+			UpdateReport="y"
 			Status=${DISABLED}
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"

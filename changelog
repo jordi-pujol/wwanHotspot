@@ -1,3 +1,11 @@
+wwanHotspot v1.49
+
+  * Daemon: change the way to update the file wwanHotspot.stat.
+    - complete update of the status file when network has changed,
+      else will only insert status messages.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 07 Sep 2019 16:33:50 +0200
+
 wwanHotspot v1.48
 
   * hotplug-iface: faster management when interface wwan goes down.
