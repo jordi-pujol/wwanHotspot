@@ -381,8 +381,10 @@ BackupRotate() {
 AddHotspot() {
 	if [ -z "${net_ssid:-}" -o -z "${net_encrypt:-}" ]; then
 		LogPrio="err"
-		_log "AddHotspot, Invalid config." \
+		_msg "AddHotspot, Invalid config." \
 			"No ssid or encrypt specified. Exiting"
+		_log "${msg}"
+		AddStatMsg "${msg}"
 		exit 1
 	fi
 	Ssids="${Ssids:+"${Ssids}${LF}"}${net_ssid}"
@@ -408,6 +410,9 @@ AddHotspot() {
 LoadConfig() {
 	local msg="Loading configuration"
 	LogPrio="info" _log "${msg}"
+	: > "/var/log/${NAME}.stat"
+	StatMsgs=""
+	AddStatMsg "${msg}"
 
 	# config variables, default values
 	Debug=""
@@ -446,7 +451,6 @@ LoadConfig() {
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
 
-	: > "/var/log/${NAME}.stat"
 	if [ "${Debug}" = "xtrace" ]; then
 		exec >> "/var/log/${NAME}.xtrace" 2>&1
 		set -o xtrace
@@ -454,9 +458,6 @@ LoadConfig() {
 		set +o xtrace
 		exec >> "/var/log/${NAME}" 2>&1
 	fi
-
-	StatMsgs=""
-	AddStatMsg "${msg}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
@@ -484,7 +485,10 @@ LoadConfig() {
 		done
 	done
 	if [ -z "${WIfaceSTA}" ]; then
-		LogPrio="err" _log "Invalid AP+STA configuration. Exiting"
+		LogPrio="err"
+		msg="Invalid AP+STA configuration. Exiting"
+		_log "${msg}"
+		AddStatMsg "${msg}"
 		exit 1
 	fi
 	LogPrio="info" _log "Radio device is ${WDevice}"
@@ -499,8 +503,10 @@ LoadConfig() {
 		[ -n "${ssid}" ]; do
 			if [ -z "$(eval echo \"\${net${n}_encrypt:-}\")" ]; then
 				LogPrio="err"
-				_log "Invalid config" \
+				_msg "Invalid config" \
 					"Hotspot ${n}, no encryption specified. Exiting"
+				_log "${msg}"
+				AddStatMsg "${msg}"
 				exit 1
 			fi
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
@@ -511,7 +517,9 @@ LoadConfig() {
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -z "${WwanSsid}" ]; then
 			LogPrio="err"
-			_log "Invalid configuration. No hotspots specified. Exiting"
+			msg="Invalid configuration. No hotspots specified. Exiting"
+			_log "${msg}"
+			AddStatMsg "${msg}"
 			exit 1
 		fi
 		Ssids="${WwanSsid}"
@@ -520,7 +528,9 @@ LoadConfig() {
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
-		_log "Invalid configuration. Duplicate hotspots SSIDs. Exiting"
+		msg="Invalid configuration. Duplicate hotspots SSIDs. Exiting"
+		_log "${msg}"
+		AddStatMsg "${msg}"
 		exit 1
 	fi
 
