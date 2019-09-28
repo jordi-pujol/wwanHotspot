@@ -153,7 +153,8 @@ AddStatMsg() {
 			print ""} 
 		/^$/ && b != 2 {b=1; next}
 		1
-		END{if (b != 2) print msg}' \
+		END{if (b == 1) print ""
+			if (b != 2) print msg}' \
 		< "/var/log/${NAME}.stat" > "/var/log/${NAME}.stat.part"
 	mv -f "/var/log/${NAME}.stat.part" "/var/log/${NAME}.stat"
 
@@ -384,7 +385,7 @@ AddHotspot() {
 		_msg "AddHotspot, Invalid config." \
 			"No ssid or encrypt specified. Exiting"
 		_log "${msg}"
-		AddStatMsg "${msg}"
+		AddStatMsg "Error: ${msg}"
 		exit 1
 	fi
 	Ssids="${Ssids:+"${Ssids}${LF}"}${net_ssid}"
@@ -488,7 +489,7 @@ LoadConfig() {
 		LogPrio="err"
 		msg="Invalid AP+STA configuration. Exiting"
 		_log "${msg}"
-		AddStatMsg "${msg}"
+		AddStatMsg "Error: ${msg}"
 		exit 1
 	fi
 	LogPrio="info" _log "Radio device is ${WDevice}"
@@ -506,7 +507,7 @@ LoadConfig() {
 				_msg "Invalid config" \
 					"Hotspot ${n}, no encryption specified. Exiting"
 				_log "${msg}"
-				AddStatMsg "${msg}"
+				AddStatMsg "Error: ${msg}"
 				exit 1
 			fi
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
@@ -519,7 +520,7 @@ LoadConfig() {
 			LogPrio="err"
 			msg="Invalid configuration. No hotspots specified. Exiting"
 			_log "${msg}"
-			AddStatMsg "${msg}"
+			AddStatMsg "Error: ${msg}"
 			exit 1
 		fi
 		Ssids="${WwanSsid}"
@@ -530,7 +531,7 @@ LoadConfig() {
 		LogPrio="err"
 		msg="Invalid configuration. Duplicate hotspots SSIDs. Exiting"
 		_log "${msg}"
-		AddStatMsg "${msg}"
+		AddStatMsg "Error: ${msg}"
 		exit 1
 	fi
 
