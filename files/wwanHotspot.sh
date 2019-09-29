@@ -383,7 +383,7 @@ AddHotspot() {
 	if [ -z "${net_ssid:-}" -o -z "${net_encrypt:-}" ]; then
 		LogPrio="err"
 		_msg "AddHotspot, Invalid config." \
-			"No ssid or encrypt specified. Exiting"
+			"No ssid or encrypt specified"
 		_log "${msg}"
 		AddStatMsg "Error: ${msg}"
 		exit 1
@@ -487,7 +487,7 @@ LoadConfig() {
 	done
 	if [ -z "${WIfaceSTA}" ]; then
 		LogPrio="err"
-		msg="Invalid AP+STA configuration. Exiting"
+		msg="Invalid AP+STA configuration"
 		_log "${msg}"
 		AddStatMsg "Error: ${msg}"
 		exit 1
@@ -505,7 +505,7 @@ LoadConfig() {
 			if [ -z "$(eval echo \"\${net${n}_encrypt:-}\")" ]; then
 				LogPrio="err"
 				_msg "Invalid config" \
-					"Hotspot ${n}, no encryption specified. Exiting"
+					"Hotspot ${n}, no encryption specified"
 				_log "${msg}"
 				AddStatMsg "Error: ${msg}"
 				exit 1
@@ -518,7 +518,7 @@ LoadConfig() {
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -z "${WwanSsid}" ]; then
 			LogPrio="err"
-			msg="Invalid configuration. No hotspots specified. Exiting"
+			msg="Invalid configuration. No hotspots specified"
 			_log "${msg}"
 			AddStatMsg "Error: ${msg}"
 			exit 1
@@ -529,7 +529,7 @@ LoadConfig() {
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
-		msg="Invalid configuration. Duplicate hotspots SSIDs. Exiting"
+		msg="Invalid configuration. Duplicate hotspots SSIDs"
 		_log "${msg}"
 		AddStatMsg "Error: ${msg}"
 		exit 1
