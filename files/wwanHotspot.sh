@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.49 $
+#  $Revision: 1.50 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -281,8 +281,6 @@ WwanReset() {
 	fi
 
 	_log "${msg}"
-	[ "${iface}" != "${WIfaceSTA}" -o ${Status} -eq ${NONE} ] || \
-		StatMsgs=""
 	AddStatMsg "${msg}"
 
 	uci commit wireless
@@ -359,12 +357,12 @@ NetworkChange() {
 }
 
 PleaseScan() {
-	if [ ${Status} -eq ${CONNECTED} ]; then
-		AddStatMsg "Received an Scan Request when a Hotspot is already connected"
-	else
-		AddStatMsg "Received an Scan Request"
+	local msg="Received an Scan Request"
+	[ ${Status} -eq ${CONNECTED} ] && \
+		msg="${msg} when a Hotspot is already connected" || \
 		NoSleep="y"
-	fi
+	_applog "${msg}"
+	AddStatMsg "${msg}"
 }
 
 BackupRotate() {
@@ -410,7 +408,6 @@ AddHotspot() {
 
 LoadConfig() {
 	local msg="Loading configuration"
-	LogPrio="info" _log "${msg}"
 	: > "/var/log/${NAME}.stat"
 	StatMsgs=""
 	AddStatMsg "${msg}"
@@ -459,6 +456,8 @@ LoadConfig() {
 		set +o xtrace
 		exec >> "/var/log/${NAME}" 2>&1
 	fi
+
+	LogPrio="info" _log "${msg}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
@@ -914,8 +913,7 @@ WifiStatus() {
 		fi
 		if IsWwanConnected "unknown"; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
-				[ -n "${WIfaceAP}" ] || \
-					StatMsgs=""
+				StatMsgs=""
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
 				_log "${msg}"
 				AddStatMsg "${msg}"
@@ -965,7 +963,6 @@ WifiStatus() {
 		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
 			_log "${msg}"
 			AddStatMsg "${msg}"
-			UpdateReport="y"
 			Status=${DISABLED}
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"

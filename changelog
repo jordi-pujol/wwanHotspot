@@ -1,3 +1,10 @@
+wwanHotspot v1.50 UNRELEASED
+
+  * wwanHotspot.sh:
+    - change the way to update the file wwanHotspot.stat.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 07 Sep 2019 16:33:50 +0200
+
 wwanHotspot v1.49
 
   * wwanHotspot.sh:
