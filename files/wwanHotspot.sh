@@ -174,6 +174,7 @@ HotspotBlackList() {
 		eval net${HotSpot}_blacklistexp=\"$((expires+$(_UTCseconds)))\" || :
 		msg="${msg} for ${expires} seconds"
 	fi
+	StatMsgs=""
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
 	LogPrio="info" _log "Reason:" "${reason}"
@@ -181,7 +182,7 @@ HotspotBlackList() {
 }
 
 BlackListExpired() {
-	local d="" exp hotspot msg
+	local d="" exp hotspot msg msgs=""
 	while read -r exp hotspot && \
 	[ -n "${exp}" ] && \
 	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
@@ -189,13 +190,19 @@ BlackListExpired() {
 			net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
+		msgs="${msgs:+"${msgs}${LF}"}${msg}"
 		LogPrio="info" _log "${msg}"
-		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
 sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
 sort -n)
 EOF
+	if [ -n "${msgs}" ]; then
+		[ -n "${WIfaceAP}" ] || \
+		[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
+			StatMsgs=""
+		AddStatMsg "${msgs}"
+	fi
 }
 
 IsWifiActive() {
@@ -967,7 +974,7 @@ WifiStatus() {
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"
 			AddStatMsg "${msg}"
-		else
+		elif [ -n "${WIfaceAP}" ]; then
 			StatMsgs=""
 		fi
 		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
