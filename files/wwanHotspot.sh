@@ -125,12 +125,23 @@ Settle() {
 	local pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
+	StatMsgsChgd=""
 	if [ -n "${UpdateReport}" ]; then
 		UpdateReport=""
 		Report &
 		WaitSubprocess "" "y" || :
+	elif [ ${ReportUpdLapse} -ne 0 ]; then
+		local timelapse=$(( $(_UTCseconds) - \
+			$(stat -c '%Y' "/var/log/${NAME}.stat") ))
+		if [ ${timelapse} -lt 0 -o ${ReportUpdLapse} -lt ${timelapse} ]; then
+			msg="Time lapse exceeded, requesting a report update"
+			_applog "${msg}"
+			AddStatMsg "${msg}"
+			UpdateReport="y"
+			[ ${Status} -ne ${CONNECTED} ] || \
+				NetworkAttempts=0
+		fi
 	fi
-	StatMsgsChgd=""
 	if [ -n "${pidSleep}" ]; then
 		[ -z "${NoSleep}" ] || \
 			kill -s TERM ${pidSleep} > /dev/null 2>&1 || :
@@ -325,6 +336,9 @@ Report() {
 	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
 	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
 		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
+	printf '%s=%d %s\n' "ReportUpdLapse" "${ReportUpdLapse}" \
+		"$(test ${ReportUpdLapse} -eq 0 && echo "Disabled" || \
+		echo "seconds for auto update report")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
@@ -432,6 +446,7 @@ LoadConfig() {
 	PingWait=7
 	MinRxBps=1024
 	LogRotate=3
+	ReportUpdLapse=$((30*60))
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
 
@@ -452,6 +467,7 @@ LoadConfig() {
 	PingWait="$(_integer_value "${PingWait}" 7)"
 	MinRxBps="$(_integer_value "${MinRxBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
+	ReportUpdLapse="$(_integer_value "${ReportUpdLapse}" $((30*60)))"
 
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
@@ -704,14 +720,18 @@ CheckNetworking() {
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
-			NetworkAttempts=1
-			_log "${msg}"
 			AddStatMsg "${msg}"
+			[ ${NetworkAttempts} -eq 0 ] && \
+				_applog "${msg}" || \
+				_log "${msg}"
+			NetworkAttempts=1
 		fi
 		return 0
 	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
 		return 0
 	fi
+	[ ${NetworkAttempts} -gt 0 ] || \
+		NetworkAttempts=1
 	_msg "${NetworkAttempts} networking" \
 		"failure$([ ${NetworkAttempts} -le 1 ] || echo "s")" \
 		"on ${HotSpot}:'${WwanSsid}'"
@@ -859,7 +879,7 @@ WifiStatus() {
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
 		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
-		UpdateReport="" Interval NoSleep \
+		UpdateReport="" ReportUpdLapse Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
