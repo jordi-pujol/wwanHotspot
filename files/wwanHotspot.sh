@@ -105,7 +105,7 @@ WaitSubprocess() {
 }
 
 Settle() {
-	local pidSleep=""
+	local pidSleep="" pids msg timelapse
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
@@ -122,7 +122,7 @@ Settle() {
 			pidSleep=${!}
 		fi
 	fi
-	local pids="$(_ps_children "" "${pidSleep}")"
+	pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
 	StatMsgsChgd=""
@@ -130,13 +130,15 @@ Settle() {
 		UpdateReport=""
 		Report &
 		WaitSubprocess "" "y" || :
-	elif [ ${ReportUpdLapse} -ne 0 ]; then
-		local timelapse=$(( $(_UTCseconds) - \
+		UpdtMsgs=""
+	elif [ ${ReportUpdtLapse} -ne 0 ]; then
+		timelapse=$(( $(_UTCseconds) - \
 			$(stat -c '%Y' "/var/log/${NAME}.stat") ))
-		if [ ${timelapse} -lt 0 -o ${ReportUpdLapse} -lt ${timelapse} ]; then
+		if [ ${timelapse} -lt 0 -o ${ReportUpdtLapse} -lt ${timelapse} ]; then
 			msg="Time lapse exceeded, requesting a report update"
 			_applog "${msg}"
-			AddStatMsg "${msg}"
+			UpdtMsgs="$(_datetime) ${msg}"
+			StatMsgsChgd="y"
 			UpdateReport="y"
 			[ ${Status} -ne ${CONNECTED} ] || \
 				NetworkAttempts=0
@@ -158,6 +160,10 @@ Settle() {
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
 
+	if [ -n "${UpdtMsgs}" ]; then
+		UpdtMsgs="${UpdtMsgs}${LF}${msg}"
+		return 0
+	fi
 	awk -v msg="${msg}" \
 		'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 			else b=0
@@ -313,7 +319,10 @@ Report() {
 		_applog "Writing status report"
 	exec > "/var/log/${NAME}.stat"
 	printf '%s\n\n' "${NAME} status report."
-	printf '%s\n\n' "${StatMsgs}"
+	printf '%s\n' "${StatMsgs}"
+	[ -z "${UpdtMsgs}" ] || \
+		printf '%s\n' "${UpdtMsgs}"
+	printf '\n'
 	printf '%s\n' "Radio device is ${WDevice}"
 	printf '%s\n' "STA network interface is ${WIface}"
 	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
@@ -336,8 +345,8 @@ Report() {
 	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
 	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
 		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
-	printf '%s=%d %s\n' "ReportUpdLapse" "${ReportUpdLapse}" \
-		"$(test ${ReportUpdLapse} -eq 0 && echo "Disabled" || \
+	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
+		"$(test ${ReportUpdtLapse} -eq 0 && echo "Disabled" || \
 		echo "seconds for auto update report")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
@@ -366,6 +375,7 @@ Report() {
 
 ListStatus() {
 	StatMsgs=""
+	UpdtMsgs=""
 	AddStatMsg "Updating status report"
 	NoSleep="y"
 	UpdateReport="y"
@@ -431,6 +441,7 @@ LoadConfig() {
 	local msg="Loading configuration"
 	: > "/var/log/${NAME}.stat"
 	StatMsgs=""
+	UpdtMsgs=""
 	AddStatMsg "${msg}"
 
 	# config variables, default values
@@ -446,7 +457,7 @@ LoadConfig() {
 	PingWait=7
 	MinRxBps=1024
 	LogRotate=3
-	ReportUpdLapse=$((30*60))
+	ReportUpdtLapse=$((30*60))
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
 
@@ -467,7 +478,7 @@ LoadConfig() {
 	PingWait="$(_integer_value "${PingWait}" 7)"
 	MinRxBps="$(_integer_value "${MinRxBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
-	ReportUpdLapse="$(_integer_value "${ReportUpdLapse}" $((30*60)))"
+	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((30*60)))"
 
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
@@ -759,7 +770,7 @@ DoScan() {
 	[ -z "${Debug}" ] || \
 		_applog "DoScan - Scanning"
 
-	local hidden scanned found_hidden n i
+	local hidden scanned found_hidden n i msg
 
 	if ! scanned="$(Scanning)"; then
 		LogPrio="err"
@@ -768,7 +779,10 @@ DoScan() {
 		return 1
 	fi
 	if [ -n "${ScanErr}" ]; then
-		_log "Wifi scan for access points has been successful"
+		msg="Wifi scan for access points has been successful"
+		[ -z "${Debug}" ] && \
+			_applog "${msg}" || \
+			_log "${msg}"
 		ScanErr=""
 	fi
 	scanned="$(echo "${scanned}" | \
@@ -878,8 +892,8 @@ WifiStatus() {
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
 	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
-		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs="" \
-		UpdateReport="" ReportUpdLapse Interval NoSleep \
+		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs \
+		UpdateReport="" ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
 		msg LogPrio="" \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
@@ -994,8 +1008,6 @@ WifiStatus() {
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"
 			AddStatMsg "${msg}"
-		elif [ -n "${WIfaceAP}" ]; then
-			StatMsgs=""
 		fi
 		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}

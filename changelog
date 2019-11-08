@@ -1,7 +1,7 @@
 wwanHotspot v1.50
 
   * Trigger a report update when the report has not been modified in
-    ReportUpdLapse seconds.
+    ReportUpdtLapse seconds.
   * wwanHotspot.sh:
     - change the way to update the file wwanHotspot.stat.
 
