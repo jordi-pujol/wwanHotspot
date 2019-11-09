@@ -895,13 +895,13 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots IfaceWan WwanSsid="" WwanDisabled \
-		ScanRequest ScanErr WwanErr Status=${NONE} StatMsgsChgd="" StatMsgs \
-		UpdateReport="" ReportUpdtLapse UpdtMsgs Interval NoSleep \
-		HotSpot=${NONE} ConnAttempts=1 NetworkAttempts RxBytes CheckTime \
-		msg LogPrio="" \
+	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
+		ScanRequest ScanErr WwanErr Status StatMsgsChgd StatMsgs \
+		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
+		HotSpot ConnAttempts NetworkAttempts RxBytes CheckTime \
+		msg LogPrio \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
-		TryConnection=0 WIface WIfaceAP WIfaceSTA WDevice
+		TryConnection WIface WIfaceAP WIfaceSTA WDevice
 
 	trap '_exit' EXIT
 	trap 'exit' INT
