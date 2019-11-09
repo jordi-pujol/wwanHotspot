@@ -142,6 +142,7 @@ Settle() {
 			UpdateReport="y"
 			[ ${Status} -ne ${CONNECTED} ] || \
 				NetworkAttempts=0
+			NoSleep="y"
 		fi
 	fi
 	if [ -n "${pidSleep}" ]; then
@@ -160,10 +161,6 @@ Settle() {
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
 
-	if [ -n "${UpdtMsgs}" ]; then
-		UpdtMsgs="${UpdtMsgs}${LF}${msg}"
-		return 0
-	fi
 	awk -v msg="${msg}" \
 		'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 			else b=0
@@ -177,6 +174,14 @@ AddStatMsg() {
 
 	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}${msg}"
 	StatMsgsChgd="y"
+}
+
+AddMsg() {
+	local msg="${@}"
+
+	[ -n "${UpdtMsgs}" ] && \
+		UpdtMsgs="${UpdtMsgs}${LF}$(_datetime) ${msg}" || \
+		AddStatMsg "${msg}"
 }
 
 GetRxBytes() {
@@ -199,7 +204,7 @@ HotspotBlackList() {
 }
 
 BlackListExpired() {
-	local d="" exp hotspot msg msgs=""
+	local d="" exp hotspot msg rc=""
 	while read -r exp hotspot && \
 	[ -n "${exp}" ] && \
 	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
@@ -207,19 +212,18 @@ BlackListExpired() {
 			net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"${hotspot}:'$(eval echo \"\${net${hotspot}_ssid:-}\")'"
-		msgs="${msgs:+"${msgs}${LF}"}${msg}"
 		LogPrio="info" _log "${msg}"
+		[ -n "${rc}" ] || \
+			[ -n "${WIfaceAP}" ] || \
+			[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
+				StatMsgs=""
+		rc=1
+		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
 sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
 sort -n)
 EOF
-	if [ -n "${msgs}" ]; then
-		[ -n "${WIfaceAP}" ] || \
-		[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
-			StatMsgs=""
-		AddStatMsg "${msgs}"
-	fi
 }
 
 IsWifiActive() {
@@ -731,7 +735,7 @@ CheckNetworking() {
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
-			AddStatMsg "${msg}"
+			AddMsg "${msg}"
 			[ ${NetworkAttempts} -eq 0 ] && \
 				_applog "${msg}" || \
 				_log "${msg}"
@@ -927,7 +931,7 @@ WifiStatus() {
 				if CheckNetworking; then
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
-					AddStatMsg "${msg}"
+					AddMsg "${msg}"
 					UpdateReport="y"
 					Status=${CONNECTED}
 					ScanRequest=0
@@ -937,7 +941,7 @@ WifiStatus() {
 				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
-					AddStatMsg "${msg}"
+					AddMsg "${msg}"
 			fi
 			continue
 		fi
@@ -1007,7 +1011,7 @@ WifiStatus() {
 			Status=${DISABLED}
 		elif [ -n "${StatMsgsChgd}" ]; then
 			_applog "${msg}"
-			AddStatMsg "${msg}"
+			AddMsg "${msg}"
 		fi
 		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}
