@@ -134,16 +134,8 @@ Settle() {
 	elif [ ${ReportUpdtLapse} -ne 0 ]; then
 		timelapse=$(( $(_UTCseconds) - \
 			$(stat -c '%Y' "/var/log/${NAME}.stat") ))
-		if [ ${timelapse} -lt 0 -o ${ReportUpdtLapse} -lt ${timelapse} ]; then
-			msg="Time lapse exceeded, requesting a report update"
-			_applog "${msg}"
-			UpdtMsgs="$(_datetime) ${msg}"
-			StatMsgsChgd="y"
-			UpdateReport="y"
-			[ ${Status} -ne ${CONNECTED} ] || \
-				NetworkAttempts=0
-			NoSleep="y"
-		fi
+		[ 0 -le ${timelapse} -a ${timelapse} -le ${ReportUpdtLapse} ] || \
+			ListStatus "Time lapse exceeded, requesting a report update"
 	fi
 	if [ -n "${pidSleep}" ]; then
 		[ -z "${NoSleep}" ] || \
@@ -160,25 +152,24 @@ Settle() {
 
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
-
-	awk -v msg="${msg}" \
-		'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
-			else b=0
-			print ""} 
-		/^$/ && b != 2 {b=1; next}
-		1
-		END{if (b == 1) print ""
-			if (b != 2) print msg}' \
-		< "/var/log/${NAME}.stat" > "/var/log/${NAME}.stat.part"
-	mv -f "/var/log/${NAME}.stat.part" "/var/log/${NAME}.stat"
-
+	if [ -z "${UpdateReport}" ]; then
+		awk -v msg="${msg}" \
+			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
+				else b=0
+				print ""} 
+			/^$/ && b != 2 {b=1; next}
+			1
+			END{if (b == 1) print ""
+				if (b != 2) print msg}' \
+			< "/var/log/${NAME}.stat" > "/var/log/${NAME}.stat.part"
+		mv -f "/var/log/${NAME}.stat.part" "/var/log/${NAME}.stat"
+	fi
 	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}${msg}"
 	StatMsgsChgd="y"
 }
 
 AddMsg() {
 	local msg="${@}"
-
 	[ -n "${UpdtMsgs}" ] && \
 		UpdtMsgs="${UpdtMsgs}${LF}$(_datetime) ${msg}" || \
 		AddStatMsg "${msg}"
@@ -244,7 +235,6 @@ IsWifiActive() {
 
 WatchWifi() {
 	local c="${1:-"$((Sleep/2))"}" ssid="" mode=""
-	UpdateReport="y"
 	if [ "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" = 1 ]; then
 		if [ -z "${WIfaceAP}" ] || \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ]; then
@@ -277,7 +267,6 @@ AnotherHotspot() {
 
 WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
-
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
 		local ssid
@@ -378,11 +367,14 @@ Report() {
 }
 
 ListStatus() {
-	StatMsgs=""
-	UpdtMsgs=""
-	AddStatMsg "Updating status report"
-	NoSleep="y"
+	local msg="${1:-"Updating status report"}"
+	_applog "${msg}"
+	UpdtMsgs="$(_datetime) ${msg}"
+	StatMsgsChgd="y"
 	UpdateReport="y"
+	[ ${Status} -ne ${CONNECTED} ] || \
+		NetworkAttempts=0
+	NoSleep="y"
 }
 
 NetworkChange() {
@@ -443,6 +435,7 @@ AddHotspot() {
 
 LoadConfig() {
 	local msg="Loading configuration"
+	UpdateReport="y"
 	: > "/var/log/${NAME}.stat"
 	StatMsgs=""
 	UpdtMsgs=""
@@ -579,7 +572,6 @@ LoadConfig() {
 	HotSpot=${NONE}
 	WwanSsid=""
 	ConnAttempts=1
-	UpdateReport="y"
 	Status=${NONE}
 	AddStatMsg "Configuration reloaded"
 	NoSleep="y"
@@ -874,7 +866,6 @@ HotSpotLookup() {
 		[ -z "${StatMsgsChgd}" ] || \
 			AddStatMsg "${msg}"
 	fi
-	UpdateReport="y"
 	Status=${CONNECTING}
 	if [ $((WwanErr++)) -gt ${HotSpots} ]; then
 		Interval=${SleepScanAuto}
@@ -929,10 +920,10 @@ WifiStatus() {
 				NetworkAttempts=1
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
+					UpdateReport="y"
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
 					AddMsg "${msg}"
-					UpdateReport="y"
 					Status=${CONNECTED}
 					ScanRequest=0
 				fi
@@ -993,7 +984,6 @@ WifiStatus() {
 			fi
 			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
 				StatMsgsChgd="y"
-			UpdateReport="y"
 			Status=${DISCONNECTED}
 			ScanRequest=1
 			if [ -n "${WIfaceAP}" ]; then
