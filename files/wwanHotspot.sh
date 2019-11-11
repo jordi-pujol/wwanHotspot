@@ -367,7 +367,7 @@ Report() {
 }
 
 ListStatus() {
-	local msg="${1:-"Updating status report"}"
+	local msg="${@:-"Updating status report"}"
 	_applog "${msg}"
 	UpdtMsgs="$(_datetime) ${msg}"
 	StatMsgsChgd="y"
