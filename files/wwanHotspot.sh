@@ -340,7 +340,7 @@ Report() {
 		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
 		"$(test ${ReportUpdtLapse} -eq 0 && echo "Disabled" || \
-		echo "seconds for auto update report")"
+		echo "seconds")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
 	while [ $((i++)) -lt ${HotSpots} ]; do
