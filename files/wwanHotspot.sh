@@ -105,7 +105,7 @@ WaitSubprocess() {
 }
 
 Settle() {
-	local pidSleep="" pids msg timelapse
+	local pidSleep="" pids tl
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
@@ -125,17 +125,19 @@ Settle() {
 	pids="$(_ps_children "" "${pidSleep}")"
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
-	StatMsgsChgd=""
-	if [ -n "${UpdateReport}" ]; then
+	if [ -n "${UpdateReport}" ] || \
+	[ -n "${StatMsgsChgd}" -a ${ReportUpdtLapse} -eq 0 ]; then
+		StatMsgsChgd=""
 		UpdateReport=""
 		Report &
 		WaitSubprocess "" "y" || :
 		UpdtMsgs=""
-	elif [ ${ReportUpdtLapse} -ne 0 ]; then
-		timelapse=$(( $(_UTCseconds) - \
-			$(stat -c '%Y' "/var/log/${NAME}.stat") ))
-		[ 0 -le ${timelapse} -a ${timelapse} -le ${ReportUpdtLapse} ] || \
-			ListStatus "Time lapse exceeded, requesting a report update"
+	elif [ ${ReportUpdtLapse} -ne 0 ] && \
+	( [ $((tl=$(_UTCseconds)-$(stat -c '%Y' "/var/log/${NAME}.stat"))) \
+	-lt 0 ] || [ ${ReportUpdtLapse} -lt ${tl} ] ); then
+		ListStatus "Time lapse exceeded, requesting a report update"
+	else
+		StatMsgsChgd=""
 	fi
 	if [ -n "${pidSleep}" ]; then
 		[ -z "${NoSleep}" ] || \
