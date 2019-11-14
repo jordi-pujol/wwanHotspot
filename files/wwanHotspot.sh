@@ -154,7 +154,7 @@ Settle() {
 
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
-	if [ -z "${UpdateReport}" ]; then
+	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
@@ -436,11 +436,6 @@ AddHotspot() {
 
 LoadConfig() {
 	local msg="Loading configuration"
-	UpdateReport="y"
-	: > "/var/log/${NAME}.stat"
-	StatMsgs=""
-	UpdtMsgs=""
-	AddStatMsg "${msg}"
 
 	# config variables, default values
 	Debug=""
@@ -459,8 +454,14 @@ LoadConfig() {
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
 
+	UpdateReport="y"
+	StatMsgs=""
+	UpdtMsgs=""
 	Ssids=""
 	HotSpots=${NONE}
+	: > "/var/log/${NAME}.stat"
+	AddStatMsg "${msg}"
+
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
 
