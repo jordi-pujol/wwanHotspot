@@ -450,7 +450,7 @@ LoadConfig() {
 	PingWait=7
 	MinRxBps=1024
 	LogRotate=3
-	ReportUpdtLapse=$((30*60))
+	ReportUpdtLapse=$((6*SleepScanAuto))
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
 
@@ -477,7 +477,7 @@ LoadConfig() {
 	PingWait="$(_integer_value "${PingWait}" 7)"
 	MinRxBps="$(_integer_value "${MinRxBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
-	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((30*60)))"
+	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
 
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
