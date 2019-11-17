@@ -386,7 +386,7 @@ NetworkChange() {
 
 PleaseScan() {
 	local msg="Received an Scan Request"
-	[ ${Status} -eq ${CONNECTED} ] && \
+	[ ${Status} -eq ${CONNECTED} -o ${Status} -eq ${CONNECTING} ] && \
 		msg="${msg} when a Hotspot is already connected" || \
 		NoSleep="y"
 	_applog "${msg}"
