@@ -156,10 +156,11 @@ AddStatMsg() {
 	local msg="$(_datetime) ${@}"
 	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
-			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
+			'b != 2 && /StatUpdt/ {print msg; b=2}
+			b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
 				print ""} 
-			/^$/ && b != 2 {b=1; next}
+			b != 2 && /^$/ {b=1; next}
 			1
 			END{if (b == 1) print ""
 				if (b != 2) print msg}' \
@@ -368,7 +369,7 @@ Report() {
 }
 
 ListStatus() {
-	local msg="${@:-"Updating status report"}"
+	local msg="StatUpdt ${@:-"Updating status report"}"
 	_applog "${msg}"
 	UpdtMsgs="$(_datetime) ${msg}"
 	StatMsgsChgd="y"
