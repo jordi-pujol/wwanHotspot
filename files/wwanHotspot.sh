@@ -369,11 +369,15 @@ Report() {
 }
 
 ListStatus() {
-	local msg="StatUpdt ${@:-"Updating status report"}"
+	local msg="${@:-"Updating status report"}"
 	_applog "${msg}"
-	UpdtMsgs="$(_datetime) ${msg}"
-	StatMsgsChgd="y"
 	UpdateReport="y"
+	if [ ${ReportUpdtLapse} -eq 0 ]; then
+		AddStatMsg "${msg}"
+	else
+		UpdtMsgs="$(_datetime) StatUpdt ${msg}"
+		StatMsgsChgd="y"
+	fi
 	[ ${Status} -ne ${CONNECTED} ] || \
 		NetworkAttempts=0
 	NoSleep="y"
