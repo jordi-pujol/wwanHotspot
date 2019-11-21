@@ -156,13 +156,10 @@ AddStatMsg() {
 	local msg="$(_datetime) ${@}"
 	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
-			'BEGIN{b=0}
-			b != 2 && /StatUpdt/ {b=3; next}
-			b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
+			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
 				print ""} 
 			b != 2 && /^$/ {b=1; next}
-			b == 3 {next}
 			1
 			END{if (b == 1) print ""
 				if (b != 2) print msg}' \
