@@ -390,11 +390,13 @@ NetworkChange() {
 
 PleaseScan() {
 	local msg="Received an Scan Request"
-	[ ${Status} -eq ${CONNECTED} -o ${Status} -eq ${CONNECTING} ] && \
-		msg="${msg} when a Hotspot is already connected" || \
-		NoSleep="y"
-	_applog "${msg}"
-	AddStatMsg "${msg}"
+	if [ ${Status} -eq ${CONNECTED} -o ${Status} -eq ${CONNECTING} ]; then
+		msg="${msg} when a Hotspot is already connected"
+		_applog "${msg}"
+		AddStatMsg "${msg}"
+	else
+		ListStatus "${msg}"
+	fi
 }
 
 BackupRotate() {
