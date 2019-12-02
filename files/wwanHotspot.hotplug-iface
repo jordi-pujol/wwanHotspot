@@ -23,23 +23,31 @@ _wwan_network() {
 	return 1
 }
 
+_logger() {
+	! _isset "xtrace" || \
+		logger -t "wwanHotspot.iface" -p "hotplug.debug" \
+		"action='$ACTION'" \
+		"devicename='$DEVICENAME' devname='$DEVNAME' devpath='$DEVPATH'" \
+		"product='$PRODUCT' type='$TYPE' interface='$INTERFACE'"
+}
+
 if _isset "xtrace"; then
 	exec >> "/tmp/99-wwanHotspot-$(date +'%Y-%m-%d_%H:%M:%S').log" 2>&1
 fi
 
-if [ "${ACTION}" = "ifup" -a "${INTERFACE}" = "lan" ] || \
-( [ "${ACTION}" = "ifdown" ] && \
+if [ "${ACTION}" = "ifup" -a "${INTERFACE}" = "lan" ]; then
+	if "${COMMAND}" running; then
+		"${COMMAND}" reload
+	elif "${COMMAND}" enabled; then
+		"${COMMAND}" restart
+	fi
+	_logger
+elif [ "${ACTION}" = "ifdown" ] && \
 sta_network="$(_wwan_network)" && \
-[ "$INTERFACE" = "${sta_network}" ] ); then
+[ "$INTERFACE" = "${sta_network}" ]; then
 	if "${COMMAND}" running; then
 		"${COMMAND}" network
 	elif "${COMMAND}" enabled; then
 		"${COMMAND}" restart
-	fi
-	if _isset "xtrace"; then
-		logger -t "wwanHotspot.iface" -p "hotplug.debug" \
-			"action='$ACTION'" \
-			"devicename='$DEVICENAME' devname='$DEVNAME' devpath='$DEVPATH'" \
-			"product='$PRODUCT' type='$TYPE' interface='$INTERFACE'"
 	fi
 fi

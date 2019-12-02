@@ -1,5 +1,7 @@
 wwanHotspot v1.50
 
+  * the network configuration may have changed when the lan interface 
+    is going up, therefore wwanHotspot will reload the configuration.
   * Trigger a report update when the report has not been modified in
     ReportUpdtLapse seconds.
   * wwanHotspot.sh:
