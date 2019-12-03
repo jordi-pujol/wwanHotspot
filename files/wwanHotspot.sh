@@ -929,7 +929,7 @@ WifiStatus() {
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
 					UpdateReport="y"
-					[ -n "${WIfaceAP}" ] || \
+					[ -n "${WIfaceAP}" -o ${Status} -eq ${CONNECTING} ] || \
 						StatMsgs=""
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
