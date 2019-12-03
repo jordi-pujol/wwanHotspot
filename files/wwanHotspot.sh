@@ -154,7 +154,7 @@ Settle() {
 
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
-	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
+	if [ -z "${UpdateReport:-}" -a ${ReportUpdtLapse:-"1"} -ne 0 ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
@@ -929,6 +929,8 @@ WifiStatus() {
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
 					UpdateReport="y"
+					[ -n "${WIfaceAP}" ] || \
+						StatMsgs=""
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
 					AddMsg "${msg}"
