@@ -49,7 +49,7 @@ _ps_children() {
 _exit() {
 	trap - EXIT INT HUP ALRM USR1 USR2
 	LogPrio="warn" _log "Exit"
-	AddStatMsg "Daemon exit"
+	UpdateReport="" ReportUpdtLapse=1 AddStatMsg "Daemon exit"
 	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
 	wait || :
 }
@@ -154,7 +154,7 @@ Settle() {
 
 AddStatMsg() {
 	local msg="$(_datetime) ${@}"
-	if [ -z "${UpdateReport:-}" -a ${ReportUpdtLapse:-"1"} -ne 0 ]; then
+	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
