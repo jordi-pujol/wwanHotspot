@@ -1,3 +1,9 @@
+wwanHotspot v1.51
+
+  * Some code improvements.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 13 Dec 2019 09:17:28 +0100
+
 wwanHotspot v1.50
 
   * the network configuration may have changed when the lan interface 

@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.50 $
+#  $Revision: 1.51 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -374,7 +374,7 @@ ListStatus() {
 	if [ ${ReportUpdtLapse} -eq 0 ]; then
 		AddStatMsg "${msg}"
 	else
-		UpdtMsgs="$(_datetime) StatUpdt ${msg}"
+		UpdtMsgs="$(_datetime) ${msg}"
 		StatMsgsChgd="y"
 	fi
 	[ ${Status} -ne ${CONNECTED} ] || \
@@ -705,9 +705,10 @@ CheckNetworking() {
 		fi
 	rc=1
 	if [ ${MinRxBps} -ne 0 ]; then
+		local r=$(GetRxBytes) c=$(_UTCseconds)
 		if [ -n "${CheckTime}" ]; then
-			local b=$(($(GetRxBytes)-RxBytes)) \
-				t=$(($(_UTCseconds)-CheckTime))
+			local b=$((${r}-RxBytes)) \
+				t=$((${c}-CheckTime))
 			if [ ${t} -gt 0 ] && \
 			[ $((b/t)) -ge ${MinRxBps} ]; then
 				rc=0
@@ -717,8 +718,8 @@ CheckNetworking() {
 			[ -z "${Debug}" ] || \
 				_applog "STA interface received ${b} bytes in ${t} seconds"
 		fi
-		CheckTime=$(_UTCseconds)
-		RxBytes=$(GetRxBytes)
+		CheckTime=${c}
+		RxBytes=${r}
 	fi
 	if [ ${rc} -ne 0 ]; then
 		CheckNetw &
