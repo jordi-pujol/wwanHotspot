@@ -1,3 +1,10 @@
+wwanHotspot v1.52
+
+  * Calculate transferred info for an interface adding received and
+    transmitted bytes.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 18 Jan 2020 09:28:55 +0100
+
 wwanHotspot v1.51
 
   * Some code improvements.

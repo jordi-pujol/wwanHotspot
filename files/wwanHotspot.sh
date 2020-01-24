@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.51 $
+#  $Revision: 1.52 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -177,8 +177,10 @@ AddMsg() {
 		AddStatMsg "${msg}"
 }
 
-GetRxBytes() {
-	cat "/sys/class/net/${WIface}/statistics/rx_bytes"
+IfaceTraffic() {
+	local iface="${1:-"${WIface}"}"
+	echo $(( $(cat "/sys/class/net/${iface}/statistics/rx_bytes") + \
+	$(cat "/sys/class/net/${iface}/statistics/tx_bytes") ))
 }
 
 HotspotBlackList() {
@@ -705,9 +707,9 @@ CheckNetworking() {
 		fi
 	rc=1
 	if [ ${MinRxBps} -ne 0 ]; then
-		local r=$(GetRxBytes) c=$(_UTCseconds)
+		local r=$(IfaceTraffic) c=$(_UTCseconds)
 		if [ -n "${CheckTime}" ]; then
-			local b=$((${r}-RxBytes)) \
+			local b=$((${r}-Traffic)) \
 				t=$((${c}-CheckTime))
 			if [ ${t} -gt 0 ] && \
 			[ $((b/t)) -ge ${MinRxBps} ]; then
@@ -719,7 +721,7 @@ CheckNetworking() {
 				_applog "STA interface received ${b} bytes in ${t} seconds"
 		fi
 		CheckTime=${c}
-		RxBytes=${r}
+		Traffic=${r}
 	fi
 	if [ ${rc} -ne 0 ]; then
 		CheckNetw &
@@ -898,7 +900,7 @@ WifiStatus() {
 	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
 		ScanRequest ScanErr WwanErr Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
-		HotSpot ConnAttempts NetworkAttempts RxBytes CheckTime \
+		HotSpot ConnAttempts NetworkAttempts Traffic CheckTime \
 		msg LogPrio \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection WIface WIfaceAP WIfaceSTA WDevice
