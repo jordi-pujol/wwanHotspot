@@ -1,5 +1,6 @@
 wwanHotspot v1.52
 
+  * Rename configuration variable MinRxBps to MinTrafficBps.
   * Calculate transferred info for an interface adding received and
     transmitted bytes.
 

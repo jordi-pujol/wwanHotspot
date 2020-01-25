@@ -340,8 +340,8 @@ Report() {
 	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
 		"$(test ${BlackListNetworkExpires} -eq 0 && echo "Never" || echo "seconds")"
 	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
-	printf '%s=%d %s\n' "MinRxBps" "${MinRxBps}" \
-		"$(test ${MinRxBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
+	printf '%s=%d %s\n' "MinTrafficBps" "${MinTrafficBps}" \
+		"$(test ${MinTrafficBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
 		"$(test ${ReportUpdtLapse} -eq 0 && echo "Disabled" || echo "seconds")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
@@ -456,7 +456,7 @@ LoadConfig() {
 	BlackListNetwork=3
 	BlackListNetworkExpires=$((10*60))
 	PingWait=7
-	MinRxBps=1024
+	MinTrafficBps=1024
 	LogRotate=3
 	ReportUpdtLapse=$((6*SleepScanAuto))
 	unset $(set | awk -F '=' \
@@ -483,7 +483,7 @@ LoadConfig() {
 	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
 	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
 	PingWait="$(_integer_value "${PingWait}" 7)"
-	MinRxBps="$(_integer_value "${MinRxBps}" 1024)"
+	MinTrafficBps="$(_integer_value "${MinTrafficBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
 	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
 
@@ -706,13 +706,13 @@ CheckNetworking() {
 			fi
 		fi
 	rc=1
-	if [ ${MinRxBps} -ne 0 ]; then
+	if [ ${MinTrafficBps} -ne 0 ]; then
 		local r=$(IfaceTraffic) c=$(_UTCseconds)
 		if [ -n "${CheckTime}" ]; then
 			local b=$((${r}-Traffic)) \
 				t=$((${c}-CheckTime))
 			if [ ${t} -gt 0 ] && \
-			[ $((b/t)) -ge ${MinRxBps} ]; then
+			[ $((b/t)) -ge ${MinTrafficBps} ]; then
 				rc=0
 				_msg "Networking of ${HotSpot}:'${WwanSsid}' to" \
 					"the external network is working"
