@@ -31,7 +31,7 @@ _integer_value() {
 }
 
 _UTCseconds() {
-	date --utc +'%s'
+	date +'%s'
 }
 
 _datetime() {
