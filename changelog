@@ -3,7 +3,7 @@ wwanHotspot v1.52
   * wwanHotspot.config:
     - configuration variable MinRxBps has been renamed to MinTrafficBps.
   * wwanHotspot.sh:
-    - Calculate transferred info for an interface adding received and
+    - Calculate transferred data for an interface adding received and
       transmitted bytes.
     - _UTCseconds: format %s allways returns UTC seconds.
 
