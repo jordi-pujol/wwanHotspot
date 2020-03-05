@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.52 $
+#  $Revision: 1.53 $
 #
 #  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -35,7 +35,7 @@ _UTCseconds() {
 }
 
 _datetime() {
-	date +'%Y-%m-%d %H:%M:%S'
+	date +'%F %X'
 }
 
 _ps_children() {
