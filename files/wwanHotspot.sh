@@ -395,7 +395,7 @@ PleaseScan() {
 	if [ ${Status} -eq ${CONNECTED} -o ${Status} -eq ${CONNECTING} ]; then
 		msg="${msg} when a Hotspot is already connected"
 		_applog "${msg}"
-		AddStatMsg "${msg}"
+		AddMsg "${msg}"
 	else
 		ListStatus "${msg}"
 	fi
