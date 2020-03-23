@@ -1,9 +1,11 @@
 wwanHotspot v1.53
 
-  * wwanHotspot.sh:
+  * wwanHotspot.sh, little changes:
     - simplify date formatting
+    - append the scan message at the same instant that a scan request
+      is received
 
- -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 18 Jan 2020 09:28:55 +0100
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 21 Mar 2020 12:03:39 +0100
 
 wwanHotspot v1.52
 
