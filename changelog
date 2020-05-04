@@ -1,3 +1,12 @@
+wwanHotspot v1.54
+
+  * wwanHotspot.sh:
+    - wwanHotspot will resolve the situation created when blaclisting
+      a Hotspot for connection problems.
+      Now will update the wifi interface for new hotspot parameters.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 04 May 2020 10:19:58 +0200
+
 wwanHotspot v1.53
 
   * wwanHotspot.sh, little changes:
