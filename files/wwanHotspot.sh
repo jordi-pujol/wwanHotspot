@@ -3,9 +3,9 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.54 $
+#  $Revision: 1.55 $
 #
-#  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -446,6 +446,7 @@ LoadConfig() {
 	local msg="Loading configuration"
 
 	# config variables, default values
+	CfgFromRtr=""
 	Debug=""
 	ScanAuto="y"
 	Sleep=20
@@ -566,6 +567,7 @@ LoadConfig() {
 		Ssids="${WwanSsid}"
 		net1_ssid="${WwanSsid}"
 		HotSpots=1
+		CfgFromRtr="y"
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
@@ -897,7 +899,7 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
+	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled CfgFromRtr \
 		ScanRequest ScanErr WwanErr Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		HotSpot ConnAttempts NetworkAttempts Traffic CheckTime \
@@ -919,6 +921,13 @@ WifiStatus() {
 	while Settle; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
+		if [ -n "${CfgFromRtr}" -a "${WwanSsid}" != "${net1_ssid}" ]; then
+			LogPrio="warn" \
+			_log "The router configuration has been changed," \
+				"reloading config."
+			LoadConfig
+			continue
+		fi
 		if IsWwanConnected; then
 			TryConnection=0
 			ScanErr=""
@@ -984,9 +993,11 @@ WifiStatus() {
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
-						WwanSsid="*blacklisted*"
-						uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-						uci commit wireless
+						if [ -z "${CfgFromRtr}" ]; then
+							WwanSsid="*blacklisted*"
+							uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
+							uci commit wireless
+						fi
 					else
 						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]

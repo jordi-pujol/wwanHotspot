@@ -3,9 +3,9 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.54 $
+#  $Revision: 1.55 $
 #
-#  Copyright (C) 2017-2019 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -125,13 +125,10 @@ stop_service() {
 service_triggers() {
 	local ifaces="wan $(_wwan_network)"
 	local n
-	procd_open_trigger
 	for n in ${ifaces}; do
 		procd_add_interface_trigger "interface.*" "${n}" "${INIT}" network
 	done
 	procd_add_config_trigger "config.change" "${NAME}" "${INIT}" reload
-	procd_add_config_trigger "config.change" "network" "${INIT}" reload
-	procd_close_trigger
 }
 
 _signal() {
