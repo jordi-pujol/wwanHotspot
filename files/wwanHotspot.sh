@@ -273,26 +273,28 @@ WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
+		if [ -n "${CfgFromRtr}" ]; then
+			msg="Ignoring request to disable the Router hotspot config"
+			_applog "${msg}"
+			AddStatMsg "${msg}"
+			return 0
+		fi
 		local ssid
 		AnotherHotspot
 		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "${ssid}" ] || \
 			return 0
-		if [ -z "${CfgFromRtr}" ]; then
-			WwanSsid="${ssid}"
-			uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
-			if [ ${HotSpot} -ne ${NONE} ]; then
-				uci set wireless.@wifi-iface[${iface}].encryption="$(
-					eval echo \"\${net${HotSpot}_encrypt:-}\")"
-				uci set wireless.@wifi-iface[${iface}].key="$(
-					eval echo \"\${net${HotSpot}_key:-}\")"
-				msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
-			else
-				msg="Blacklisting current"
-			fi
-			msg="${msg} hotspot for the STA interface"
+		WwanSsid="${ssid}"
+		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+		if [ ${HotSpot} -ne ${NONE} ]; then
+			uci set wireless.@wifi-iface[${iface}].encryption="$(
+				eval echo \"\${net${HotSpot}_encrypt:-}\")"
+			uci set wireless.@wifi-iface[${iface}].key="$(
+				eval echo \"\${net${HotSpot}_key:-}\")"
+			msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
 		else
-			msg="Error: Required to disable the Router hotspot config"
+			msg="Blacklisting current"
 		fi
+		msg="${msg} hotspot for the STA interface"
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
