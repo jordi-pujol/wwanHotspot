@@ -3,9 +3,9 @@ wwanHotspot v1.55
   * Modify Copyright notice to include current year 2020.
   * wwanHotspot.sh:
     - Don't modify the configured wifi interface when the hotspot's
-      configuration has been taken from the router.
+      configuration has been taken from the wireless networking.
     - Auto-reload config when detecting a config change if the hotspot's
-      configuration has been taken from the wireless hotspot.
+      configuration has been taken from the wireless networking.
   * wwanHotspot.init:
     - update service_triggers according to the latest specification.
       https://openwrt.org/docs/guide-developer/procd-init-scripts

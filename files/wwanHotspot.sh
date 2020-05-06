@@ -277,18 +277,22 @@ WwanReset() {
 		AnotherHotspot
 		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "${ssid}" ] || \
 			return 0
-		WwanSsid="${ssid}"
-		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
-		if [ ${HotSpot} -ne ${NONE} ]; then
-			uci set wireless.@wifi-iface[${iface}].encryption="$(
-				eval echo \"\${net${HotSpot}_encrypt:-}\")"
-			uci set wireless.@wifi-iface[${iface}].key="$(
-				eval echo \"\${net${HotSpot}_key:-}\")"
-			msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
+		if [ -z "${CfgFromRtr}" ]; then
+			WwanSsid="${ssid}"
+			uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+			if [ ${HotSpot} -ne ${NONE} ]; then
+				uci set wireless.@wifi-iface[${iface}].encryption="$(
+					eval echo \"\${net${HotSpot}_encrypt:-}\")"
+				uci set wireless.@wifi-iface[${iface}].key="$(
+					eval echo \"\${net${HotSpot}_key:-}\")"
+				msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
+			else
+				msg="Blacklisting current"
+			fi
+			msg="${msg} hotspot for the STA interface"
 		else
-			msg="Blacklisting current"
+			msg="Error: Required to disable the Router hotspot config"
 		fi
-		msg="${msg} hotspot for the STA interface"
 	else
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
@@ -308,6 +312,12 @@ WwanReset() {
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
 	UpdateReport="y"
+	[ -z "${Debug}" ] || \
+		if [ ${Hotspots} -eq 1 -a ${disable} -eq 1 ]; then
+			msg="Warning: Disabling the only configured hotspot"
+			_applog "${msg}"
+			AddStatMsg "${msg}"
+		fi
 	WatchWifi &
 }
 
@@ -419,7 +429,7 @@ AddHotspot() {
 		_msg "AddHotspot, Invalid config." \
 			"No ssid or encrypt specified"
 		_log "${msg}"
-		AddStatMsg "Error: ${msg}"
+		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
 	Ssids="${Ssids:+"${Ssids}${LF}"}${net_ssid}"
@@ -530,7 +540,7 @@ LoadConfig() {
 		LogPrio="err"
 		msg="Invalid AP+STA configuration"
 		_log "${msg}"
-		AddStatMsg "Error: ${msg}"
+		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
 	LogPrio="info" _log "Radio device is ${WDevice}"
@@ -548,7 +558,7 @@ LoadConfig() {
 				_msg "Invalid config" \
 					"Hotspot ${n}, no encryption specified"
 				_log "${msg}"
-				AddStatMsg "Error: ${msg}"
+				AddStatMsg "Error:" "${msg}"
 				exit 1
 			fi
 			Ssids="${Ssids:+"${Ssids}${LF}"}${ssid}"
@@ -561,7 +571,7 @@ LoadConfig() {
 			LogPrio="err"
 			msg="Invalid configuration. No hotspots specified"
 			_log "${msg}"
-			AddStatMsg "Error: ${msg}"
+			AddStatMsg "Error:" "${msg}"
 			exit 1
 		fi
 		Ssids="${WwanSsid}"
@@ -573,7 +583,7 @@ LoadConfig() {
 		LogPrio="err"
 		msg="Invalid configuration. Duplicate hotspots SSIDs"
 		_log "${msg}"
-		AddStatMsg "Error: ${msg}"
+		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
 
@@ -804,7 +814,7 @@ DoScan() {
 	[ $((n++)) -lt ${HotSpots} ] || \
 		n=1
 
-	local rc=1
+	local rc=1 blacks=0
 	i=${n}
 	while :; do
 		eval ssid=\"\${net${i}_ssid:-}\"
@@ -821,6 +831,8 @@ DoScan() {
 				[ -z "${Debug}" ] || \
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
+			else
+				[ $((blacks++)) ]
 			fi
 			[ "${ssid}" != "${WwanSsid}" ] || \
 				rc=2
@@ -835,6 +847,11 @@ DoScan() {
 	done
 	[ -z "${Debug}" ] || \
 		_applog "DoScan: No Hotspots available"
+	if [ ${HotSpots} -eq ${blacks} ]; then
+		msg="Warning: All Hotspots are blacklisted"
+		_applog "${msg}"
+		AddStatMsg "${msg}"
+	fi
 	return ${rc}
 }
 
@@ -923,8 +940,8 @@ WifiStatus() {
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		if [ -n "${CfgFromRtr}" -a "${WwanSsid}" != "${net1_ssid}" ]; then
 			LogPrio="warn" \
-			_log "The router configuration has been changed," \
-				"reloading config."
+			_log "Reloading config because" \
+				"the wireless iface configuration has been changed"
 			LoadConfig
 			continue
 		fi
@@ -994,7 +1011,7 @@ WifiStatus() {
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
 						if [ -z "${CfgFromRtr}" ]; then
-							WwanSsid="*blacklisted*"
+							WwanSsid="\$blacklisted\$"
 							uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 							uci commit wireless
 						fi
