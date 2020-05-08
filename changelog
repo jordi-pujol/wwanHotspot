@@ -10,6 +10,8 @@ wwanHotspot v1.55
       https://openwrt.org/docs/guide-developer/procd-init-scripts
       https://openwrt.org/docs/guide-developer/procd-init-script-example
       (I have changed only a little part of it.)
+  * wwanHotspot.config:
+    - comment out all sample configurations.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 05 May 2020 10:19:58 +0200
 
