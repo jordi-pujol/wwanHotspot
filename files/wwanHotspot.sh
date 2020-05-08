@@ -565,7 +565,7 @@ LoadConfig() {
 		fi
 		Ssids="${WwanSsid}"
 		net1_ssid="${WwanSsid}"
-		net1_encryption="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+		net1_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
 		net1_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 		HotSpots=1
 		LogPrio="warn"
@@ -574,7 +574,7 @@ LoadConfig() {
 			"to the config file '/etc/config/${NAME}'"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
-		sed -i.bak -re '/^net[[:digit:]]+_/d' "/etc/config/${NAME}"
+		sed -i.bak -re '/^net[[:digit:]]*_|^AddHotspot/d' "/etc/config/${NAME}"
 		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
 		set | sed -ne '/^net1_/s//net_/p' | sort -r
 		printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
