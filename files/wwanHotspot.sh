@@ -273,12 +273,6 @@ WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
-		if [ -n "${CfgFromRtr}" ]; then
-			msg="Ignoring request to disable the Router hotspot config"
-			_applog "${msg}"
-			AddStatMsg "${msg}"
-			return 0
-		fi
 		local ssid
 		AnotherHotspot
 		[ "$(uci -q get wireless.@wifi-iface[${iface}].ssid)" != "${ssid}" ] || \
@@ -314,12 +308,6 @@ WwanReset() {
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
 	UpdateReport="y"
-	[ -z "${Debug}" ] || \
-		if [ ${Hotspots} -eq 1 -a ${disable} -eq 1 ]; then
-			msg="Warning: Disabling the only configured hotspot"
-			_applog "${msg}"
-			AddStatMsg "${msg}"
-		fi
 	WatchWifi &
 }
 
@@ -458,7 +446,6 @@ LoadConfig() {
 	local msg="Loading configuration"
 
 	# config variables, default values
-	CfgFromRtr=""
 	Debug=""
 	ScanAuto="y"
 	Sleep=20
@@ -578,8 +565,19 @@ LoadConfig() {
 		fi
 		Ssids="${WwanSsid}"
 		net1_ssid="${WwanSsid}"
+		net1_encryption="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+		net1_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 		HotSpots=1
-		CfgFromRtr="y"
+		LogPrio="warn"
+		_msg "No hotspots specified," \
+			"adding the current router configuration" \
+			"to the config file '/etc/config/${NAME}'"
+		_log "${msg}"
+		AddStatMsg "Warning:" "${msg}"
+		sed -i.bak -re '/^net[[:digit:]]+_/d' "/etc/config/${NAME}"
+		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
+		set | sed -ne '/^net1_/s//net_/p' | sort -r
+		printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
@@ -816,7 +814,7 @@ DoScan() {
 	[ $((n++)) -lt ${HotSpots} ] || \
 		n=1
 
-	local rc=1 blacks=0
+	local rc=1
 	i=${n}
 	while :; do
 		eval ssid=\"\${net${i}_ssid:-}\"
@@ -833,8 +831,6 @@ DoScan() {
 				[ -z "${Debug}" ] || \
 					_applog "DoScan selected ${HotSpot}:'${ssid}'"
 				return 0
-			else
-				[ $((blacks++)) ]
 			fi
 			[ "${ssid}" != "${WwanSsid}" ] || \
 				rc=2
@@ -849,11 +845,6 @@ DoScan() {
 	done
 	[ -z "${Debug}" ] || \
 		_applog "DoScan: No Hotspots available"
-	if [ ${HotSpots} -eq ${blacks} ]; then
-		msg="Warning: All Hotspots are blacklisted"
-		_applog "${msg}"
-		AddStatMsg "${msg}"
-	fi
 	return ${rc}
 }
 
@@ -918,7 +909,7 @@ WifiStatus() {
 	readonly LF=$'\n' \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled CfgFromRtr \
+	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
 		ScanRequest ScanErr WwanErr Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		HotSpot ConnAttempts NetworkAttempts Traffic CheckTime \
@@ -940,13 +931,6 @@ WifiStatus() {
 	while Settle; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		if [ -n "${CfgFromRtr}" -a "${WwanSsid}" != "${net1_ssid}" ]; then
-			LogPrio="warn" \
-			_log "Reloading config because" \
-				"the wireless iface configuration has been changed"
-			LoadConfig
-			continue
-		fi
 		if IsWwanConnected; then
 			TryConnection=0
 			ScanErr=""
@@ -1012,11 +996,9 @@ WifiStatus() {
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
-						if [ -z "${CfgFromRtr}" ]; then
-							WwanSsid="\$blacklisted\$"
-							uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-							uci commit wireless
-						fi
+						WwanSsid="\$blacklisted\$"
+						uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
+						uci commit wireless
 					else
 						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]
