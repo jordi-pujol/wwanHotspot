@@ -570,8 +570,7 @@ LoadConfig() {
 		HotSpots=1
 		LogPrio="warn"
 		_msg "No hotspots specified," \
-			"adding the current router configuration" \
-			"to the config file '/etc/config/${NAME}'"
+			"adding the current router configuration to the config file"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
 		sed -i.bak -re '/^net[[:digit:]]*_|^AddHotspot/d' "/etc/config/${NAME}"
