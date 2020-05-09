@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.55 $
+#  $Revision: 1.56 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -74,10 +74,7 @@ if [ ! -f "./control" -o ! -s "./control" ]; then
 	exit 1
 fi
 
-[ ${#} -gt 0 ] || \
-	set -- "build"
-
-for cmd in "${@}"; do
+for cmd in "${@:-"build"}"; do
 	case "${cmd}" in
 	all|build)
 		_package_attrs
