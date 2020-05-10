@@ -569,8 +569,8 @@ LoadConfig() {
 		net1_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 		HotSpots=1
 		LogPrio="warn"
-		_msg "No hotspots specified," \
-			"adding the current router configuration to the config file"
+		_msg "No hotspots configured," \
+			"importing the current router setup for the STA interface"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
 		sed -i.bak -re '/^net[[:digit:]]*_|^AddHotspot/d' "/etc/config/${NAME}"
