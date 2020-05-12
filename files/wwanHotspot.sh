@@ -555,28 +555,27 @@ LoadConfig() {
 		done
 	fi
 	if [ ${HotSpots} -eq ${NONE} ]; then
-		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		if [ -z "${WwanSsid}" ]; then
+		net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
+		if [ -z "${net_ssid}" ]; then
 			LogPrio="err"
 			msg="Invalid configuration. No hotspots specified"
 			_log "${msg}"
 			AddStatMsg "Error:" "${msg}"
 			exit 1
 		fi
-		Ssids="${WwanSsid}"
-		net1_ssid="${WwanSsid}"
-		net1_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
-		net1_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-		HotSpots=1
+		net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 		LogPrio="warn"
 		_msg "No hotspots configured," \
 			"importing the current router setup for the STA interface"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
+		local add_cfg="$(printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
+		set | grep -se '^net_' | sort -r
+		printf '%s\n' "AddHotspot")"
+		AddHotspot
 		sed -i.bak -re '/^net[[:digit:]]*_|^AddHotspot/d' "/etc/config/${NAME}"
-		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
-		set | sed -ne '/^net1_/s//net_/p' | sort -r
-		printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
+		printf '%s\n' "${add_cfg}" >> "/etc/config/${NAME}"
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
