@@ -572,7 +572,9 @@ LoadConfig() {
 		AddStatMsg "Warning:" "${msg}"
 		local add_cfg="$(set | grep -se '^net_' | sort -r)"
 		AddHotspot
-		sed -i.bak -re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
+		[ ! -s "/etc/config/${NAME}" ] || \
+			sed -i.bak \
+			-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
 			"/etc/config/${NAME}"
 		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
 		printf '%s\n' "${add_cfg}"
