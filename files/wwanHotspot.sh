@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.56 $
+#  $Revision: 1.57 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -570,12 +570,15 @@ LoadConfig() {
 			"importing the current router setup for the STA interface"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
-		local add_cfg="$(printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
-		set | grep -se '^net_' | sort -r
-		printf '%s\n' "AddHotspot")"
+		local add_cfg="$(set | grep -se '^net_' | sort -r)"
 		AddHotspot
-		sed -i.bak -re '/^net[[:digit:]]*_|^AddHotspot/d' "/etc/config/${NAME}"
-		printf '%s\n' "${add_cfg}" >> "/etc/config/${NAME}"
+		sed -i.bak -re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
+			"/etc/config/${NAME}"
+		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
+		printf '%s\n' "${add_cfg}"
+		printf '%s\n' "#net_hidden=y"
+		printf '%s\n' "#net_check='https://www.google.com/'"
+		printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
 	fi
 	if [ -n "$(echo "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
