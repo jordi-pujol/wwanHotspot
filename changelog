@@ -1,5 +1,9 @@
 wwanHotspot v1.57
 
+  * sort status messages
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 01 Jun 2020 09:28:07 +0200
+
 wwanHotspot v1.56
 
   * little changes to simplify code and explanative messages.
