@@ -82,7 +82,7 @@ _pids_active() {
 	return ${rc}
 }
 
-Clear_StatMsgs() {
+ClrStatMsgs() {
 	StatMsgs="${UpdtMsgs}"
 	UpdtMsgs=""
 }
@@ -196,7 +196,7 @@ HotspotBlackList() {
 		eval net${HotSpot}_blacklistexp=\"$((expires+$(_UTCseconds)))\" || :
 		msg="${msg} for ${expires} seconds"
 	fi
-	Clear_StatMsgs
+	ClrStatMsgs
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
 	LogPrio="info" _log "Reason:" "${reason}"
@@ -216,7 +216,7 @@ BlackListExpired() {
 		[ -n "${rc}" ] || \
 			[ -n "${WIfaceAP}" ] || \
 			[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
-				Clear_StatMsgs
+				ClrStatMsgs
 		rc=1
 		AddStatMsg "${msg}"
 	done << EOF
@@ -862,7 +862,7 @@ HotSpotLookup() {
 	DoScan || \
 		return ${?}
 	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
-		Clear_StatMsgs
+		ClrStatMsgs
 	if [ "${ssid}" != "${WwanSsid}" ]; then
 		WwanSsid="${ssid}"
 		_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
@@ -953,7 +953,7 @@ WifiStatus() {
 				if CheckNetworking; then
 					UpdateReport="y"
 					[ -n "${WIfaceAP}" -o ${Status} -eq ${CONNECTING} ] || \
-						Clear_StatMsgs
+						ClrStatMsgs
 					msg="Connected to ${HotSpot}:'${WwanSsid}'"
 					_log "${msg}"
 					AddMsg "${msg}"
@@ -982,7 +982,7 @@ WifiStatus() {
 		fi
 		if IsWwanConnected "unknown"; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
-				Clear_StatMsgs
+				ClrStatMsgs
 				msg="Lost connection ${HotSpot}:'${WwanSsid}'"
 				_log "${msg}"
 				AddStatMsg "${msg}"
