@@ -1,5 +1,6 @@
 wwanHotspot v1.57
 
+  * simplifying the code to auto-add the currently configured hotspot
   * sort status messages
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 01 Jun 2020 09:28:07 +0200
