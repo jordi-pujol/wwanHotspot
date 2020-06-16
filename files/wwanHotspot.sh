@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.57 $
+#  $Revision: 1.58 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -309,7 +309,6 @@ WwanReset() {
 	_log "${msg}"
 	AddStatMsg "${msg}"
 
-	uci commit wireless
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
 	UpdateReport="y"
@@ -874,7 +873,6 @@ HotSpotLookup() {
 			eval echo \"\${net${HotSpot}_key:-}\")"
 		[ "${WwanDisabled}" != 1 ] || \
 			uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
-		uci commit wireless
 		if [ "${WwanDisabled}" != 1 ]; then
 			wifi down "${WDevice}"
 			wifi up "${WDevice}"
@@ -1006,7 +1004,6 @@ WifiStatus() {
 							"${msg}"
 						WwanSsid="\$blacklisted\$"
 						uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-						uci commit wireless
 					else
 						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]
