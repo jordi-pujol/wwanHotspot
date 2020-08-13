@@ -1,3 +1,10 @@
+wwanHotspot v1.59
+
+  * wwanHotspot.sh, DoScan():
+    wwanHotspot prefers connect to the Hotspot that gives the most powerful signal.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 03 Aug 2020 08:36:01 +0200
+
 wwanHotspot v1.58
 
   * wwanHotspot.sh:

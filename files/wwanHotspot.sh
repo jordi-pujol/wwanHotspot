@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.58 $
+#  $Revision: 1.59 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -796,7 +796,7 @@ DoScan() {
 	[ -z "${Debug}" ] || \
 		_applog "DoScan - Scanning"
 
-	local hidden scanned found_hidden n i msg
+	local scanned msg
 
 	if ! scanned="$(Scanning)"; then
 		LogPrio="err"
@@ -812,47 +812,87 @@ DoScan() {
 		ScanErr=""
 	fi
 	scanned="$(echo "${scanned}" | \
-	sed -nre '\|^[[:blank:]]+(SSID: .*)$| s||\1|p')" && \
+		awk 'function prt() {
+			if (net == 1 && ssid) print signal FS ciph FS pair FS auth FS ssid
+		}
+		function nospaces() {
+			sub(/^[ \t]+|[ \t]+$/, "")
+			return gensub(/[ ]+/, ",", "g")
+		}
+		/^BSS / {
+			prt()
+			net=1
+			signal="99"
+			ssid=""
+			ciph="*"
+			pair="*"
+			auth="*"
+			next
+		}
+		{if (net != 1) next}
+		/signal: -/ {signal=0-$2}
+		/SSID: / {$1=$1; ssid=$0}
+		/\* Group cipher: / {$1=$2=$3=""
+			ciph=nospaces()}
+		/\* Pairwise ciphers: / {$1=$2=$3=""
+			pair=nospaces()}
+		/\* Authentication suites: / {$1=$2=$3=""
+			auth=nospaces()}
+		END{prt()}')"
 	[ -n "${scanned}" ] || \
 		return 1
-	found_hidden="$(echo "${scanned}" | grep -sx -m 1 -F 'SSID: ')" || :
 
-	n=${HotSpot}
-	[ $((n++)) -lt ${HotSpots} ] || \
-		n=1
+	local i signal ciph pair auth dummy ssid1 net_ssid \
+		hidden blacklisted cdts="" rc=1
 
-	local rc=1
-	i=${n}
+	i=1
 	while :; do
 		eval ssid=\"\${net${i}_ssid:-}\"
-		hidden=""
-		if echo "${scanned}" | grep -qsxF "SSID: ${ssid}" || \
-		[ "${hidden:="$(eval echo \"\${net${i}_hidden:-}\")"}" = "y" -a \
-		-n "${found_hidden}" ] || \
-		( [ -n "${hidden}" -a "${hidden}" != "y" ] && \
-		echo "${scanned}" | grep -qsxF "SSID: ${hidden}" ); then
-			if [ -z "$(eval echo \"\${net${i}_blacklisted:-}\")" ]; then
-				[ ${HotSpot} -ne ${i} ] && \
-					ConnAttempts=1 && \
-					HotSpot=${i} || :
-				[ -z "${Debug}" ] || \
-					_applog "DoScan selected ${HotSpot}:'${ssid}'"
-				return 0
-			fi
-			[ "${ssid}" != "${WwanSsid}" ] || \
-				rc=2
-			[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
-			-a -z "${Debug}" ] || \
-				_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
+		eval blacklisted=\"\${net${i}_blacklisted:-}\"
+		eval hidden=\"\${net${i}_hidden:-}\"
+		if [ -n "${hidden}" ]; then
+			[ "${hidden}" = "y" ] && \
+				net_ssid="" || \
+				net_ssid="${hidden}"
+		else
+			net_ssid="${ssid}"
 		fi
+		#local encrypt
+		#eval encrypt=\"\${net${i}_encrypt:-}\"
+
+		while read -r signal ciph pair auth dummy ssid1; do
+			[ -n "${signal}" ] || \
+				continue
+			#echo "${encrypt}" | grep -qsie "${auth}" || \
+			#	continue
+			if [ -n "${blacklisted}" ]; then
+				[ "${ssid}" != "${WwanSsid}" ] || \
+					rc=2
+				[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
+				-a -z "${Debug}" ] || \
+					_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
+				break
+			fi
+			cdts="${cdts:+"${cdts}${LF}"}${signal} ${i} SSID: ${ssid}"
+		done << EOF
+$(echo "${scanned}" | grep -se " SSID: ${net_ssid}$")
+EOF
 		[ $((i++)) -lt ${HotSpots} ] || \
-			i=1
-		[ ${i} -ne ${n} ] || \
 			break
 	done
+	if [ -z "${cdts}" ]; then
+		[ -z "${Debug}" ] || \
+			_applog "DoScan: No Hotspots available"
+		return ${rc}
+	fi
+	local cdt="$(echo "${cdts}" | sort -k 1,1n | head -n 1)"
+	i="$(echo "${cdt}" | cut -f 2 -d ' ')"
+	ssid="$(echo "${cdt}" | cut -f 4- -s -d ' ')"
+	[ ${HotSpot} -ne ${i} ] && \
+		ConnAttempts=1 && \
+		HotSpot=${i} || :
 	[ -z "${Debug}" ] || \
-		_applog "DoScan: No Hotspots available"
-	return ${rc}
+		_applog "DoScan selected ${HotSpot}:'${ssid}'"
 }
 
 HotSpotLookup() {
