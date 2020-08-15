@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.59 $
+#  $Revision: 1.60 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -111,6 +111,7 @@ WaitSubprocess() {
 
 Settle() {
 	local pidSleep="" pids tl
+	IndReScan=""
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
@@ -332,6 +333,7 @@ Report() {
 		printf '%s\n\n' "Non standard STA only configuration"
 	printf '%s="%s"\n' "Debug" "${Debug}"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
+	printf '%s="%s"\n' "ReScan" "${ReScan}"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
@@ -400,6 +402,8 @@ PleaseScan() {
 		msg="${msg} when a Hotspot is already connected"
 		_applog "${msg}"
 		AddMsg "${msg}"
+		[ ${Status} -ne ${CONNECTED} -o -z "${ReScan}" ] || \
+			IndReScan="y"
 	else
 		ListStatus "${msg}"
 	fi
@@ -452,6 +456,7 @@ LoadConfig() {
 	# config variables, default values
 	Debug=""
 	ScanAuto="y"
+	ReScan="y"
 	Sleep=20
 	SleepDsc="$((Sleep*3))"
 	SleepScanAuto="$((Sleep*15))"
@@ -479,6 +484,7 @@ LoadConfig() {
 
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
+	ReScan="${ReScan:-}"
 	Sleep="$(_integer_value "${Sleep}" 20)"
 	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
@@ -651,6 +657,7 @@ Scanning() {
 	return 1
 }
 
+# returns HotSpot
 CurrentHotSpot() {
 	[ ${HotSpot} -ne ${NONE} ] || \
 		HotSpot="$(echo "${Ssids}" | \
@@ -786,6 +793,7 @@ CheckNetworking() {
 	[ $((NetworkAttempts++)) ]
 }
 
+# returns hotspot ssid
 DoScan() {
 	if ! MustScan; then
 		[ -z "${Debug}" ] || \
@@ -842,12 +850,12 @@ DoScan() {
 	[ -n "${scanned}" ] || \
 		return 1
 
-	local i signal ciph pair auth dummy ssid1 net_ssid \
+	local ssid1 i signal ciph pair auth dummy ssid1 net_ssid \
 		hidden blacklisted cdts="" rc=1
 
 	i=1
 	while :; do
-		eval ssid=\"\${net${i}_ssid:-}\"
+		eval ssid1=\"\${net${i}_ssid:-}\"
 		eval blacklisted=\"\${net${i}_blacklisted:-}\"
 		eval hidden=\"\${net${i}_hidden:-}\"
 		if [ -n "${hidden}" ]; then
@@ -855,25 +863,29 @@ DoScan() {
 				net_ssid="" || \
 				net_ssid="${hidden}"
 		else
-			net_ssid="${ssid}"
+			net_ssid="${ssid1}"
 		fi
 		#local encrypt
 		#eval encrypt=\"\${net${i}_encrypt:-}\"
-
 		while read -r signal ciph pair auth dummy ssid1; do
 			[ -n "${signal}" ] || \
 				continue
 			#echo "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
 			if [ -n "${blacklisted}" ]; then
-				[ "${ssid}" != "${WwanSsid}" ] || \
+				if [ "${ssid1}" = "${WwanSsid}" ]; then
+					[ -z "${Debug}" ] || \
+						_applog "DoScan: current hotspot ${i}:'${ssid1}' is blacklisted"
 					rc=2
+				fi
 				[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
 				-a -z "${Debug}" ] || \
-					_applog "Not selecting blacklisted hotspot ${i}:'${ssid}'"
+					_applog "DoScan: Not selecting blacklisted hotspot ${i}:'${ssid1}'"
 				break
 			fi
-			cdts="${cdts:+"${cdts}${LF}"}${signal} ${i} SSID: ${ssid}"
+			[ -z "${Debug}" ] || \
+				_applog "DoScan: signal -${signal} dBm ${i}:'${ssid1}'"
+			cdts="${cdts:+"${cdts}${LF}"}${signal} ${i} SSID: ${ssid1}"
 		done << EOF
 $(echo "${scanned}" | grep -se " SSID: ${net_ssid}$")
 EOF
@@ -886,20 +898,36 @@ EOF
 		return ${rc}
 	fi
 	local cdt="$(echo "${cdts}" | sort -k 1,1n | head -n 1)"
-	i="$(echo "${cdt}" | cut -f 2 -d ' ')"
+	hotspot="$(echo "${cdt}" | cut -f 2 -d ' ')"
 	ssid="$(echo "${cdt}" | cut -f 4- -s -d ' ')"
-	[ ${HotSpot} -ne ${i} ] && \
-		ConnAttempts=1 && \
-		HotSpot=${i} || :
+}
+
+ReScanning() {
+	local hotspot ssid msg
+	DoScan && \
+	[ "${ssid}" != "${WwanSsid}" ] || \
+		return 0
 	[ -z "${Debug}" ] || \
-		_applog "DoScan selected ${HotSpot}:'${ssid}'"
+		_applog "ReScan proposes: ${hotspot}:'${ssid}'"
+	msg="ReScan: reconnection required"
+	_applog "${msg}"
+	AddMsg "${msg}"
+	WwanReset
 }
 
 HotSpotLookup() {
 	local clrmsgs="${1:-}"
 	BlackListExpired
+
+	local hotspot ssid
 	DoScan || \
 		return ${?}
+	[ ${HotSpot} -ne ${hotspot} ] && \
+		ConnAttempts=1 && \
+		HotSpot=${hotspot} || :
+	[ -z "${Debug}" ] || \
+		_applog "DoScan selected ${HotSpot}:'${ssid}'"
+
 	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
 		ClrStatMsgs
 	if [ "${ssid}" != "${WwanSsid}" ]; then
@@ -954,9 +982,14 @@ WifiStatus() {
 	# constants
 	readonly LF=$'\n' \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
+	# config variables
+	local Debug ScanAuto ReScan Sleep SleepDsc SleepScanAuto \
+		BlackList BlackListExpires BlackListNetwork BlackListNetworkExpires \
+		PingWait MinTrafficBps LogRotate ReportUpdtLapse
 	# internal variables, daemon scope
-	local Ssids ssid HotSpots IfaceWan WwanSsid WwanDisabled \
-		ScanRequest ScanErr WwanErr Status StatMsgsChgd StatMsgs \
+	local Ssids HotSpots IfaceWan WwanSsid WwanDisabled \
+		ScanRequest ScanErr IndReScan WwanErr \
+		Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		HotSpot ConnAttempts NetworkAttempts Traffic CheckTime \
 		msg LogPrio \
@@ -1004,6 +1037,8 @@ WifiStatus() {
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddMsg "${msg}"
+				[ -z "${IndReScan}" ] || \
+					ReScanning
 			fi
 			continue
 		fi

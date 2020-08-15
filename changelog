@@ -1,3 +1,12 @@
+wwanHotspot v1.60
+
+  * ReScan:
+    When wwan is already connected and the user requests an scan,
+    wwanHotspot will look for another hotspot that gives a 
+    most powerful signal.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 12 Aug 2020 10:19:37 +0200
+
 wwanHotspot v1.59
 
   * wwanHotspot.sh, DoScan():
