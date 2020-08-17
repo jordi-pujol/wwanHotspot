@@ -4,11 +4,6 @@ wwanHotspot v1.60
     When wwan is already connected and the user requests an scan,
     wwanHotspot will look for another hotspot that gives a 
     most powerful signal.
-  * When checking network connection, minimize network traffic checking
-    only timestamps for an URL.
-    WEB server must provide a timestamp for this URL,
-    For example works using https://www.google.com/favicon.ico
-    Set the config value TimeStamps, default "/var/log/wwanHotspot.d/"
   * Now wwanHotspot supports "wep-open" encryption.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 12 Aug 2020 10:19:37 +0200

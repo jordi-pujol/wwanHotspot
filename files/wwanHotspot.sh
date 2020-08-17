@@ -348,7 +348,6 @@ Report() {
 	printf '%s="%s"\n' "Debug" "${Debug}"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s="%s"\n' "ReScan" "${ReScan}"
-	printf '%s="%s"\n' "TimeStamps" "${TimeStamps}"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
@@ -457,8 +456,6 @@ AddHotspot() {
 		eval net${HotSpots}_blacklisted=\"${net_blacklisted}\"
 	[ -z "${net_check:-}" ] || \
 		eval net${HotSpots}_check=\"${net_check}\"
-	[ -z "${TimeStamps}" ] || \
-		mkdir -p "${TimeStamps}${HotSpots}"
 	if [ -n "${Debug}" ]; then
 		local msg="Adding new hotspot ${HotSpots}:'${net_ssid}'"
 		_applog "${msg}"
@@ -474,7 +471,6 @@ LoadConfig() {
 	Debug=""
 	ScanAuto="y"
 	ReScan="y"
-	TimeStamps="/var/log/wwanHotspot.d/"
 	Sleep=20
 	SleepDsc="$((Sleep*3))"
 	SleepScanAuto="$((Sleep*15))"
@@ -503,9 +499,6 @@ LoadConfig() {
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
 	ReScan="${ReScan:-}"
-	TimeStamps="${TimeStamps:-}"
-	[ -z "${TimeStamps}" ] || \
-		mkdir -p "${TimeStamps}"
 	Sleep="$(_integer_value "${Sleep}" 20)"
 	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
@@ -695,16 +688,9 @@ CheckNetw() {
 		exec > /dev/null 2>&1
 	if [ -n "${CheckSrvr}" ]; then
 		if [ -n "${CheckInet}" ]; then
-			if [ -n "${TimeStamps}" -a -d "${TimeStamps}${HotSpot}" ]; then
-				wget --directory "${TimeStamps}${HotSpot}" -N \
-				-T ${PingWait} --no-check-certificate \
-				--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
-				grep -sEe 'Omitting download| saved '
-			else
-				wget --spider -T ${PingWait} --no-check-certificate \
-				--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
-				grep -sF "Remote file exists"
-			fi
+			wget --spider -T ${PingWait} --no-check-certificate \
+			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
+			grep -sF "Remote file exists"
 		else
 			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
 				nc "${CheckSrvr}" ${CheckPort}
@@ -715,7 +701,8 @@ CheckNetw() {
 }
 
 CheckNetworking() {
-	local check="$(eval echo \"\${net${HotSpot}_check:-}\")"
+	local check
+	eval check=\"\${net${HotSpot}_check:-}\"
 	if [ -z "${check}" ]; then
 		[ -n "${ScanAuto}" ] && \
 			Interval=${SleepDsc} || \
@@ -751,8 +738,7 @@ CheckNetworking() {
 				fi
 			else
 				[ -z "${Debug}" ] || \
-					_applog "check networking, wget ${CheckAddr}" \
-						"${TimeStamps:+"-d ${TimeStamps}"}"
+					_applog "check networking, wget ${CheckAddr}"
 			fi
 		else
 			CheckAddr="$(echo "${check}" | \
