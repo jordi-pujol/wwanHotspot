@@ -275,6 +275,23 @@ AnotherHotspot() {
 	ssid="\$blacklisted\$"
 }
 
+SetEncryption() {
+	local encrypt key
+	eval encrypt=\"\${net${HotSpot}_encrypt:-}\"
+	eval key=\"\${net${HotSpot}_key:-}\"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
+	if echo "${encrypt}" | grep -qsie "psk"; then
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
+	elif [ -n "${key}" ]; then
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key="1"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key}"
+	else
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key || :
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
+	fi
+}
+
 WwanReset() {
 	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
 	if [ -z "${WIfaceAP}" ] && \
@@ -286,10 +303,7 @@ WwanReset() {
 		WwanSsid="${ssid}"
 		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
 		if [ ${HotSpot} -ne ${NONE} ]; then
-			uci set wireless.@wifi-iface[${iface}].encryption="$(
-				eval echo \"\${net${HotSpot}_encrypt:-}\")"
-			uci set wireless.@wifi-iface[${iface}].key="$(
-				eval echo \"\${net${HotSpot}_key:-}\")"
+			SetEncryption
 			msg="Selecting ${HotSpot}:'${ssid}' non blacklisted"
 		else
 			msg="Blacklisting current"
@@ -334,6 +348,7 @@ Report() {
 	printf '%s="%s"\n' "Debug" "${Debug}"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s="%s"\n' "ReScan" "${ReScan}"
+	printf '%s="%s"\n' "TimeStamps" "${TimeStamps}"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
@@ -442,6 +457,8 @@ AddHotspot() {
 		eval net${HotSpots}_blacklisted=\"${net_blacklisted}\"
 	[ -z "${net_check:-}" ] || \
 		eval net${HotSpots}_check=\"${net_check}\"
+	[ -z "${TimeStamps}" ] || \
+		mkdir -p "${TimeStamps}${HotSpots}"
 	if [ -n "${Debug}" ]; then
 		local msg="Adding new hotspot ${HotSpots}:'${net_ssid}'"
 		_applog "${msg}"
@@ -457,6 +474,7 @@ LoadConfig() {
 	Debug=""
 	ScanAuto="y"
 	ReScan="y"
+	TimeStamps="/var/log/wwanHotspot.d/"
 	Sleep=20
 	SleepDsc="$((Sleep*3))"
 	SleepScanAuto="$((Sleep*15))"
@@ -485,6 +503,9 @@ LoadConfig() {
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
 	ReScan="${ReScan:-}"
+	TimeStamps="${TimeStamps:-}"
+	[ -z "${TimeStamps}" ] || \
+		mkdir -p "${TimeStamps}"
 	Sleep="$(_integer_value "${Sleep}" 20)"
 	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
@@ -575,6 +596,8 @@ LoadConfig() {
 		fi
 		net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
 		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
+		[ "${net_encrypt}" != "wep-open" ] || \
+			net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
 		LogPrio="warn"
 		_msg "No hotspots configured," \
 			"importing the current router setup for the STA interface"
@@ -667,13 +690,21 @@ CurrentHotSpot() {
 }
 
 CheckNetw() {
-	[ "${Debug}" = "xtrace" ] || \
+	[ "${Debug}" = "xtrace" ] && \
+		exec >&2 || \
 		exec > /dev/null 2>&1
 	if [ -n "${CheckSrvr}" ]; then
 		if [ -n "${CheckInet}" ]; then
-			wget --spider -T ${PingWait} --no-check-certificate \
-			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
-			grep -qsF "Remote file exists"
+			if [ -n "${TimeStamps}" -a -d "${TimeStamps}${HotSpot}" ]; then
+				wget --directory "${TimeStamps}${HotSpot}" -N \
+				-T ${PingWait} --no-check-certificate \
+				--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
+				grep -sEe 'Omitting download| saved '
+			else
+				wget --spider -T ${PingWait} --no-check-certificate \
+				--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
+				grep -sF "Remote file exists"
+			fi
 		else
 			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
 				nc "${CheckSrvr}" ${CheckPort}
@@ -710,12 +741,18 @@ CheckNetworking() {
 				[ "${CheckAddr:0:8}" = "https://" ] && \
 					CheckPort=443 || \
 					CheckPort=80
+				[ -z "${Debug}" ] || \
+					_applog "check networking, nc ${CheckAddr} ${CheckPort}"
 				if [ $(ActiveDefaultRoutes) -gt 1 ]; then
 					_msg "Using the nc utility to check networking to URL" \
 						"while several default routes are enabled"
 					LogPrio="err" _log "${msg}"
 					AddStatMsg "Error:" "${msg}"
 				fi
+			else
+				[ -z "${Debug}" ] || \
+					_applog "check networking, wget ${CheckAddr}" \
+						"${TimeStamps:+"-d ${TimeStamps}"}"
 			fi
 		else
 			CheckAddr="$(echo "${check}" | \
@@ -730,6 +767,8 @@ CheckNetworking() {
 				unset net${HotSpot}_check
 				return 0
 			fi
+			[ -z "${Debug}" ] || \
+				_applog "check networking, ping ${CheckAddr}"
 		fi
 	rc=1
 	if [ ${MinTrafficBps} -ne 0 ]; then
@@ -752,7 +791,7 @@ CheckNetworking() {
 	if [ ${rc} -ne 0 ]; then
 		CheckNetw &
 		rc=0
-		WaitSubprocess ${PingWait} && \
+		WaitSubprocess && \
 			_msg "Networking of ${HotSpot}:'${WwanSsid}' to" \
 				"$(test "${CheckAddr}" != "${Gateway}" || \
 				echo "gateway:")${CheckAddr}" \
@@ -795,11 +834,16 @@ CheckNetworking() {
 
 # returns hotspot ssid
 DoScan() {
-	if ! MustScan; then
+	local forceScan="${1:-}"
+
+	if [ -z "${forceScan}" ] && \
+	! MustScan; then
 		[ -z "${Debug}" ] || \
 			_applog "Must not scan"
 		return 1
 	fi
+
+	BlackListExpired
 
 	[ -z "${Debug}" ] || \
 		_applog "DoScan - Scanning"
@@ -900,24 +944,29 @@ EOF
 	local cdt="$(echo "${cdts}" | sort -k 1,1n | head -n 1)"
 	hotspot="$(echo "${cdt}" | cut -f 2 -d ' ')"
 	ssid="$(echo "${cdt}" | cut -f 4- -s -d ' ')"
+	[ -z "${Debug}" ] || \
+		_applog "DoScan selects ${hotspot}:'${ssid}'"
 }
 
 ReScanning() {
 	local hotspot ssid msg
-	DoScan && \
-	[ "${ssid}" != "${WwanSsid}" ] || \
+	_applog "ReScanning"
+	DoScan "y" || \
 		return 0
-	[ -z "${Debug}" ] || \
-		_applog "ReScan proposes: ${hotspot}:'${ssid}'"
+	if [ "${ssid}" = "${WwanSsid}" ]; then
+		[ -z "${Debug}" ] || \
+			_applog "ReScan: actually the best hotspot is ${hotspot}:'${ssid}'"
+		return 0
+	fi
 	msg="ReScan: reconnection required"
 	_applog "${msg}"
 	AddMsg "${msg}"
 	WwanReset
+	NoSleep="y"
 }
 
 HotSpotLookup() {
 	local clrmsgs="${1:-}"
-	BlackListExpired
 
 	local hotspot ssid
 	DoScan || \
@@ -925,8 +974,6 @@ HotSpotLookup() {
 	[ ${HotSpot} -ne ${hotspot} ] && \
 		ConnAttempts=1 && \
 		HotSpot=${hotspot} || :
-	[ -z "${Debug}" ] || \
-		_applog "DoScan selected ${HotSpot}:'${ssid}'"
 
 	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
 		ClrStatMsgs
@@ -935,10 +982,7 @@ HotSpotLookup() {
 		_log "Hotspot ${HotSpot}:'${WwanSsid}' found. Applying settings..."
 		WwanErr=${NONE}
 		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-		uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="$(
-			eval echo \"\${net${HotSpot}_encrypt:-}\")"
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key="$(
-			eval echo \"\${net${HotSpot}_key:-}\")"
+		SetEncryption
 		[ "${WwanDisabled}" != 1 ] || \
 			uci set wireless.@wifi-iface[${WIfaceSTA}].disabled=0
 		if [ "${WwanDisabled}" != 1 ]; then
