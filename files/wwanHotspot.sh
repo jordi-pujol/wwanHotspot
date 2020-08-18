@@ -822,12 +822,12 @@ CheckNetworking() {
 DoScan() {
 	local forceScan="${1:-}"
 
-	if [ -z "${forceScan}" ] && \
-	! MustScan; then
-		[ -z "${Debug}" ] || \
-			_applog "Must not scan"
-		return 1
-	fi
+	[ -n "${forceScan}" ] || \
+		if ! MustScan; then
+			[ -z "${Debug}" ] || \
+				_applog "Must not scan"
+			return 1
+		fi
 
 	BlackListExpired
 
@@ -880,7 +880,7 @@ DoScan() {
 	[ -n "${scanned}" ] || \
 		return 1
 
-	local ssid1 i signal ciph pair auth dummy ssid1 net_ssid \
+	local ssid1 i signal ciph pair auth dummy ssid2 net_ssid \
 		hidden blacklisted cdts="" rc=1
 
 	i=1
@@ -897,7 +897,7 @@ DoScan() {
 		fi
 		#local encrypt
 		#eval encrypt=\"\${net${i}_encrypt:-}\"
-		while read -r signal ciph pair auth dummy ssid1; do
+		while read -r signal ciph pair auth dummy ssid2; do
 			[ -n "${signal}" ] || \
 				continue
 			#echo "${encrypt}" | grep -qsie "${auth}" || \
@@ -914,7 +914,8 @@ DoScan() {
 				break
 			fi
 			[ -z "${Debug}" ] || \
-				_applog "DoScan: signal -${signal} dBm ${i}:'${ssid1}'"
+				_applog "DoScan: signal -${signal} dBm ${auth}" \
+					"${i}:'${ssid2:-"(hidden)"}'"
 			cdts="${cdts:+"${cdts}${LF}"}${signal} ${i} SSID: ${ssid1}"
 		done << EOF
 $(echo "${scanned}" | grep -se " SSID: ${net_ssid}$")
