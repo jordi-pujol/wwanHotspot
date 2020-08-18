@@ -688,9 +688,9 @@ CheckNetw() {
 		exec > /dev/null 2>&1
 	if [ -n "${CheckSrvr}" ]; then
 		if [ -n "${CheckInet}" ]; then
-			wget --spider -T ${PingWait} --no-check-certificate \
+			wget -nv --spider -T ${PingWait} --no-check-certificate \
 			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
-			grep -sF "Remote file exists"
+			grep -sF "200 OK"
 		else
 			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
 				nc "${CheckSrvr}" ${CheckPort}
