@@ -280,10 +280,10 @@ SetEncryption() {
 	eval encrypt=\"\${net${HotSpot}_encrypt:-}\"
 	eval key=\"\${net${HotSpot}_key:-}\"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
-	if echo "${encrypt}" | grep -qsie "psk"; then
+	if echo "${encrypt}" | grep -qsie "^psk"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
 		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
-	elif [ -n "${key}" ]; then
+	elif echo "${encrypt}" grep -qsie "^wep"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key="1"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key}"
 	else
@@ -589,7 +589,7 @@ LoadConfig() {
 		fi
 		net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
 		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-		[ "${net_encrypt}" != "wep-open" ] || \
+		! echo "${net_encrypt}" grep -qse "^wep" || \
 			net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
 		LogPrio="warn"
 		_msg "No hotspots configured," \
