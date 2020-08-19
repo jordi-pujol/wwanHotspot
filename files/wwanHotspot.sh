@@ -347,7 +347,8 @@ Report() {
 		printf '%s\n\n' "Non standard STA only configuration"
 	printf '%s="%s"\n' "Debug" "${Debug}"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
-	printf '%s="%s"\n' "ReScan" "${ReScan}"
+	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
+		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
