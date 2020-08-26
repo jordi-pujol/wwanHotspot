@@ -902,6 +902,8 @@ DoScan() {
 		while read -r signal ciph pair auth dummy ssid2; do
 			[ -n "${signal}" ] || \
 				continue
+			[ "${net_ssid}" = "${ssid2}" ] || \
+				continue
 			#echo "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
 			if [ -n "${blacklisted}" ]; then
@@ -920,7 +922,7 @@ DoScan() {
 					"${i}:'${ssid2:-"(hidden)"}'"
 			cdts="${cdts:+"${cdts}${LF}"}${signal} ${i} SSID: ${ssid1}"
 		done << EOF
-$(echo "${scanned}" | grep -se " SSID: ${net_ssid}$")
+${scanned}
 EOF
 		[ $((i++)) -lt ${HotSpots} ] || \
 			break
