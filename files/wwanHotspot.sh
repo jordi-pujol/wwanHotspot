@@ -112,6 +112,8 @@ WaitSubprocess() {
 Settle() {
 	local pidSleep="" pids tl
 	IndReScan=""
+	ReScanHotspot=""
+	ReScanSsid=""
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
@@ -933,33 +935,38 @@ EOF
 	local cdt="$(echo "${cdts}" | sort -k 1,1n | head -n 1)"
 	hotspot="$(echo "${cdt}" | cut -f 2 -d ' ')"
 	ssid="$(echo "${cdt}" | cut -f 4- -s -d ' ')"
-	[ -z "${Debug}" ] || \
-		_applog "DoScan selects ${hotspot}:'${ssid}'"
+	_applog "DoScan selects ${hotspot}:'${ssid}'"
 }
 
 ReScanning() {
 	local hotspot ssid msg
 	_applog "ReScanning"
 	DoScan "y" || \
-		return 0
+		return 1
 	if [ "${ssid}" = "${WwanSsid}" ]; then
 		[ -z "${Debug}" ] || \
 			_applog "ReScan: actually the best hotspot is ${hotspot}:'${ssid}'"
-		return 0
+		return 1
 	fi
 	msg="ReScan: reconnection required"
 	_applog "${msg}"
 	AddMsg "${msg}"
 	WwanReset
 	NoSleep="y"
+	ReScanHotspot=${hotspot}
+	ReScanSsid="${ssid}"
 }
 
 HotSpotLookup() {
-	local clrmsgs="${1:-}"
+	local clrmsgs="${1:-}" hotspot ssid
 
-	local hotspot ssid
-	DoScan || \
-		return ${?}
+	if [ -z "${ReScanHotspot}" ]; then
+		DoScan || \
+			return ${?}
+	else
+		hotspot=${ReScanHotspot}
+		ssid="${ReScanSsid}"
+	fi
 	[ ${HotSpot} -ne ${hotspot} ] && \
 		ConnAttempts=1 && \
 		HotSpot=${hotspot} || :
@@ -1021,7 +1028,7 @@ WifiStatus() {
 		PingWait MinTrafficBps LogRotate ReportUpdtLapse
 	# internal variables, daemon scope
 	local Ssids HotSpots IfaceWan WwanSsid WwanDisabled \
-		ScanRequest ScanErr IndReScan WwanErr \
+		ScanRequest ScanErr IndReScan ReScanHotspot ReScanSsid WwanErr \
 		Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		HotSpot ConnAttempts NetworkAttempts Traffic CheckTime \
@@ -1064,14 +1071,13 @@ WifiStatus() {
 					Status=${CONNECTED}
 					ScanRequest=0
 				fi
-			elif CheckNetworking; then
+			elif ( [ -z "${IndReScan}" ] || ! ReScanning ) && \
+			CheckNetworking; then
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddMsg "${msg}"
-				[ -z "${IndReScan}" ] || \
-					ReScanning
 			fi
 			continue
 		fi
