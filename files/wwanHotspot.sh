@@ -280,6 +280,7 @@ SetEncryption() {
 	eval encrypt=\"\${net${HotSpot}_encrypt:-}\"
 	eval key=\"\${net${HotSpot}_key:-}\"
 	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
+	uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid || :
 	if echo "${encrypt}" | grep -qsie "^psk"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
 		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
