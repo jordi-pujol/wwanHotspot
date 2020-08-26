@@ -284,7 +284,7 @@ SetEncryption() {
 	if echo "${encrypt}" | grep -qsie "^psk"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
 		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
-	elif echo "${encrypt}" grep -qsie "^wep"; then
+	elif echo "${encrypt}" | grep -qsie "^wep"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key="1"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key}"
 	else
@@ -900,9 +900,7 @@ DoScan() {
 		#local encrypt
 		#eval encrypt=\"\${net${i}_encrypt:-}\"
 		while read -r signal ciph pair auth dummy ssid2; do
-			[ -n "${signal}" ] || \
-				continue
-			[ "${net_ssid}" = "${ssid2}" ] || \
+			[ -n "${signal}" -a "${net_ssid}" = "${ssid2}" ] || \
 				continue
 			#echo "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
