@@ -112,8 +112,6 @@ WaitSubprocess() {
 Settle() {
 	local pidSleep="" pids tl
 	IndReScan=""
-	ReScanHotspot=""
-	ReScanSsid=""
 	if [ -z "${NoSleep}" ]; then
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
@@ -942,11 +940,11 @@ ReScanning() {
 	local hotspot ssid msg
 	_applog "ReScanning"
 	DoScan "y" || \
-		return 1
+		return 0
 	if [ "${ssid}" = "${WwanSsid}" ]; then
 		[ -z "${Debug}" ] || \
 			_applog "ReScan: actually the best hotspot is ${hotspot}:'${ssid}'"
-		return 1
+		return 0
 	fi
 	msg="ReScan: reconnection required"
 	_applog "${msg}"
@@ -958,14 +956,16 @@ ReScanning() {
 }
 
 HotSpotLookup() {
-	local clrmsgs="${1:-}" hotspot ssid
+	local clrmsgs="${1:-}" \
+		hotspot="${ReScanHotspot:-}" \
+		ssid="${ReScanSsid:-}"
 
-	if [ -z "${ReScanHotspot}" ]; then
+	if [ -z "${hotspot}" ]; then
 		DoScan || \
 			return ${?}
 	else
-		hotspot=${ReScanHotspot}
-		ssid="${ReScanSsid}"
+		ReScanHotspot=""
+		ReScanSsid=""
 	fi
 	[ ${HotSpot} -ne ${hotspot} ] && \
 		ConnAttempts=1 && \
@@ -1071,8 +1071,9 @@ WifiStatus() {
 					Status=${CONNECTED}
 					ScanRequest=0
 				fi
-			elif ( [ -z "${IndReScan}" ] || ! ReScanning ) && \
-			CheckNetworking; then
+			elif [ -n "${IndReScan}" ]; then
+				ReScanning
+			elif CheckNetworking; then
 				msg="Connected to ${HotSpot}:'${WwanSsid}'"
 				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 					_applog "${msg}"
