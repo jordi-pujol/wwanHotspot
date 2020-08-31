@@ -183,6 +183,17 @@ AddMsg() {
 		AddStatMsg "${msg}"
 }
 
+AppMsg() {
+	local msg="${@}"
+	_applog "${msg}"
+	if [ ${ReportUpdtLapse} -eq 0 ]; then
+		AddStatMsg "${msg}"
+	else
+		UpdtMsgs="$(_datetime) ${msg}"
+		StatMsgsChgd="y"
+	fi
+}
+
 IfaceTraffic() {
 	local iface="${1:-"${WIface}"}"
 	echo $(( $(cat "/sys/class/net/${iface}/statistics/rx_bytes") + \
@@ -223,7 +234,7 @@ BlackListExpired() {
 	done << EOF
 $(set | \
 sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
-sort -n)
+sort -k 1,1n)
 EOF
 }
 
@@ -393,14 +404,8 @@ Report() {
 
 ListStatus() {
 	local msg="${@:-"Updating status report"}"
-	_applog "${msg}"
 	UpdateReport="y"
-	if [ ${ReportUpdtLapse} -eq 0 ]; then
-		AddStatMsg "${msg}"
-	else
-		UpdtMsgs="$(_datetime) ${msg}"
-		StatMsgsChgd="y"
-	fi
+	AppMsg "${msg}"
 	[ ${Status} -ne ${CONNECTED} ] || \
 		NetworkAttempts=0
 	NoSleep="y"
@@ -899,8 +904,9 @@ DoScan() {
 		fi
 		#local encrypt
 		#eval encrypt=\"\${net${i}_encrypt:-}\"
-		while read -r signal ciph pair auth dummy ssid2; do
-			[ -n "${signal}" -a "${net_ssid}" = "${ssid2}" ] || \
+		while read -r signal ciph pair auth dummy ssid2 && \
+		[ -n "${signal}" ]; do
+			[ "${net_ssid}" = "${ssid2}" ] || \
 				continue
 			#echo "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
@@ -937,18 +943,15 @@ EOF
 }
 
 ReScanning() {
-	local hotspot ssid msg
-	_applog "ReScanning"
+	local hotspot ssid
+	AppMsg "ReScanning"
 	DoScan "y" || \
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" ]; then
-		[ -z "${Debug}" ] || \
-			_applog "ReScan: actually the best hotspot is ${hotspot}:'${ssid}'"
+		AppMsg "actually the best hotspot is ${hotspot}:'${ssid}'"
 		return 0
 	fi
-	msg="ReScan: reconnection required"
-	_applog "${msg}"
-	AddMsg "${msg}"
+	AppMsg "Reconnection required"
 	WwanReset
 	NoSleep="y"
 	ReScanHotspot=${hotspot}
