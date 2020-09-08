@@ -945,6 +945,7 @@ EOF
 ReScanning() {
 	local hotspot ssid
 	AppMsg "ReScanning"
+	NoSleep="y"
 	DoScan "y" || \
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" ]; then
@@ -953,7 +954,6 @@ ReScanning() {
 	fi
 	AppMsg "Reconnection required"
 	WwanReset
-	NoSleep="y"
 	ReScanHotspot=${hotspot}
 	ReScanSsid="${ssid}"
 }
