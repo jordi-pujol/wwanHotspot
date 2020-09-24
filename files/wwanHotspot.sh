@@ -472,7 +472,8 @@ AddHotspot() {
 }
 
 LoadConfig() {
-	local msg="Loading configuration"
+	local net_ssid net_encrypt net_key net_hidden net_blacklisted net_check \
+		msg="Loading configuration"
 
 	# config variables, default values
 	Debug=""
