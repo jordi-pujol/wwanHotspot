@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 1.60 $
+#  $Revision: 1.61 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -139,7 +139,7 @@ Settle() {
 		WaitSubprocess "" "y" || :
 		UpdtMsgs=""
 	elif [ ${ReportUpdtLapse} -ne 0 ] && \
-	( [ $((tl=$(_UTCseconds)-$(stat -c '%Y' "/var/log/${NAME}.stat"))) \
+	( [ $((tl=$(_UTCseconds)-$(date +'%s' -r "/var/log/${NAME}.stat"))) \
 	-lt 0 ] || [ ${ReportUpdtLapse} -lt ${tl} ] ); then
 		ListStatus "Time lapse exceeded, requesting a report update"
 	else

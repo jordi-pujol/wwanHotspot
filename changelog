@@ -1,3 +1,14 @@
+wwanHotspot v1.61
+
+  * wwanHotspot.sh - Get rid of the dependency from coreutils-stat
+    replacing the following command:
+      stat -c '%Y' file
+    by
+      date +'%s' -r file
+    Thanks to Guillaume GILL for pointing out this problem.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 12 Oct 2020 09:21:28 +0200
+
 wwanHotspot v1.60
 
   * ReScan:
