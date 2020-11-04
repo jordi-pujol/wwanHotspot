@@ -650,11 +650,13 @@ Scanning() {
 			return 0
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
-		sleep 5
-		[ ${i} -eq 2 ] && \
-		printf '%s\n' "${err}" | grep -qsF 'command failed: Network is down' || \
+		if [ ${i} -ne 2 ]; then
+			sleep 5
 			continue
-		LogPrio="err"
+		fi
+		printf '%s\n' "${err}" | \
+		grep -qsF 'command failed: Network is down' || \
+			LogPrio="err"
 		_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network reload
 		WatchWifi ${Sleep}
@@ -843,6 +845,7 @@ DoScan() {
 					_applog "DoScan: hotspot" \
 						"$(HotspotName "${i}" "${bssid2}" "${ssid1}")" \
 						"iw scan already listed BSSID"
+				continue
 			fi
 			if [ "${ssid2}" = "${HIDDENSSID}" ]; then
 				ssid2="${BEL}"
@@ -855,7 +858,7 @@ DoScan() {
 			cdts="${cdts:+"${cdts}${LF}"}\
 ${signal}${TAB}${i}${TAB}${bssid2}${TAB}SSID:${TAB}${ssid1}"
 		done << EOF
-${scanned}
+$(printf '%s\n' "${scanned}" | sort -k 1,1n)"
 EOF
 	done
 	if [ -z "${cdts}" ]; then
@@ -1147,7 +1150,7 @@ ReScanning() {
 	DoScan "y" || \
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
-		AppMsg "actually the best hotspot is $(HotspotName)"
+		AppMsg "Actually the best hotspot is $(HotspotName)"
 		return 0
 	fi
 	ClrStatMsgs

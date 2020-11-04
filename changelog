@@ -1,12 +1,14 @@
 wwanHotspot v2.0
 
-  * Connect to a hotspot using SSID or BSSID or both.
+  * Major changes:
+    Connect to a hotspot specifying SSID or BSSID or both
+    in the config file.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 02 Nov 2020 08:46:38 +0100
 
 wwanHotspot v1.61
 
-  * wwanHotspot.sh - Get rid of the dependency from coreutils-stat
+  * wwanHotspot.sh - Get rid of the dependency on coreutils-stat
     replacing the following command:
       stat -c '%Y' file
     by
