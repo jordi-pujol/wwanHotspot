@@ -633,7 +633,8 @@ IsWanConnected() {
 IsWwanDisconnected() {
 	IsWifiActive "${NULLBSSID}" && \
 	sleep 5 && \
-	IsWifiActive "${NULLBSSID}"
+	IsWifiActive "${NULLBSSID}" && \
+	echo "y" || :
 }
 
 MustScan() {
@@ -1226,7 +1227,8 @@ WifiStatus() {
 		Hotspot ConnAttempts NetworkAttempts Traffic CheckTime \
 		msg LogPrio \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
-		TryConnection WIface WIfaceAP WIfaceSTA WDevice
+		TryConnection WIface WIfaceAP WIfaceSTA WDevice \
+		wwdsc
 
 	trap '_exit' EXIT
 	trap 'exit' INT
@@ -1243,8 +1245,8 @@ WifiStatus() {
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		if [ "${WwanDisabled}" != 1 ] && \
-		! IsWwanDisconnected; then
+		wwdsc="$(IsWwanDisconnected)"
+		if [ "${WwanDisabled}" != 1 -a -z "${wwdsc}" ]; then
 			TryConnection=0
 			ScanErr=""
 			WwanErr=${NONE}
@@ -1289,8 +1291,7 @@ WifiStatus() {
 			Interval=${Sleep}
 			continue
 		fi
-		if [ "${WwanDisabled}" != 1 ] && \
-		IsWwanDisconnected; then
+		if [ "${WwanDisabled}" != 1 -a -n "${wwdsc}" ]; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				ClrStatMsgs
 				msg="Lost connection $(HotspotName)"
