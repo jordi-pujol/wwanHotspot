@@ -27,7 +27,9 @@ _tolower() {
 }
 
 _integer_value() {
-	local n="${1}" d="${2}" v 
+	local n="${1}" \
+		d="${2}" \
+		v
 	v="$(2> /dev/null printf '%d' "$(printf '%s\n' "${n}" | \
 	sed -nre '/^[[:digit:]]+$/p;q')")" && \
 		echo ${v} || \
@@ -43,7 +45,9 @@ _datetime() {
 }
 
 _ps_children() {
-	local ppid=${1:-${$}} excl="${2:-"0"}" pid
+	local ppid=${1:-${$}} \
+		excl="${2:-"0"}" \
+		pid
 	for pid in $(pgrep -P ${ppid} | grep -svwF "${excl}"); do
 		_ps_children ${pid} "${excl}"
 		echo ${pid}
@@ -87,7 +91,9 @@ _pids_active() {
 }
 
 WaitSubprocess() {
-	local timeout="${1:-}" dont_interrupt="${2:-}" pids="${3:-${!}}" \
+	local timeout="${1:-}" \
+		dont_interrupt="${2:-}" \
+		pids="${3:-${!}}" \
 		pidw rc=""
 	[ -n "${pids}" ] || \
 		return 255
@@ -180,7 +186,10 @@ IfaceTraffic() {
 }
 
 HotspotBlackList() {
-	local cause="${1}" expires="${2}" reason="${3}" msg
+	local cause="${1}" \
+		expires="${2}" \
+		reason="${3}" \
+		msg
 	eval net${Hotspot}_blacklisted=\"${cause} $(_datetime)\" || :
 	msg="Blacklisting $(HotspotName)"
 	if [ ${expires} -gt ${NONE} ]; then
@@ -390,7 +399,8 @@ PleaseScan() {
 }
 
 BackupRotate() {
-	local f="${1}" n=${LogRotate}
+	local f="${1}" \
+		n=${LogRotate}
 	[ -f "${f}" ] && \
 		mv -f "${f}" "${f}_$(_UTCseconds)" || \
 		n=${NONE}
@@ -669,7 +679,8 @@ Scanning() {
 # returns: Hotspot WwanSsid WwanBssid
 # 	when not listed: returns false and Hotspot=0 
 CurrentHotspot() {
-	local connected="${1:-}" ssid
+	local connected="${1:-}" \
+		ssid
 	[ ${Hotspot} -eq ${NONE} ] || \
 		return 0
 	if [ -n "${connected}" -a -z "${WwanBssid}" ] && \
@@ -755,7 +766,8 @@ DoScan() {
 		function prt() {
 			if (net == 1 && bssid) {
 				rc=-1
-				print signal OFS ciph OFS pair OFS auth OFS bssid OFS ssid
+				print seen OFS signal OFS ciph OFS pair OFS auth \
+					OFS bssid OFS ssid
 				net=""
 			}
 		}
@@ -769,6 +781,7 @@ DoScan() {
 		$1 == "BSS" {
 			prt()
 			net=1
+			seen="999999999"
 			signal="99"
 			ssid=""
 			bssid=substr($2,1,17)
@@ -778,19 +791,32 @@ DoScan() {
 			next
 		}
 		{if (net != 1) next}
-		$1 == "signal:" {signal=0-$2; next}
-		$1 == "SSID:" {$1=$1; ssid=$0; next}
-		/\* Group cipher: / {$1=$2=$3=""
-			ciph=nospaces(); next}
-		/\* Pairwise ciphers: / {$1=$2=$3=""
-			pair=nospaces(); next}
-		/\* Authentication suites: / {$1=$2=$3=""
-			auth=nospaces(); next}
+		$1 == "signal:" {
+			signal=sprintf("%02d", 0-$2)
+			next}
+		/^[[:blank:]]+last seen:[[:blank:]]+/ {
+			seen=sprintf("%09d", $3)
+			next}
+		$1 == "SSID:" {
+			$1=$1; ssid=$0
+			next}
+		/^[[:blank:]]+\* Group cipher: / {
+			$1=$2=$3=""
+			ciph=nospaces()
+			next}
+		/^[[:blank:]]+\* Pairwise ciphers: / {
+			$1=$2=$3=""
+			pair=nospaces()
+			next}
+		/^[[:blank:]]+\* Authentication suites: / {
+			$1=$2=$3=""
+			auth=nospaces()
+			next}
 		END{prt()
-		exit rc+1}')" || \
+		exit rc+1}' | sort -k 1,1n)" || \
 			return 1
 
-	local ssid1 bssid1 i signal ciph pair auth dummy ssid2 bssid2 \
+	local ssid1 bssid1 i seen signal ciph pair auth dummy ssid2 bssid2 \
 		net_ssid cdt_bssids \
 		hidden blacklisted cdts="" rc=1
 
@@ -809,7 +835,7 @@ DoScan() {
 		#local encrypt
 		#eval encrypt=\"\${net${i}_encrypt:-}\"
 		while IFS="${TAB}" \
-		read -r signal ciph pair auth bssid2 dummy ssid2 && \
+		read -r seen signal ciph pair auth bssid2 dummy ssid2 && \
 		[ -n "${bssid2}" ]; do
 			[ -z "${net_ssid}" -a "${bssid1}" = "${bssid2}" ] || \
 			[ -z "${bssid1}" -a "${net_ssid}" = "${ssid2}" ] || \
@@ -859,7 +885,7 @@ DoScan() {
 			cdts="${cdts:+"${cdts}${LF}"}\
 ${signal}${TAB}${i}${TAB}${bssid2}${TAB}SSID:${TAB}${ssid1}"
 		done << EOF
-$(printf '%s\n' "${scanned}" | sort -k 1,1n)"
+${scanned}
 EOF
 	done
 	if [ -z "${cdts}" ]; then
@@ -876,7 +902,9 @@ EOF
 }
 
 WwanReset() {
-	local disable="${1:-"1"}" iface="${2:-"${WIfaceSTA}"}" msg
+	local disable="${1:-"1"}" \
+		iface="${2:-"${WIfaceSTA}"}" \
+		msg
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
 		local hotspot ssid bssid ssid1 bssid1
@@ -1002,7 +1030,8 @@ CheckNetworking() {
 		fi
 	rc=1
 	if [ ${MinTrafficBps} -ne 0 ]; then
-		local r=$(IfaceTraffic) c=$(_UTCseconds)
+		local r=$(IfaceTraffic) \
+			c=$(_UTCseconds)
 		if [ -n "${CheckTime}" ]; then
 			local b=$((${r}-Traffic)) \
 				t=$((${c}-CheckTime))
