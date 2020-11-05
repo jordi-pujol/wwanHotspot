@@ -1174,17 +1174,23 @@ HotspotLookup() {
 }
 
 ReScanning() {
-	local hotspot ssid bssid
-	AppMsg "ReScanning"
+	local hotspot ssid bssid msg
+	msg="ReScanning"
+	_applog "${msg}"
+	AddMsg "${msg}"
 	NoSleep="y"
 	DoScan "y" || \
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
-		AppMsg "Actually the best hotspot is $(HotspotName)"
+		msg="Actually the best hotspot is $(HotspotName)"
+	_applog "${msg}"
+	AddMsg "${msg}"
 		return 0
 	fi
 	ClrStatMsgs
-	AddStatMsg "Reconnection required"
+	msg="Reconnection required"
+	_applog "${msg}"
+	AddMsg "${msg}"
 	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
 }
 
