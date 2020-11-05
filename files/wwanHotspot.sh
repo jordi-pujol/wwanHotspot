@@ -697,12 +697,9 @@ CurrentHotspot() {
 	if [ -n "${connected}" -a -z "${WwanSsid}" ] && \
 	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
 	awk -v iface="${WIface}" \
-	'function ltrim(s) { sub(/^[ \t\r\n]+/, "", s); return s }
-	function rtrim(s) { sub(/[ \t\r\n]+$/, "", s); return s }
-	function trim(s) { return rtrim(ltrim(s)); }
-	$1 == iface && $2 == "ESSID:" {
-		$2=""; $1=""; 
-		print trim($0)
+	'$1 == iface && $2 == "ESSID:" {
+		$2=""; $1=""; gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
+		print
 		rc=-1; exit
 		}
 	END{exit rc+1}')"; then
@@ -771,11 +768,9 @@ DoScan() {
 				net=""
 			}
 		}
-		function ltrim(s) { sub(/^[ \t\r\n]+/, "", s); return s }
-		function rtrim(s) { sub(/[ \t\r\n]+$/, "", s); return s }
-		function trim(s) { return rtrim(ltrim(s)); }
 		function nospaces() {
-			return gensub(/[ \t]+/, ",", "g", trim($0))
+			gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
+			return gensub(/[[:blank:]]+/, ",", "g")
 		}
 		$1 == "BSS" {
 			prt()
