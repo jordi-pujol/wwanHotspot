@@ -224,7 +224,7 @@ BlackListExpired() {
 	done << EOF
 $(set | \
 sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
-sort -k 1,1n)
+sort -n -k 1,1)
 EOF
 }
 
@@ -610,7 +610,7 @@ LoadConfig() {
 	local cdt_bssids
 	cdt_bssids="$(printf '%s\n' "${Ssids}" | \
 		awk 'BEGIN{FS="\t"} $1 {print NR}')"
-	HotspotsOrder="$(echo "${cdt_bssids} $( \
+	HotspotsOrder="$(echo "${cdt_bssids:+"${cdt_bssids} "}$( \
 		seq 1 ${Hotspots} | grep -svwF "${cdt_bssids:-0}")" | \
 		tr -s '[ \t\n]' ' ')"
 	TryConnection=0
@@ -697,12 +697,12 @@ CurrentHotspot() {
 	if [ -n "${connected}" -a -z "${WwanSsid}" ] && \
 	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
 	awk -v iface="${WIface}" \
-	'function trim() {
-		sub(/^[ \t]+|[ \t]+$/, "")
-	}
+	'function ltrim(s) { sub(/^[ \t\r\n]+/, "", s); return s }
+	function rtrim(s) { sub(/[ \t\r\n]+$/, "", s); return s }
+	function trim(s) { return rtrim(ltrim(s)); }
 	$1 == iface && $2 == "ESSID:" {
-		$2=""; $1=""; trim
-		print
+		$2=""; $1=""; 
+		print trim($0)
 		rc=-1; exit
 		}
 	END{exit rc+1}')"; then
@@ -713,7 +713,7 @@ CurrentHotspot() {
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		else
 			WwanSsid="$(printf '%s\n' "${ssid}" | \
-				sed -nre '/^"(.*)"$/ {s//\1/p;q}')"
+				sed -e 's/^"//' -e 's/"$//')"
 			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		fi
 	fi
@@ -771,12 +771,11 @@ DoScan() {
 				net=""
 			}
 		}
-		function trim() {
-			sub(/^[ \t]+|[ \t]+$/, "")
-		}
+		function ltrim(s) { sub(/^[ \t\r\n]+/, "", s); return s }
+		function rtrim(s) { sub(/[ \t\r\n]+$/, "", s); return s }
+		function trim(s) { return rtrim(ltrim(s)); }
 		function nospaces() {
-			trim
-			return gensub(/[ \t]+/, ",", "g")
+			return gensub(/[ \t]+/, ",", "g", trim($0))
 		}
 		$1 == "BSS" {
 			prt()
@@ -792,10 +791,10 @@ DoScan() {
 		}
 		{if (net != 1) next}
 		$1 == "signal:" {
-			signal=sprintf("%02d", 0-$2)
+			signal=0-$2
 			next}
 		/^[[:blank:]]+last seen:[[:blank:]]+/ {
-			seen=sprintf("%09d", $3)
+			seen=$3
 			next}
 		$1 == "SSID:" {
 			$1=$1; ssid=$0
@@ -813,7 +812,7 @@ DoScan() {
 			auth=nospaces()
 			next}
 		END{prt()
-		exit rc+1}' | sort -k 1,1n)" || \
+		exit rc+1}' | sort -n)" || \
 			return 1
 
 	local ssid1 bssid1 i seen signal ciph pair auth dummy ssid2 bssid2 \
@@ -893,7 +892,7 @@ EOF
 			_applog "DoScan: No Hotspots available"
 		return ${rc}
 	fi
-	local cdt="$(printf '%s\n' "${cdts}" | sort -k 1,1n | head -n 1)"
+	local cdt="$(printf '%s\n' "${cdts}" | sort -n | head -n 1)"
 	hotspot="$(printf '%s\n' "${cdt}" | cut -f 2)"
 	ssid="$(printf '%s\n' "${cdt}" | cut -f 5- -s)"
 	bssid="$(printf '%s\n' "${cdt}" | cut -f 3 -s)"
