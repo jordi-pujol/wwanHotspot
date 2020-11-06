@@ -697,11 +697,15 @@ CurrentHotspot() {
 	if [ -n "${connected}" -a -z "${WwanSsid}" ] && \
 	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
 	awk -v iface="${WIface}" \
-	'$1 == iface && $2 == "ESSID:" {
-		$2=""; $1=""; gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
-		print
+	'function trim(s) {
+		if (!s) s=$0
+		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g",s)
+	}
+	$1 == iface && $2 == "ESSID:" {
+		$2=""; $1=""
+		print trim()
 		rc=-1; exit
-		}
+	}
 	END{exit rc+1}')"; then
 		[ -z "${Debug}" ] || \
 			_applog "Setting uci ssid ${ssid}"
@@ -710,7 +714,7 @@ CurrentHotspot() {
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		else
 			WwanSsid="$(printf '%s\n' "${ssid}" | \
-				sed -e 's/^"//' -e 's/"$//')"
+				sed -e 's/^"//; s/"$//')"
 			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		fi
 	fi
@@ -759,32 +763,33 @@ DoScan() {
 		ScanErr=""
 	fi
 	scanned="$(printf '%s\n' "${scanned}" | awk \
-		'BEGIN{OFS="\t"}
-		function prt() {
-			if (net == 1 && bssid) {
-				rc=-1
-				print seen OFS signal OFS ciph OFS pair OFS auth \
-					OFS bssid OFS ssid
-				net=""
-			}
+		'function trim(s) {
+			if (!s) s=$0
+			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g",s)
 		}
 		function nospaces() {
-			gsub(/^[[:blank:]]+|[[:blank:]]+$/, "")
-			return gensub(/[[:blank:]]+/, ",", "g")
+			return gensub(/[[:blank:]]+/, ",", "g", trim())
 		}
+		function prt() {
+			if (! bssid) return
+			rc=-1
+			print seen OFS signal OFS ciph OFS pair OFS auth \
+				OFS bssid OFS ssid
+			bssid=""
+		}
+		BEGIN{OFS="\t"}
 		$1 == "BSS" {
 			prt()
-			net=1
+			bssid=substr($2,1,17)
 			seen="999999999"
 			signal="99"
 			ssid=""
-			bssid=substr($2,1,17)
 			ciph="*"
 			pair="*"
 			auth="*"
 			next
 		}
-		{if (net != 1) next}
+		{if (! bssid) next}
 		$1 == "signal:" {
 			signal=0-$2
 			next}
@@ -792,7 +797,8 @@ DoScan() {
 			seen=$3
 			next}
 		$1 == "SSID:" {
-			$1=$1; ssid=$0
+			$1=$1
+			ssid=trim()
 			next}
 		/^[[:blank:]]+\* Group cipher: / {
 			$1=$2=$3=""
