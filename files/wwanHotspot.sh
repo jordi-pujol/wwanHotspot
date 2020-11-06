@@ -524,7 +524,7 @@ LoadConfig() {
 		LogPrio="info" _log "Found STA config in wifi-iface ${i}"
 		WIfaceSTA=${i}
 		WDevice="$(uci -q get wireless.@wifi-iface[${i}].device)"
-		WIface="wlan$(iwinfo "${WDevice}" info | \
+		WIface="wlan$(iwinfo "${WDevice}" info 2> /dev/null | \
 			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
 		j=-1
 		while [ $((j++)) ];
@@ -685,10 +685,10 @@ CurrentHotspot() {
 		return 0
 	if [ -n "${connected}" -a -z "${WwanBssid}" ] && \
 	WwanBssid="$(iwinfo "${WIface}" info 2> /dev/null | \
-	awk '/Access Point:/ {
+	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
 		print tolower($NF)
-		rc=-1; exit
-		}
+		rc=-1
+		exit}
 	END{exit rc+1}')"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		[ -z "${Debug}" ] || \
@@ -816,9 +816,9 @@ DoScan() {
 		exit rc+1}' | sort -n)" || \
 			return 1
 
-	local ssid1 bssid1 i seen signal ciph pair auth dummy ssid2 bssid2 \
-		net_ssid cdt_bssids \
-		hidden blacklisted cdts="" rc=1
+	local i ssid1 bssid1 blacklisted hidden net_ssid \
+		seen signal ciph pair auth bssid2 dummy ssid2 \
+		cdts="" rc=1
 
 	for i in ${HotspotsOrder}; do
 		eval ssid1=\"\${net${i}_ssid:-}\"
@@ -905,6 +905,7 @@ WwanReset() {
 	local disable="${1:-"1"}" \
 		iface="${2:-"${WIfaceSTA}"}" \
 		msg
+
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
 		local hotspot ssid bssid ssid1 bssid1
@@ -1183,8 +1184,8 @@ ReScanning() {
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
 		msg="Actually the best hotspot is $(HotspotName)"
-	_applog "${msg}"
-	AddMsg "${msg}"
+		_applog "${msg}"
+		AddMsg "${msg}"
 		return 0
 	fi
 	ClrStatMsgs
