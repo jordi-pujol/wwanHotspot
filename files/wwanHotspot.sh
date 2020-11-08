@@ -386,9 +386,9 @@ PleaseScan() {
 	local msg="Received an Scan Request"
 	if [ ${Status} -eq ${CONNECTED} -o ${Status} -eq ${CONNECTING} ]; then
 		_msg "${msg}" "when a Hotspot is" \
-			$([ ${Status} -eq ${CONNECTING} ] && \
+			"$([ ${Status} -eq ${CONNECTING} ] && \
 				echo "connecting" || \
-				echo "already connected")
+				echo "already connected")"
 		_applog "${msg}"
 		AddMsg "${msg}"
 		[ ${Status} -ne ${CONNECTED} -o -z "${ReScan}" ] || \
@@ -416,7 +416,7 @@ AddHotspot() {
 	if [ -z "${net_ssid:=""}" -a -z "${net_bssid:=""}" ] || \
 	[ -z "${net_encrypt:-}" ]; then
 		LogPrio="err"
-		_msg "AddHotspot, Invalid config ${Hotspots}." \
+		_msg "Adding hotspot, Invalid config ${Hotspots}." \
 			"No ssid, bssid or encrypt specified"
 		_log "${msg}"
 		AddStatMsg "Error:" "${msg}"
@@ -745,7 +745,7 @@ DoScan() {
 	BlackListExpired
 
 	[ -z "${Debug}" ] || \
-		_applog "DoScan - Scanning"
+		_applog "Do-Scan - Scanning"
 
 	local scanned msg
 
@@ -851,14 +851,14 @@ DoScan() {
 				-a "${ssid1}" = "${WwanSsid}" \
 				-a "${bssid1}" = "${WwanBssid}" ]; then
 					[ -z "${Debug}" ] || \
-						_applog "DoScan: current hotspot" \
+						_applog "Do-Scan: current hotspot" \
 							"$(HotspotName "${i}")" \
 							"is blacklisted"
 					rc=2
 				fi
 				[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
 				-a -z "${Debug}" ] || \
-					_applog "DoScan: Not selecting blacklisted hotspot" \
+					_applog "Do-Scan: Not selecting blacklisted hotspot" \
 						"$(HotspotName "${i}" "${bssid1}" \
 							"${ssid1:+"\"${ssid1}\""}")"
 				break
@@ -869,7 +869,7 @@ DoScan() {
 			bssid == $3 {rc=-1; exit}
 			END{exit rc+1}'; then
 				[ -z "${Debug}" ] || \
-					_applog "DoScan: hotspot" \
+					_applog "Do-Scan: hotspot" \
 						"$(HotspotName "${i}" "${bssid2}" "${ssid1}")" \
 						"iw scan already listed BSSID"
 				continue
@@ -880,7 +880,7 @@ DoScan() {
 				ssid1="${ssid2}"
 			fi
 			[ -z "${Debug}" ] || \
-				_applog "DoScan: signal -${signal} dBm ${auth}" \
+				_applog "Do-Scan: signal -${signal} dBm ${auth}" \
 					"$(HotspotName "${i}" "${bssid2}" "${ssid2}")"
 			cdts="${cdts:+"${cdts}${LF}"}\
 ${signal}${TAB}${i}${TAB}${bssid2}${TAB}SSID:${TAB}${ssid1}"
@@ -890,27 +890,29 @@ EOF
 	done
 	if [ -z "${cdts}" ]; then
 		[ -z "${Debug}" ] || \
-			_applog "DoScan: No Hotspots available"
+			_applog "Do-Scan: No Hotspots available"
 		return ${rc}
 	fi
 	local cdt="$(printf '%s\n' "${cdts}" | sort -n | head -n 1)"
 	hotspot="$(printf '%s\n' "${cdt}" | cut -f 2)"
 	ssid="$(printf '%s\n' "${cdt}" | cut -f 5- -s)"
 	bssid="$(printf '%s\n' "${cdt}" | cut -f 3 -s)"
-	_applog "DoScan selects" \
+	_applog "Do-Scan selects" \
 		"$(HotspotName "${hotspot}" "${bssid}" "${ssid:-"${BEL}"}")"
 }
 
 WwanReset() {
 	local disable="${1:-"1"}" \
 		iface="${2:-"${WIfaceSTA}"}" \
+		dontwwifi=""
 		msg
 
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
 		local hotspot ssid bssid ssid1 bssid1
-		DoScan "y" || \
+		DoScan "y" || {
 			AnyOtherHotspot
+			dontwwifi="y"; }
 		Hotspot="${hotspot}"
 
 		ssid1="$(uci -q get wireless.@wifi-iface[${iface}].ssid)" || :
@@ -952,7 +954,8 @@ WwanReset() {
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
 	UpdateReport="y"
-	WatchWifi &
+	[ -n "${dontwwifi}" ] || \
+		WatchWifi &
 }
 
 CheckNetw() {
@@ -1082,11 +1085,13 @@ CheckNetworking() {
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
-		WwanReset
-		Status=${DISCONNECTED}
-		[ -z "${Debug}" ] || \
-			_applog "$(StatusName)"
-		ScanRequest=1
+		if ! HotspotLookup; then
+			WwanReset
+			Status=${DISCONNECTED}
+			[ -z "${Debug}" ] || \
+				_applog "$(StatusName)"
+			ScanRequest=1
+		fi
 		return 1
 	fi
 	AddStatMsg "${msg}"
@@ -1176,7 +1181,7 @@ HotspotLookup() {
 
 ReScanning() {
 	local hotspot ssid bssid msg
-	msg="ReScanning"
+	msg="Re-Scanning"
 	_applog "${msg}"
 	AddMsg "${msg}"
 	NoSleep="y"
@@ -1352,9 +1357,8 @@ WifiStatus() {
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
 						WwanSsid=""
+						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid
 						WwanBssid="${NULLBSSID}"
-						uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-						WwanBssid=""
 						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid
 					else
 						LogPrio="warn" _log "${msg}"
@@ -1382,7 +1386,7 @@ WifiStatus() {
 		fi
 		WwanErr=${NONE}
 		msg="A hotspot is not available"
-		if [ -z "${WIfaceAP}" ]; then
+		if [ -z "${WIfaceAP}" -a ${Status} -ne ${DISCONNECTED} ]; then
 			Status=${DISCONNECTED}
 			[ -z "${Debug}" ] || \
 				_applog "$(StatusName)"
