@@ -904,7 +904,7 @@ EOF
 WwanReset() {
 	local disable="${1:-"1"}" \
 		iface="${2:-"${WIfaceSTA}"}" \
-		dontwwifi=""
+		dontwwifi="" \
 		msg
 
 	if [ -z "${WIfaceAP}" ] && \
