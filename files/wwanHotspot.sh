@@ -610,9 +610,9 @@ LoadConfig() {
 	local cdt_bssids
 	cdt_bssids="$(printf '%s\n' "${Ssids}" | \
 		awk 'BEGIN{FS="\t"} $1 {print NR}')"
-	HotspotsOrder="$(echo "${cdt_bssids:+"${cdt_bssids} "}$( \
-		seq 1 ${Hotspots} | grep -svwF "${cdt_bssids:-0}")" | \
-		tr -s '[ \t\n]' ' ')"
+	HotspotsOrder="$(echo ${cdt_bssids} $(seq 1 ${Hotspots} | \
+		grep -svwEe "$(printf '%s' "${cdt_bssids:-0}" | \
+		tr -s '\n' '|')"))"
 	TryConnection=0
 	ScanErr=""
 	WwanErr=${NONE}
@@ -733,7 +733,9 @@ CurrentHotspot() {
 
 # returns hotspot ssid bssid
 DoScan() {
-	local forceScan="${1:-}"
+	local forceScan="${1:-}" \
+		avail_bssid="${2:-}" \
+		avail_ssid="${3:-}"
 
 	[ -n "${forceScan}" ] || \
 		if ! MustScan; then
@@ -819,6 +821,20 @@ DoScan() {
 	local i ssid1 bssid1 blacklisted hidden net_ssid \
 		seen signal ciph pair auth bssid2 dummy ssid2 \
 		cdts="" rc=1
+
+	if [ -n "${avail_bssid}" ]; then
+		while IFS="${TAB}" \
+		read -r seen signal ciph pair auth bssid2 dummy ssid2 && \
+		[ -n "${bssid2}" ]; do
+			! test "${bssid2}" = "${avail_bssid}" -a \
+			\( "${ssid2}" = "${avail_ssid}" -o \
+			"${ssid2}" = "${HIDDENSSID}" \) || \
+				return 0
+		done << EOF
+${scanned}
+EOF
+		return 1
+	fi
 
 	for i in ${HotspotsOrder}; do
 		eval ssid1=\"\${net${i}_ssid:-}\"
@@ -1321,9 +1337,16 @@ WifiStatus() {
 			fi
 			continue
 		fi
-		[ ${TryConnection} -gt 0 ] && \
-			[ $((TryConnection--)) ] && \
-			continue || :
+		if [ ${TryConnection} -gt 0 ]; then
+			if DoScan "y" "${WwanBssid}" "${WwanSsid}"; then
+				[ $((TryConnection--)) ]
+				continue
+			fi
+			TryConnection=0
+			msg="Hotspot $(HotspotName) is gone while connecting"
+			_log "${msg}"
+			AddStatMsg "${msg}"
+		fi
 		CurrentHotspot || :
 		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
 		( [ -n "${WIfaceAP}" ] && \
@@ -1385,7 +1408,7 @@ WifiStatus() {
 			continue
 		fi
 		WwanErr=${NONE}
-		msg="A hotspot is not available"
+		msg="No hotspots available"
 		if [ -z "${WIfaceAP}" -a ${Status} -ne ${DISCONNECTED} ]; then
 			Status=${DISCONNECTED}
 			[ -z "${Debug}" ] || \
