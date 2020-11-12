@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.0 $
+#  $Revision: 2.1 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -103,7 +103,7 @@ for cmd in "${@:-"build"}"; do
 		cp ../files/${PKG}.sh ./ipk/usr/sbin/${PKG}
 		cp ../files/${PKG}.hotplug-iface ./ipk/etc/hotplug.d/iface/99-${PKG}
 		chmod a+x ./ipk/etc/init.d/${PKG} ./ipk/usr/sbin/${PKG}
-		echo "2.0" > ./debian-binary
+		echo "2.1" > ./debian-binary
 		chmod a+x ./postinst ./prerm
 		echo "Compressing control files" >&2
 		tar --owner=0 --group=0 --format=gnu -czvpf control.tar.gz \

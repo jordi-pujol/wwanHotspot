@@ -1,3 +1,10 @@
+wwanHotspot v2.1
+
+  * wwanHotspot.sh - WifiStatus(), IsWwanDisconnected():
+    avoid checking if wwan is offline when STA is disabled.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 11 Nov 2020 08:35:39 +0100
+
 wwanHotspot v2.0
 
   * Major changes:

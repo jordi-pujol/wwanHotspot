@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.0 $
+#  $Revision: 2.1 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -699,7 +699,7 @@ CurrentHotspot() {
 	awk -v iface="${WIface}" \
 	'function trim(s) {
 		if (!s) s=$0
-		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g",s)
+		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
 	}
 	$1 == iface && $2 == "ESSID:" {
 		$2=""; $1=""
@@ -767,7 +767,7 @@ DoScan() {
 	scanned="$(printf '%s\n' "${scanned}" | awk \
 		'function trim(s) {
 			if (!s) s=$0
-			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g",s)
+			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
 		}
 		function nospaces() {
 			return gensub(/[[:blank:]]+/, ",", "g", trim())
@@ -941,7 +941,9 @@ WwanReset() {
 		fi
 		WwanSsid="${ssid}"
 		WwanBssid="${bssid}"
-		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+		[ -n "${ssid}" ] && \
+			uci set wireless.@wifi-iface[${iface}].ssid="${ssid}" || \
+			uci -q delete wireless.@wifi-iface[${iface}].ssid || :
 		uci set wireless.@wifi-iface[${iface}].bssid="${bssid}"
 		if [ ${Hotspot} -ne ${NONE} ]; then
 			SetEncryption
@@ -1151,7 +1153,9 @@ HotspotLookup() {
 		WwanBssid="${bssid}"
 		_log "Hotspot $(HotspotName) found. Applying settings..."
 		WwanErr=${NONE}
-		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
+		[ -n "${WwanSsid}" ] && \
+			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}" || \
+			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		SetEncryption
 		[ "${WwanDisabled}" != 1 ] || \
@@ -1302,7 +1306,7 @@ WifiStatus() {
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		wwdsc="$(IsWwanDisconnected)"
+		wwdsc="$(test "${WwanDisabled}" = 1 || IsWwanDisconnected)"
 		if [ "${WwanDisabled}" != 1 -a -z "${wwdsc}" ]; then
 			TryConnection=0
 			ScanErr=""
