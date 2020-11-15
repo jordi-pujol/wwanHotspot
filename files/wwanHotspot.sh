@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.1 $
+#  $Revision: 2.2 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -524,8 +524,10 @@ LoadConfig() {
 		LogPrio="info" _log "Found STA config in wifi-iface ${i}"
 		WIfaceSTA=${i}
 		WDevice="$(uci -q get wireless.@wifi-iface[${i}].device)"
-		WIface="wlan$(iwinfo "${WDevice}" info 2> /dev/null | \
-			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')"
+		WIface="wlan$(iwinfo "${WDevice}" info | \
+			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')" || {
+				LogPrio="err" _log "Invalid device ${WDevice}"
+				exit; }
 		j=-1
 		while [ $((j++)) ];
 		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
@@ -585,7 +587,7 @@ LoadConfig() {
 			"importing the current router setup for the STA interface"
 		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
-		local add_cfg="$(set | grep -se '^net_' | sort -r)"
+		local add_cfg="$(set | grep -se '^net_')"
 		AddHotspot
 		[ ! -s "/etc/config/${NAME}" ] || \
 			sed -i.bak \
@@ -734,8 +736,8 @@ CurrentHotspot() {
 # returns hotspot ssid bssid
 DoScan() {
 	local forceScan="${1:-}" \
-		avail_bssid="${2:-}" \
-		avail_ssid="${3:-}"
+		availBssid="${2:-}" \
+		availSsid="${3:-}"
 
 	[ -n "${forceScan}" ] || \
 		if ! MustScan; then
@@ -815,19 +817,19 @@ DoScan() {
 			auth=nospaces()
 			next}
 		END{prt()
-		exit rc+1}' | sort -n)" || \
+		exit rc+1}' | sort -n -k 1,1)" || \
 			return 1
 
 	local i ssid1 bssid1 blacklisted hidden net_ssid \
 		seen signal ciph pair auth bssid2 dummy ssid2 \
 		cdts="" rc=1
 
-	if [ -n "${avail_bssid}" ]; then
+	if [ -n "${availBssid}" ]; then
 		while IFS="${TAB}" \
 		read -r seen signal ciph pair auth bssid2 dummy ssid2 && \
 		[ -n "${bssid2}" ]; do
-			! test "${bssid2}" = "${avail_bssid}" -a \
-			\( "${ssid2}" = "${avail_ssid}" -o \
+			! test "${bssid2}" = "${availBssid}" -a \
+			\( "${ssid2}" = "${availSsid}" -o \
 			"${ssid2}" = "${HIDDENSSID}" \) || \
 				return 0
 		done << EOF
@@ -836,6 +838,7 @@ EOF
 		return 1
 	fi
 
+	local foundh=0 blackh=0
 	for i in ${HotspotsOrder}; do
 		eval ssid1=\"\${net${i}_ssid:-}\"
 		eval bssid1=\"\${net${i}_bssid:-}\"
@@ -860,7 +863,9 @@ EOF
 				continue
 			#printf '%s\n' "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
+			[ $((foundh++)) ]
 			if [ -n "${blacklisted}" ]; then
+				[ $((blackh++)) ]
 				if [ -z "${bssid1}" -a "${ssid1}" = "${WwanSsid}" ] || \
 				[ -z "${ssid1}" -a "${bssid1}" = "${WwanBssid}" ] || \
 				[ -n "${ssid1}" -a -n "${bssid1}" \
@@ -905,11 +910,18 @@ ${scanned}
 EOF
 	done
 	if [ -z "${cdts}" ]; then
-		[ -z "${Debug}" ] || \
-			_applog "Do-Scan: No Hotspots available"
+		if [ ${foundh} -gt 0 ] && \
+		[ ${foundh} -le ${blackh} ]; then
+			[ -z "${StatMsgsChgd}" -a -z "${Debug}" ] || \
+				_applog "Do-Scan: Warning," \
+				"all available hotspots are blacklisted"
+		else
+			[ -z "${Debug}" ] || \
+				_applog "Do-Scan: No Hotspots available"
+		fi
 		return ${rc}
 	fi
-	local cdt="$(printf '%s\n' "${cdts}" | sort -n | head -n 1)"
+	local cdt="$(printf '%s\n' "${cdts}" | sort -n -k 1,1 | head -n 1)"
 	hotspot="$(printf '%s\n' "${cdt}" | cut -f 2)"
 	ssid="$(printf '%s\n' "${cdt}" | cut -f 5- -s)"
 	bssid="$(printf '%s\n' "${cdt}" | cut -f 3 -s)"
@@ -1286,10 +1298,10 @@ WifiStatus() {
 		Status StatMsgsChgd StatMsgs \
 		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
 		Hotspot ConnAttempts NetworkAttempts Traffic CheckTime \
-		msg LogPrio \
+		LogPrio \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection WIface WIfaceAP WIfaceSTA WDevice \
-		wwdsc
+		msg wwdsc
 
 	trap '_exit' EXIT
 	trap 'exit' INT

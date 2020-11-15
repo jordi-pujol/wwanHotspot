@@ -2,7 +2,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.1 $
+#  $Revision: 2.2 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -26,7 +26,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=wwanHotspot
-PKG_VERSION:=2.1
+PKG_VERSION:=2.2
 PKG_RELEASE:=1
 
 PKG_SOURCE_URL:=https://github.com/jordi-pujol/wwanHotspot
