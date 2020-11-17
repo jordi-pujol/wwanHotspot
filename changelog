@@ -1,7 +1,9 @@
 wwanHotspot v2.2
 
   * wwanHotspot.sh - DoScan():
-    Emit a warning message when all available hotspots are blacklisted.
+    - Emit a warning message when all available hotspots are blacklisted.
+    - For most log functions the variable "msg" contains the current
+      message text.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 11 Nov 2020 08:35:39 +0100
 
