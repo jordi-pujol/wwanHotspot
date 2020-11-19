@@ -165,14 +165,14 @@ AddMsg() {
 	local msg="${@:-"${msg}"}"
 	[ -n "${UpdtMsgs}" ] && \
 		UpdtMsgs="${UpdtMsgs}${LF}$(_datetime) ${msg}" || \
-		AddStatMsg
+		AddStatMsg "${msg}"
 }
 
 AppMsg() {
 	local msg="${@:-"${msg}"}"
-	_applog
+	_applog "${msg}"
 	if [ ${ReportUpdtLapse} -eq 0 ]; then
-		AddStatMsg
+		AddStatMsg "${msg}"
 	else
 		UpdtMsgs="$(_datetime) ${msg}"
 		StatMsgsChgd="y"
@@ -197,8 +197,8 @@ HotspotBlackList() {
 		msg="${msg} for ${expires} seconds"
 	fi
 	ClrStatMsgs
-	LogPrio="warn" _log
-	AddStatMsg
+	LogPrio="warn" _log "${msg}"
+	AddStatMsg "${msg}"
 	LogPrio="info" _log "Reason:" "${reason}"
 	AddStatMsg "Reason:" "${reason}"
 }
@@ -214,13 +214,13 @@ BlackListExpired() {
 			"$(HotspotName "${hotspot}" \
 				"$(eval echo \"\${net${hotspot}_bssid:-}\")" \
 				"$(eval echo \"\${net${hotspot}_ssid:-}\")")"
-		LogPrio="info" _log
+		LogPrio="info" _log "${msg}"
 		[ -n "${rc}" ] || \
 			[ -n "${WIfaceAP}" ] || \
 			[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
 				ClrStatMsgs
 		rc=1
-		AddStatMsg
+		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
 sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
@@ -370,7 +370,7 @@ Report() {
 ListStatus() {
 	local msg="${@:-"Updating status report"}"
 	UpdateReport="y"
-	AppMsg
+	AppMsg "${msg}"
 	[ ${Status} -ne ${CONNECTED} ] || \
 		NetworkAttempts=0
 	NoSleep="y"
@@ -389,8 +389,8 @@ PleaseScan() {
 			"$([ ${Status} -eq ${CONNECTING} ] && \
 				echo "connecting" || \
 				echo "already connected")"
-		_applog
-		AddMsg
+		_applog "${msg}"
+		AddMsg "${msg}"
 		[ ${Status} -ne ${CONNECTED} -o -z "${ReScan}" ] || \
 			IndReScan="y"
 	else
@@ -418,7 +418,7 @@ AddHotspot() {
 		LogPrio="err"
 		_msg "Adding hotspot, Invalid config ${Hotspots}." \
 			"No ssid, bssid or encrypt specified"
-		_log
+		_log "${msg}"
 		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
@@ -443,8 +443,8 @@ AddHotspot() {
 		HotspotName "${Hotspots}" \
 			"${net_bssid:-"${BEL}"}" \
 			"${net_ssid:-"${BEL}"}")"
-		_applog
-		AddStatMsg
+		_applog "${msg}"
+		AddStatMsg "${msg}"
 	fi
 	unset net_ssid net_bssid net_encrypt net_key net_hidden \
 		net_blacklisted net_check
@@ -479,7 +479,7 @@ LoadConfig() {
 	Ssids=""
 	Hotspots=${NONE}
 	: > "/var/log/${NAME}.stat"
-	AddStatMsg
+	AddStatMsg "${msg}"
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}"
@@ -510,7 +510,7 @@ LoadConfig() {
 		exec >> "/var/log/${NAME}" 2>&1
 	fi
 
-	LogPrio="info" _log
+	LogPrio="info" _log "${msg}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
@@ -542,7 +542,7 @@ LoadConfig() {
 	if [ -z "${WIfaceSTA}" ]; then
 		LogPrio="err"
 		msg="Invalid AP+STA configuration"
-		_log
+		_log "${msg}"
 		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
@@ -563,7 +563,7 @@ LoadConfig() {
 				LogPrio="err"
 				_msg "Invalid config" \
 					"Hotspot ${n}, no ssid, bssid or encryption specified"
-				_log
+				_log "${msg}"
 				AddStatMsg "Error:" "${msg}"
 				exit 1
 			fi
@@ -585,7 +585,7 @@ LoadConfig() {
 		LogPrio="warn"
 		_msg "No hotspots configured," \
 			"importing the current router setup for the STA interface"
-		_log
+		_log "${msg}"
 		AddStatMsg "Warning:" "${msg}"
 		local add_cfg="$(set | grep -se '^net_')"
 		AddHotspot
@@ -604,7 +604,7 @@ LoadConfig() {
 	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
 		LogPrio="err"
 		msg="Invalid configuration. Duplicate hotspots SSIDs or BSSIDs"
-		_log
+		_log "${msg}"
 		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
@@ -762,8 +762,8 @@ DoScan() {
 	if [ -n "${ScanErr}" ]; then
 		msg="Wifi scan for access points has been successful"
 		[ -z "${Debug}" ] && \
-			_applog || \
-			_log
+			_applog "${msg}" || \
+			_log "${msg}"
 		ScanErr=""
 	fi
 	scanned="$(printf '%s\n' "${scanned}" | awk \
@@ -915,8 +915,8 @@ EOF
 			[ -z "${StatMsgsChgd}" -a -z "${Debug}" ] || {
 				_msg "Do-Scan: Warning," \
 					"all available hotspots are blacklisted"
-				_applog
-				AddMsg
+				_applog "${msg}"
+				AddMsg "${msg}"
 			}
 		else
 			[ -z "${Debug}" ] || \
@@ -981,8 +981,8 @@ WwanReset() {
 				echo "Access Point")"
 	fi
 
-	_log
-	AddStatMsg
+	_log "${msg}"
+	AddStatMsg "${msg}"
 
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
@@ -1042,7 +1042,7 @@ CheckNetworking() {
 				if [ $(ActiveDefaultRoutes) -gt 1 ]; then
 					_msg "Using the nc utility to check networking to URL" \
 						"while several default routes are enabled"
-					LogPrio="err" _log
+					LogPrio="err" _log "${msg}"
 					AddStatMsg "Error:" "${msg}"
 				fi
 			else
@@ -1056,9 +1056,9 @@ CheckNetworking() {
 				_msg "Serious Error: no default route for" \
 					"$(HotspotName)." \
 					"Disabling networking check."
-				LogPrio="err" _log
+				LogPrio="err" _log "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
-					AddStatMsg
+					AddStatMsg "${msg}"
 				unset net${Hotspot}_check
 				return 0
 			fi
@@ -1097,12 +1097,12 @@ CheckNetworking() {
 	if [ ${rc} -eq 0 ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
-				_applog
+				_applog "${msg}"
 		else
-			AddMsg
+			AddMsg "${msg}"
 			[ ${NetworkAttempts} -eq 0 ] && \
-				_applog || \
-				_log
+				_applog "${msg}" || \
+				_log "${msg}"
 			NetworkAttempts=1
 		fi
 		return 0
@@ -1114,10 +1114,10 @@ CheckNetworking() {
 	_msg "${NetworkAttempts} networking" \
 		"failure$([ ${NetworkAttempts} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
-	LogPrio="warn" _log
+	LogPrio="warn" _log "${msg}"
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
-		HotspotBlackList "network" "${BlackListNetworkExpires}"
+		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
 		if ! HotspotLookup; then
 			WwanReset
 			Status=${DISCONNECTED}
@@ -1127,7 +1127,7 @@ CheckNetworking() {
 		fi
 		return 1
 	fi
-	AddStatMsg
+	AddStatMsg "${msg}"
 	NoSleep=""
 	[ $((NetworkAttempts++)) ]
 }
@@ -1183,8 +1183,8 @@ HotspotLookup() {
 		fi
 		TryConnection=2
 		msg="Connecting to $(HotspotName)..."
-		_log
-		AddStatMsg
+		_log "${msg}"
+		AddStatMsg "${msg}"
 		WatchWifi ${Sleep} &
 	elif [ "${WwanDisabled}" = 1 ]; then
 		WwanReset 0
@@ -1193,9 +1193,9 @@ HotspotLookup() {
 		_msg "Client interface to" \
 			"$(HotspotName) is already enabled"
 		[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
-			_applog
+			_applog "${msg}"
 		[ -z "${StatMsgsChgd}" ] || \
-			AddStatMsg
+			AddStatMsg "${msg}"
 	fi
 	Status=${CONNECTING}
 	[ -z "${Debug}" ] || \
@@ -1205,8 +1205,8 @@ HotspotLookup() {
 		ScanRequest=0
 		_msg "Can't connect to any hotspot," \
 			"probably configuration is not correct"
-		LogPrio="err" _log
-		AddStatMsg
+		LogPrio="err" _log "${msg}"
+		AddStatMsg "${msg}"
 	else
 		Interval=${Sleep}
 	fi
@@ -1217,21 +1217,21 @@ HotspotLookup() {
 ReScanning() {
 	local hotspot ssid bssid msg
 	msg="Re-Scanning"
-	_applog
-	AddMsg
+	_applog "${msg}"
+	AddMsg "${msg}"
 	NoSleep="y"
 	DoScan "y" || \
 		return 0
 	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
 		msg="Actually the best hotspot is $(HotspotName)"
-		_applog
-		AddMsg
+		_applog "${msg}"
+		AddMsg "${msg}"
 		return 0
 	fi
 	ClrStatMsgs
 	msg="Reconnection required"
-	_applog
-	AddMsg
+	_applog "${msg}"
+	AddMsg "${msg}"
 	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
 }
 
@@ -1338,8 +1338,8 @@ WifiStatus() {
 					[ -n "${WIfaceAP}" -o ${Status} -eq ${CONNECTING} ] || \
 						ClrStatMsgs
 					msg="Connected to $(HotspotName)"
-					_log
-					AddMsg
+					_log "${msg}"
+					AddMsg "${msg}"
 					Status=${CONNECTED}
 					[ -z "${Debug}" ] || \
 						_applog "$(StatusName)"
@@ -1350,9 +1350,9 @@ WifiStatus() {
 			elif CheckNetworking; then
 				msg="Connected to $(HotspotName)"
 				[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
-					_applog
+					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
-					AddMsg
+					AddMsg "${msg}"
 			fi
 			continue
 		fi
@@ -1363,8 +1363,8 @@ WifiStatus() {
 			fi
 			TryConnection=0
 			msg="Hotspot $(HotspotName) is gone while connecting"
-			_log
-			AddStatMsg
+			_log "${msg}"
+			AddStatMsg "${msg}"
 		fi
 		CurrentHotspot || :
 		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
@@ -1378,31 +1378,32 @@ WifiStatus() {
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				ClrStatMsgs
 				msg="Lost connection $(HotspotName)"
-				_log
-				AddStatMsg
+				_log "${msg}"
+				AddStatMsg "${msg}"
 			else
 				if [ -n "${WIfaceAP}" ] && \
 				[ ${Status} -eq ${DISCONNECTED} ]; then
 					msg="Disabling wireless STA device, Again ?"
 					[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
-						_applog
+						_applog "${msg}"
 					[ -z "${StatMsgsChgd}" ] || \
-						AddStatMsg
+						AddStatMsg "${msg}"
 				fi
 				if [ ${Status} -eq ${CONNECTING} ]; then
 					_msg "${ConnAttempts} unsuccessful" \
 						"connection$([ ${ConnAttempts} -le 1 ] || echo "s")" \
 						"to $(HotspotName)"
-					AddStatMsg
+					AddStatMsg "${msg}"
 					if [ ${BlackList} -ne ${NONE} ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
-						HotspotBlackList "connect" "${BlackListExpires}"
+						HotspotBlackList "connect" "${BlackListExpires}" \
+							"${msg}"
 						WwanSsid=""
 						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid
 						WwanBssid="${NULLBSSID}"
 						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid
 					else
-						LogPrio="warn" _log
+						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]
 					fi
 				fi
@@ -1433,14 +1434,14 @@ WifiStatus() {
 				_applog "$(StatusName)"
 		fi
 		if [ ${Status} -ne ${DISABLED} -a -n "${WIfaceAP}" ]; then
-			_log
-			AddStatMsg
+			_log "${msg}"
+			AddStatMsg "${msg}"
 			Status=${DISABLED}
 			[ -z "${Debug}" ] || \
 				_applog "$(StatusName)"
 		elif [ -n "${StatMsgsChgd}" ]; then
-			_applog
-			AddMsg
+			_applog "${msg}"
+			AddMsg "${msg}"
 		fi
 		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}
