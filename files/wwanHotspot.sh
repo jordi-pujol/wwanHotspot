@@ -377,8 +377,11 @@ ListStatus() {
 }
 
 NetworkChange() {
-	[ ${Status} -le ${CONNECTING} ] || \
-		AddStatMsg "Network status has changed"
+	[ ${Status} -le ${CONNECTING} ] || {
+		msg="Network status has changed"
+		AddStatMsg "${msg}"
+		_applog "${msg}"
+	}
 	NoSleep="y"
 }
 
