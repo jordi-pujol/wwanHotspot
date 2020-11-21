@@ -168,17 +168,6 @@ AddMsg() {
 		AddStatMsg "${msg}"
 }
 
-AppMsg() {
-	local msg="${@:-"${msg}"}"
-	_applog "${msg}"
-	if [ ${ReportUpdtLapse} -eq 0 ]; then
-		AddStatMsg "${msg}"
-	else
-		UpdtMsgs="$(_datetime) ${msg}"
-		StatMsgsChgd="y"
-	fi
-}
-
 IfaceTraffic() {
 	local iface="${1:-"${WIface}"}"
 	printf '%s\n' $(( $(cat "/sys/class/net/${iface}/statistics/rx_bytes") + \
@@ -370,7 +359,13 @@ Report() {
 ListStatus() {
 	local msg="${@:-"Updating status report"}"
 	UpdateReport="y"
-	AppMsg "${msg}"
+	_applog "${msg}"
+	if [ ${ReportUpdtLapse} -eq 0 ]; then
+		AddStatMsg "${msg}"
+	else
+		UpdtMsgs="$(_datetime) ${msg}"
+		StatMsgsChgd="y"
+	fi
 	[ ${Status} -ne ${CONNECTED} ] || \
 		NetworkAttempts=0
 	NoSleep="y"
@@ -1302,7 +1297,7 @@ WifiStatus() {
 		Ssids Hotspots HotspotsOrder IfaceWan \
 		ScanRequest ScanErr IndReScan \
 		Status StatMsgsChgd StatMsgs \
-		UpdateReport ReportUpdtLapse UpdtMsgs Interval NoSleep \
+		UpdateReport UpdtMsgs Interval NoSleep \
 		Hotspot ConnAttempts NetworkAttempts Traffic CheckTime \
 		LogPrio \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
