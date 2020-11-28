@@ -48,7 +48,9 @@ _ps_children() {
 	local ppid=${1:-${$}} \
 		excl="${2:-"0"}" \
 		pid
-	for pid in $(pgrep -P ${ppid} | grep -svwF "${excl}"); do
+	[ $(echo "${excl}" | wc -w) -eq 1 ] || \
+		excl="$(printf '%s' "${excl}" | tr -s "${SPACE}" '|')"
+	for pid in $(pgrep -P ${ppid} | grep -svwEe "${excl}"); do
 		_ps_children ${pid} "${excl}"
 		echo ${pid}
 	done
@@ -612,7 +614,7 @@ LoadConfig() {
 		awk 'BEGIN{FS="\t"} $1 {print NR}')"
 	HotspotsOrder="$(echo ${cdt_bssids} $(seq 1 ${Hotspots} | \
 		grep -svwEe "$(printf '%s' "${cdt_bssids:-0}" | \
-		tr -s '\n' '|')"))"
+		tr -s "${SPACE}" '|')"))"
 	TryConnection=0
 	ScanErr=""
 	WwanErr=${NONE}
@@ -1284,7 +1286,7 @@ Settle() {
 
 WifiStatus() {
 	# constants
-	readonly LF=$'\n' TAB=$'\t' BEL=$'\x07' \
+	readonly LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
 		HIDDENSSID="\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4

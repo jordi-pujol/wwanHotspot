@@ -93,7 +93,8 @@ for cmd in "${@:-"build"}"; do
 			echo "Some files have been modified. This package must be updated" >&2
 		fi
 		echo "Building package" >&2
-		_check_syntax || exit 1
+		_check_syntax || \
+			exit 1
 		_cleanup
 		echo "Populating package directories" >&2
 		mkdir -p ./ipk/etc/config ./ipk/etc/init.d ./ipk/usr/sbin \
@@ -118,7 +119,8 @@ for cmd in "${@:-"build"}"; do
 		echo "Package \"${PKG_IPK}\" has been created" >&2
 		;;
 	check)
-		_check_syntax || exit 1
+		_check_syntax || \
+			exit 1
 		echo "Done" >&2
 		;;
 	clean)
