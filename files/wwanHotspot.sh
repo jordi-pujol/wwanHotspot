@@ -48,7 +48,7 @@ _ps_children() {
 	local ppid=${1:-${$}} \
 		excl="${2:-"0"}" \
 		pid
-	[ $(echo "${excl}" | wc -w) -eq 1 ] || \
+	[ $(printf '%s' "${excl}" | wc -w) -eq 1 ] || \
 		excl="$(printf '%s' "${excl}" | tr -s "${SPACE}" '|')"
 	for pid in $(pgrep -P ${ppid} | grep -svwEe "${excl}"); do
 		_ps_children ${pid} "${excl}"
