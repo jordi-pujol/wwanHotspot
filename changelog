@@ -1,16 +1,8 @@
 wwanHotspot v2.2
 
   * wwanHotspot.sh
-    - _ps_children():
-      Bug correction: the list of excluded pids will be transformed into
-      a regular expression.
-      However this had not affected this script before because only one value
-      is specified.
     - DoScan():
       Emit a warning message when all available hotspots are blacklisted.
-    - For most log functions the variable "msg" contains the current
-      message text; however I prefer specify the parameter in every
-      function call.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 11 Nov 2020 08:35:39 +0100
 

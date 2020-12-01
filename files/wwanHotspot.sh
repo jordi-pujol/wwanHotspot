@@ -48,9 +48,7 @@ _ps_children() {
 	local ppid=${1:-${$}} \
 		excl="${2:-"0"}" \
 		pid
-	[ $(printf '%s' "${excl}" | wc -w) -eq 1 ] || \
-		excl="$(printf '%s' "${excl}" | tr -s "${SPACE}" '|')"
-	for pid in $(pgrep -P ${ppid} | grep -svwEe "${excl}"); do
+	for pid in $(pgrep -P ${ppid} | grep -svwF "${excl}"); do
 		_ps_children ${pid} "${excl}"
 		echo ${pid}
 	done
@@ -65,12 +63,12 @@ _exit() {
 }
 
 _applog() {
-	local msg="${@:-"${msg}"}"
+	local msg="${@}"
 	printf '%s\n' "$(_datetime) ${msg}" >> "/var/log/${NAME}"
 }
 
 _log() {
-	local msg="${@:-"${msg}"}" \
+	local msg="${@}" \
 		p="daemon.${LogPrio:-"notice"}"
 	LogPrio=""
 	logger -t "${NAME}" -p "${p}" "${msg}"
@@ -146,7 +144,7 @@ ClrStatMsgs() {
 }
 
 AddStatMsg() {
-	local msg="$(_datetime) ${@:-"${msg}"}"
+	local msg="$(_datetime) ${@}"
 	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
@@ -164,7 +162,7 @@ AddStatMsg() {
 }
 
 AddMsg() {
-	local msg="${@:-"${msg}"}"
+	local msg="${@}"
 	[ -n "${UpdtMsgs}" ] && \
 		UpdtMsgs="${UpdtMsgs}${LF}$(_datetime) ${msg}" || \
 		AddStatMsg "${msg}"
@@ -179,7 +177,7 @@ IfaceTraffic() {
 HotspotBlackList() {
 	local cause="${1}" \
 		expires="${2}" \
-		reason="${3:-"${msg}"}" \
+		reason="${3}" \
 		msg
 	eval net${Hotspot}_blacklisted=\"${cause} $(_datetime)\" || :
 	msg="Blacklisting $(HotspotName)"
