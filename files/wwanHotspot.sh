@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.2 $
+#  $Revision: 2.3 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -908,14 +908,13 @@ ${scanned}
 EOF
 	done
 	if [ -z "${cdts}" ]; then
-		if [ ${foundh} -gt 0 ] && \
+		if [ -n "${Debug}" -o ${Status} -ne ${DISCONNECTED} ] && \
+		[ ${foundh} -gt 0 ] && \
 		[ ${foundh} -le ${blackh} ]; then
-			[ -z "${StatMsgsChgd}" -a -z "${Debug}" ] || {
-				_msg "Do-Scan: Warning," \
-					"all available hotspots are blacklisted"
-				_applog "${msg}"
-				AddMsg "${msg}"
-			}
+			_msg "Do-Scan: Warning," \
+				"all available hotspots are blacklisted"
+			_applog "${msg}"
+			AddMsg "${msg}"
 		else
 			[ -z "${Debug}" ] || \
 				_applog "Do-Scan: No Hotspots available"
