@@ -621,6 +621,7 @@ LoadConfig() {
 	WwanSsid=""
 	WwanBssid=""
 	ConnAttempts=1
+	WarnBlackList=""
 	Status=${NONE}
 	[ -z "${Debug}" ] || \
 		_applog "$(StatusName)"
@@ -836,7 +837,7 @@ EOF
 		return 1
 	fi
 
-	local foundh=0 blackh=0
+	local warning=""
 	for i in ${HotspotsOrder}; do
 		eval ssid1=\"\${net${i}_ssid:-}\"
 		eval bssid1=\"\${net${i}_bssid:-}\"
@@ -861,9 +862,8 @@ EOF
 				continue
 			#printf '%s\n' "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
-			[ $((foundh++)) ]
 			if [ -n "${blacklisted}" ]; then
-				[ $((blackh++)) ]
+				warning="${warning:+"${warning}${LF}"}${i}"
 				if [ -z "${bssid1}" -a "${ssid1}" = "${WwanSsid}" ] || \
 				[ -z "${ssid1}" -a "${bssid1}" = "${WwanBssid}" ] || \
 				[ -n "${ssid1}" -a -n "${bssid1}" \
@@ -908,19 +908,23 @@ ${scanned}
 EOF
 	done
 	if [ -z "${cdts}" ]; then
-		if [ -n "${Debug}" -o ${Status} -ne ${DISCONNECTED} ] && \
-		[ ${foundh} -gt 0 ] && \
-		[ ${foundh} -le ${blackh} ]; then
-			_msg "Do-Scan: Warning," \
-				"all available hotspots are blacklisted"
-			_applog "${msg}"
-			AddMsg "${msg}"
+		if [ -n "${warning}" ]; then
+			warning="$(echo $(echo "${warning}" | sort -n -k 1,1))"
+			if [ -n "${Debug}" ] || \
+			[ "${WarnBlackList}" != "${warning}" ]; then
+				_msg "Do-Scan: Warning," \
+					"all available hotspots (${warning}) are blacklisted"
+				_applog "${msg}"
+				AddMsg "${msg}"
+			fi
 		else
 			[ -z "${Debug}" ] || \
 				_applog "Do-Scan: No Hotspots available"
 		fi
+		WarnBlackList="${warning}"
 		return ${rc}
 	fi
+	WarnBlackList=""
 	local cdt="$(printf '%s\n' "${cdts}" | sort -n -k 1,1 | head -n 1)"
 	hotspot="$(printf '%s\n' "${cdt}" | cut -f 2)"
 	ssid="$(printf '%s\n' "${cdt}" | cut -f 5- -s)"
@@ -1298,7 +1302,7 @@ WifiStatus() {
 		Status StatMsgsChgd StatMsgs \
 		UpdateReport UpdtMsgs Interval NoSleep \
 		Hotspot ConnAttempts NetworkAttempts Traffic CheckTime \
-		LogPrio \
+		LogPrio WarnBlackList \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection WIface WIfaceAP WIfaceSTA WDevice \
 		msg wwdsc
@@ -1324,6 +1328,7 @@ WifiStatus() {
 			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
+				WarnBlackList=""
 				CurrentHotspot "y" || \
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
