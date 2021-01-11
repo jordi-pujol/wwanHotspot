@@ -909,11 +909,12 @@ EOF
 	done
 	if [ -z "${cdts}" ]; then
 		if [ -n "${warning}" ]; then
-			warning="$(echo $(echo "${warning}" | sort -n -k 1,1))"
-			if [ -n "${Debug}" ] || \
+			warning="$(echo $(echo "${warning}" | sort -n -k 1,1) | \
+				tr -s ' ' ',')"
+			if [ -n "${Debug}" -o -n "${StatMsgsChgd}" ] || \
 			[ "${WarnBlackList}" != "${warning}" ]; then
-				_msg "Do-Scan: Warning," \
-					"all available hotspots (${warning}) are blacklisted"
+				_msg "Warning, all available hotspots" \
+					"(${warning}) are blacklisted"
 				_applog "${msg}"
 				AddMsg "${msg}"
 			fi
