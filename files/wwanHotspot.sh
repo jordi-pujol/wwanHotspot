@@ -1329,7 +1329,6 @@ WifiStatus() {
 			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
-				WarnBlackList=""
 				CurrentHotspot "y" || \
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
