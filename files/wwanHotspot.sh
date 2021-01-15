@@ -937,15 +937,13 @@ EOF
 WwanReset() {
 	local disable="${1:-"1"}" \
 		iface="${2:-"${WIfaceSTA}"}" \
-		dontwwifi="" \
 		msg
 
 	if [ -z "${WIfaceAP}" ] && \
 	[ ${disable} -eq 1 ]; then
 		local hotspot ssid bssid ssid1 bssid1
-		DoScan "y" || {
+		DoScan "y" || \
 			AnyOtherHotspot
-			dontwwifi="y"; }
 		Hotspot="${hotspot}"
 
 		ssid1="$(uci -q get wireless.@wifi-iface[${iface}].ssid)" || :
@@ -989,8 +987,7 @@ WwanReset() {
 	wifi down "${WDevice}"
 	wifi up "${WDevice}"
 	UpdateReport="y"
-	[ -n "${dontwwifi}" ] || \
-		WatchWifi &
+	WatchWifi &
 }
 
 CheckNetw() {
