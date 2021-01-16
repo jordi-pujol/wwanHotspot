@@ -171,7 +171,7 @@ AddMsg() {
 IfaceTraffic() {
 	local iface="${1:-"${WIface}"}"
 	printf '%s\n' $(( $(cat "/sys/class/net/${iface}/statistics/rx_bytes") + \
-	$(cat "/sys/class/net/${iface}/statistics/tx_bytes") ))
+		$(cat "/sys/class/net/${iface}/statistics/tx_bytes") ))	2> /dev/null
 }
 
 HotspotBlackList() {
@@ -1019,7 +1019,7 @@ CheckNetworking() {
 	fi
 	Interval=${Sleep}
 	local delay=${Sleep} msg rc
-	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" | \
+	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
 	awk '$1 == "default" {print $3; exit}')"}" ] && \
 	[ $((delay--)) -gt 0 ]; do
 		sleep 1
@@ -1030,7 +1030,7 @@ CheckNetworking() {
 		[ -n "${CheckSrvr}" ]; then
 			CheckAddr="${check}"
 			if [ -z "$(which wget)" ] ||  \
-			! CheckInet="$(ifconfig "${WIface}" | \
+			! CheckInet="$(ifconfig "${WIface}" 2> /dev/null | \
 			awk '$1 == "inet" {print $2; rc=-1; exit}
 			END{exit rc+1}')"; then
 				[ "${CheckAddr:0:8}" = "https://" ] && \

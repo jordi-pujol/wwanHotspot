@@ -4,6 +4,7 @@ wwanHotspot v2.3
     - DoScan(): Only warn for all available hotspots blacklisted when
       something has changed
     - WwanReset(): allways watch for wifi
+    - Hide some spurious error messages that doesn't have any importance
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 01 Jan 2021 10:24:17 +0100
 
