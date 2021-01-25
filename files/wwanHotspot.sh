@@ -80,11 +80,11 @@ _msg() {
 }
 
 _pids_active() {
-	local p rc=1
+	local p rc=${ERR}
 	for p in "${@}"; do
 		if kill -s 0 ${p} > /dev/null 2>&1; then
 			echo ${p}
-			rc=0
+			rc=${OK}
 		fi
 	done
 	return ${rc}
@@ -101,7 +101,7 @@ WaitSubprocess() {
 		( sleep "${timeout}" && kill -s TERM ${pids} > /dev/null 2>&1 ) &
 		pidw=${!}
 	fi
-	while wait ${pids} && rc=0 || rc=${rc:-${?}};
+	while wait ${pids} && rc=${OK} || rc=${rc:-${?}};
 	pids="$(_pids_active ${pids})"; do
 		[ -n "${dont_interrupt}" ] && \
 			rc="" || \
@@ -208,7 +208,7 @@ BlackListExpired() {
 			[ -n "${WIfaceAP}" ] || \
 			[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
 				ClrStatMsgs
-		rc=1
+		rc=${ERR}
 		AddStatMsg "${msg}"
 	done << EOF
 $(set | \
@@ -230,12 +230,12 @@ IsWifiActive() {
 			sed -nre '/^'"${WIface}"'[[:blank:]]+ESSID:[[:blank:]]+(.*)$/ \
 			{s//\1/p;q}')"
 	[ "${ssid}" = "${ssid1}" ] || \
-		return 1
+		return ${ERR}
 	bssid1="$(_tolower "$(echo "${info}" | \
 			sed -nre '/^[[:blank:]]+Access Point:[[:blank:]]+(.*)$/ \
 			{s//\1/p;q}')")"
 	[ "${bssid}" = "${bssid1}" ] || \
-		return 1
+		return ${ERR}
 	mode1="$(echo "${info}" | \
 			sed -nre '/^[[:blank:]]+Mode:[[:blank:]]+([^[:blank:]]+).*$/ \
 			{s//\1/p;q}')"
@@ -260,7 +260,7 @@ AnyOtherHotspot() {
 		[ -z "$(eval echo \"\${net${n}_blacklisted:-}\")" ] || \
 			continue
 		hotspot=${n}
-		return 0
+		return ${OK}
 	done
 	hotspot=${NONE}
 	ssid=""
@@ -656,7 +656,7 @@ IsWwanDisconnected() {
 
 MustScan() {
 	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
-		return 0
+		return ${OK}
 	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq 0 ]
 }
 
@@ -665,7 +665,7 @@ Scanning() {
 	while [ $((i--)) -gt 0 ]; do
 		sleep 1
 		! err="$(iw "${WIface}" scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
-			return 0
+			return ${OK}
 		[ -z "${Debug}" ] || \
 			_applog "${err}"
 		if [ ${i} -ne 2 ]; then
@@ -679,7 +679,7 @@ Scanning() {
 		/etc/init.d/network reload
 		WatchWifi ${Sleep}
 	done
-	return 1
+	return ${ERR}
 }
 
 # param: connected = indicator
@@ -689,7 +689,7 @@ CurrentHotspot() {
 	local connected="${1:-}" \
 		ssid
 	[ ${Hotspot} -eq ${NONE} ] || \
-		return 0
+		return ${OK}
 	if [ -n "${connected}" -a -z "${WwanBssid}" ] && \
 	WwanBssid="$(iwinfo "${WIface}" info 2> /dev/null | \
 	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
@@ -748,7 +748,7 @@ DoScan() {
 		if ! MustScan; then
 			[ -z "${Debug}" ] || \
 				_applog "Must not scan"
-			return 1
+			return ${ERR}
 		fi
 
 	BlackListExpired
@@ -762,7 +762,7 @@ DoScan() {
 		LogPrio="err"
 		_log "Serious error: Can't scan wifi for access points"
 		ScanErr="y"
-		return 1
+		return ${ERR}
 	fi
 	if [ -n "${ScanErr}" ]; then
 		msg="Wifi scan for access points has been successful"
@@ -823,11 +823,11 @@ DoScan() {
 			next}
 		END{prt()
 		exit rc+1}' | sort -n -k 1,1)" || \
-			return 1
+			return ${ERR}
 
 	local i ssid1 bssid1 blacklisted hidden net_ssid \
 		seen signal ciph pair auth bssid2 dummy ssid2 \
-		cdts="" rc=1
+		cdts="" rc=${ERR}
 
 	if [ -n "${availBssid}" ]; then
 		while IFS="${TAB}" \
@@ -836,11 +836,11 @@ DoScan() {
 			! test "${bssid2}" = "${availBssid}" -a \
 			\( "${ssid2}" = "${availSsid}" -o \
 			"${ssid2}" = "${HIDDENSSID}" \) || \
-				return 0
+				return ${OK}
 		done << EOF
 ${scanned}
 EOF
-		return 1
+		return ${ERR}
 	fi
 
 	local warning=""
@@ -958,7 +958,7 @@ WwanReset() {
 		[ -z "${ssid1}" -a "${bssid1}" = "${bssid}" ] || \
 		[ -n "${ssid1}" -a -n "${bssid1}" \
 		-a "${ssid1}" = "${ssid}" -a "${bssid1}" = "${bssid}" ]; then
-			return 0
+			return ${OK}
 		fi
 		WwanSsid="${ssid}"
 		WwanBssid="${bssid}"
@@ -977,7 +977,7 @@ WwanReset() {
 		local disabled
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
 		[ ${disabled:-"0"} -ne ${disable} ] || \
-			return 0
+			return ${OK}
 		[ ${disable} -eq 1 ] && \
 			uci set wireless.@wifi-iface[${iface}].disabled=${disable} || \
 			uci -q delete wireless.@wifi-iface[${iface}].disabled || :
@@ -1021,7 +1021,7 @@ CheckNetworking() {
 		[ -n "${ScanAuto}" ] && \
 			Interval=${SleepDsc} || \
 			Interval=${SleepScanAuto}
-		return 0
+		return ${OK}
 	fi
 	Interval=${Sleep}
 	local delay=${Sleep} msg rc
@@ -1065,12 +1065,12 @@ CheckNetworking() {
 				[ -z "${StatMsgsChgd}" ] || \
 					AddStatMsg "${msg}"
 				unset net${Hotspot}_check
-				return 0
+				return ${OK}
 			fi
 			[ -z "${Debug}" ] || \
 				_applog "check networking, ping ${CheckAddr}"
 		fi
-	rc=1
+	rc=${ERR}
 	if [ ${MinTrafficBps} -ne 0 ]; then
 		local r=$(IfaceTraffic) \
 			c=$(_UTCseconds)
@@ -1079,7 +1079,7 @@ CheckNetworking() {
 				t=$((${c}-CheckTime))
 			if [ ${t} -gt 0 ] && \
 			[ $((b/t)) -ge ${MinTrafficBps} ]; then
-				rc=0
+				rc=${OK}
 				_msg "Networking of $(HotspotName) to" \
 					"the external network is working"
 			fi
@@ -1091,7 +1091,7 @@ CheckNetworking() {
 	fi
 	if [ ${rc} -ne 0 ]; then
 		CheckNetw &
-		rc=0
+		rc=${OK}
 		WaitSubprocess && \
 			_msg "Networking of $(HotspotName) to" \
 				"$(test "${CheckAddr}" != "${Gateway}" || \
@@ -1110,9 +1110,9 @@ CheckNetworking() {
 				_log "${msg}"
 			NetworkAttempts=1
 		fi
-		return 0
+		return ${OK}
 	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
-		return 0
+		return ${OK}
 	fi
 	[ ${NetworkAttempts} -gt 0 ] || \
 		NetworkAttempts=1
@@ -1131,7 +1131,7 @@ CheckNetworking() {
 			ScanRequest=1
 		fi
 		NetworkAttempts=${NONE}
-		return 1
+		return ${ERR}
 	fi
 	AddStatMsg "${msg}"
 	NoSleep=""
@@ -1227,12 +1227,12 @@ ReScanning() {
 	AddMsg "${msg}"
 	NoSleep="y"
 	DoScan "y" || \
-		return 0
+		return ${OK}
 	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
 		msg="Actually the best hotspot is $(HotspotName)"
 		_applog "${msg}"
 		AddMsg "${msg}"
-		return 0
+		return ${OK}
 	fi
 	ClrStatMsgs
 	msg="Reconnection required"
@@ -1244,7 +1244,7 @@ ReScanning() {
 ReScanningOnNetwFail() {
 	[ ${ReScanOnNetwFail} -ne ${NONE} -a \
 	${NetworkAttempts} -ge ${ReScanOnNetwFail} ] || \
-		return 0
+		return ${OK}
 	local hotspot ssid bssid msg \
 		failingHotspot="${Hotspot}"
 	msg="Re-Scanning on networking failure"
@@ -1317,7 +1317,8 @@ Settle() {
 
 WifiStatus() {
 	# constants
-	readonly LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
+	readonly OK=0 ERR=1 \
+		LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
 		HIDDENSSID="\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
@@ -1446,7 +1447,7 @@ WifiStatus() {
 			fi
 			if HotspotLookup; then
 				continue
-			elif [ ${?} -ne 1 -o -n "${WIfaceAP}" ]; then
+			elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
 				WwanReset
 			fi
 			[ -n "${WIfaceAP}" -o ${Status} -ne ${NONE} ] || \
