@@ -1,3 +1,17 @@
+wwanHotspot v2.4
+
+  Optionally, when a networking failure occurs wwanHotspot will look for
+    another hotspot and connect to it, if found.
+  New configuration variable: ReScanOnNetwFail
+    Is the minimum number of networking failures
+    that must occur to make wwanHotspot look for another hotspot.
+    Default: 1
+    Set to 0 to not look for another hotspot on networking failures.
+  Observe that this feature does not depend on the current setting of
+    BlackListNetwork: blacklisting due to networking failures.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 20 Jan 2021 08:55:55 +0100
+
 wwanHotspot v2.3
 
   * wwanHotspot.sh

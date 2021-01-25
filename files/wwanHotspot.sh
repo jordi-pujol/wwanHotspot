@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.3 $
+#  $Revision: 2.4 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -313,6 +313,9 @@ Report() {
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
 		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
+	printf '%s="%s" %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
+		"$(test ${ReScanOnNetwFail} -eq 0 && echo "Disabled" || \
+		echo "networking failures")"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
@@ -367,7 +370,7 @@ ListStatus() {
 		StatMsgsChgd="y"
 	fi
 	[ ${Status} -ne ${CONNECTED} ] || \
-		NetworkAttempts=0
+		NetworkAttempts=${NONE}
 	NoSleep="y"
 }
 
@@ -457,6 +460,7 @@ LoadConfig() {
 	Debug=""
 	ScanAuto="y"
 	ReScan="y"
+	ReScanOnNetwFail=1
 	Sleep=20
 	SleepDsc="$((Sleep*3))"
 	SleepScanAuto="$((Sleep*15))"
@@ -485,6 +489,7 @@ LoadConfig() {
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
 	ReScan="${ReScan:-}"
+	ReScanOnNetwFail="$(_integer_value "${ReScanOnNetwFail}" 1)"
 	Sleep="$(_integer_value "${Sleep}" 20)"
 	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
@@ -613,7 +618,7 @@ LoadConfig() {
 	HotspotsOrder="$(echo ${cdt_bssids} $(seq 1 ${Hotspots} | \
 		grep -svwEe "$(printf '%s' "${cdt_bssids:-0}" | \
 		tr -s "${SPACE}" '|')"))"
-	TryConnection=0
+	TryConnection=${NONE}
 	ScanErr=""
 	WwanErr=${NONE}
 	ScanRequest=${Hotspots}
@@ -622,6 +627,7 @@ LoadConfig() {
 	WwanBssid=""
 	ConnAttempts=1
 	WarnBlackList=""
+	IndReScan=""
 	Status=${NONE}
 	[ -z "${Debug}" ] || \
 		_applog "$(StatusName)"
@@ -678,7 +684,7 @@ Scanning() {
 
 # param: connected = indicator
 # returns: Hotspot WwanSsid WwanBssid
-# 	when not listed: returns false and Hotspot=0 
+# 	when not listed: returns false and Hotspot=${NONE} 
 CurrentHotspot() {
 	local connected="${1:-}" \
 		ssid
@@ -1124,6 +1130,7 @@ CheckNetworking() {
 				_applog "$(StatusName)"
 			ScanRequest=1
 		fi
+		NetworkAttempts=${NONE}
 		return 1
 	fi
 	AddStatMsg "${msg}"
@@ -1201,7 +1208,7 @@ HotspotLookup() {
 		_applog "$(StatusName)"
 	if [ $((WwanErr++)) -gt ${Hotspots} ]; then
 		Interval=${SleepScanAuto}
-		ScanRequest=0
+		ScanRequest=${NONE}
 		_msg "Can't connect to any hotspot," \
 			"probably configuration is not correct"
 		LogPrio="err" _log "${msg}"
@@ -1209,7 +1216,7 @@ HotspotLookup() {
 	else
 		Interval=${Sleep}
 	fi
-	[ ${ScanRequest} -le 0 ] || \
+	[ ${ScanRequest} -le ${NONE} ] || \
 		[ $((ScanRequest--)) ]
 }
 
@@ -1232,6 +1239,31 @@ ReScanning() {
 	_applog "${msg}"
 	AddMsg "${msg}"
 	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+}
+
+ReScanningOnNetwFail() {
+	[ ${ReScanOnNetwFail} -ne ${NONE} -a \
+	${NetworkAttempts} -ge ${ReScanOnNetwFail} ] || \
+		return 0
+	local hotspot ssid bssid msg \
+		failingHotspot="${Hotspot}"
+	msg="Re-Scanning on networking failure"
+	_applog "${msg}"
+	AddMsg "${msg}"
+	NoSleep="y"
+	eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
+	if DoScan "y"; then
+		ClrStatMsgs
+		msg="Reconnection required"
+		_applog "${msg}"
+		AddMsg "${msg}"
+		HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+	elif [ -n "${Debug}" ]; then
+		msg="Another hotspot is not available"
+		_applog "${msg}"
+		AddMsg "${msg}"
+	fi
+	unset net${failingHotspot}_blacklisted
 }
 
 Settle() {
@@ -1290,7 +1322,8 @@ WifiStatus() {
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# config variables
-	local Debug ScanAuto ReScan Sleep SleepDsc SleepScanAuto \
+	local Debug ScanAuto ReScan ReScanOnNetwFail \
+		Sleep SleepDsc SleepScanAuto \
 		BlackList BlackListExpires BlackListNetwork BlackListNetworkExpires \
 		PingWait MinTrafficBps LogRotate ReportUpdtLapse
 	# internal variables, daemon scope
@@ -1322,7 +1355,7 @@ WifiStatus() {
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 		wwdsc="$(test "${WwanDisabled}" = 1 || IsWwanDisconnected)"
 		if [ "${WwanDisabled}" != 1 -a -z "${wwdsc}" ]; then
-			TryConnection=0
+			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
@@ -1342,7 +1375,9 @@ WifiStatus() {
 					Status=${CONNECTED}
 					[ -z "${Debug}" ] || \
 						_applog "$(StatusName)"
-					ScanRequest=0
+					ScanRequest=${NONE}
+				else
+					ReScanningOnNetwFail
 				fi
 			elif [ -n "${IndReScan}" ]; then
 				ReScanning
@@ -1352,6 +1387,8 @@ WifiStatus() {
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddMsg "${msg}"
+			else
+				ReScanningOnNetwFail
 			fi
 			continue
 		fi
@@ -1360,7 +1397,7 @@ WifiStatus() {
 				[ $((TryConnection--)) ]
 				continue
 			fi
-			TryConnection=0
+			TryConnection=${NONE}
 			msg="Hotspot $(HotspotName) is gone while connecting"
 			_log "${msg}"
 			AddStatMsg "${msg}"

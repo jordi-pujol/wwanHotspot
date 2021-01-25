@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.3 $
+#  $Revision: 2.4 $
 #
 #  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
