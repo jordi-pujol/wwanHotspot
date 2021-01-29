@@ -313,25 +313,25 @@ Report() {
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
 		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
-	printf '%s="%s" %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
-		"$(test ${ReScanOnNetwFail} -eq 0 && echo "Disabled" || \
+	printf '%s=%s %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
+		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "Disabled" || \
 		echo "networking failures")"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
 	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
-		"$(test ${BlackList} -eq 0 && echo "Disabled" || echo "errors")"
+		"$(test ${BlackList} -eq ${NONE} && echo "Disabled" || echo "errors")"
 	printf '%s=%d %s\n' "BlackListExpires" "${BlackListExpires}" \
-		"$(test ${BlackListExpires} -eq 0 && echo "Never" || echo "seconds")"
+		"$(test ${BlackListExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
 	printf '%s=%d %s\n' "BlackListNetwork" "${BlackListNetwork}" \
-		"$(test ${BlackListNetwork} -eq 0 && echo "Disabled" || echo "errors")"
+		"$(test ${BlackListNetwork} -eq ${NONE} && echo "Disabled" || echo "errors")"
 	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
-		"$(test ${BlackListNetworkExpires} -eq 0 && echo "Never" || echo "seconds")"
+		"$(test ${BlackListNetworkExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
 	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
 	printf '%s=%d %s\n' "MinTrafficBps" "${MinTrafficBps}" \
-		"$(test ${MinTrafficBps} -eq 0 && echo "Disabled" || echo "bytes per second")"
+		"$(test ${MinTrafficBps} -eq ${NONE} && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
-		"$(test ${ReportUpdtLapse} -eq 0 && echo "Disabled" || echo "seconds")"
+		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "Disabled" || echo "seconds")"
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
 	while [ $((i++)) -lt ${Hotspots} ]; do
@@ -342,7 +342,7 @@ Report() {
 	printf '%s %s\n' "Current hotspot client is" \
 		"$(HotspotName)"
 	printf '%s %s%s\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != 1 && \
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != ${UCIDISABLED} && \
 		echo "en" || echo "dis")" "abled"
 	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
 		"$(IsWifiActive "${WwanBssid:-}" "${WwanSsid:-}" || \
@@ -363,7 +363,7 @@ ListStatus() {
 	local msg="${@:-"Updating status report"}"
 	UpdateReport="y"
 	_applog "${msg}"
-	if [ ${ReportUpdtLapse} -eq 0 ]; then
+	if [ ${ReportUpdtLapse} -eq ${NONE} ]; then
 		AddStatMsg "${msg}"
 	else
 		UpdtMsgs="$(_datetime) ${msg}"
@@ -657,7 +657,7 @@ IsWwanDisconnected() {
 MustScan() {
 	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
 		return ${OK}
-	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq 0 ]
+	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq ${NONE} ]
 }
 
 Scanning() {
@@ -941,7 +941,7 @@ EOF
 }
 
 WwanReset() {
-	local disable="${1:-"1"}" \
+	local disable="${1:-${UCIDISABLED}}" \
 		iface="${2:-"${WIfaceSTA}"}" \
 		msg
 
@@ -978,10 +978,11 @@ WwanReset() {
 		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
 		[ ${disabled:-"0"} -ne ${disable} ] || \
 			return ${OK}
-		[ ${disable} -eq 1 ] && \
+		[ ${disable} -eq ${UCIDISABLED} ] && \
 			uci set wireless.@wifi-iface[${iface}].disabled=${disable} || \
 			uci -q delete wireless.@wifi-iface[${iface}].disabled || :
-		_msg "$([ ${disable} -eq 1 ] && echo "Dis" || echo "En")abling wireless" \
+		_msg "$([ ${disable} -eq ${UCIDISABLED} ] && \
+			echo "Dis" || echo "En")abling wireless" \
 			"$([ "${iface}" = "${WIfaceSTA}" ] && \
 				echo "interface to $(HotspotName)" || \
 				echo "Access Point")"
@@ -1099,13 +1100,13 @@ CheckNetworking() {
 				"has been verified" || \
 			rc=${?}
 	fi
-	if [ ${rc} -eq 0 ]; then
+	if [ ${rc} -eq ${OK} ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
 			AddMsg "${msg}"
-			[ ${NetworkAttempts} -eq 0 ] && \
+			[ ${NetworkAttempts} -eq ${NONE} ] && \
 				_applog "${msg}" || \
 				_log "${msg}"
 			NetworkAttempts=1
@@ -1179,9 +1180,9 @@ HotspotLookup() {
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		SetEncryption
-		[ "${WwanDisabled}" != 1 ] || \
+		[ "${WwanDisabled}" != ${UCIDISABLED} ] || \
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].disabled
-		if [ "${WwanDisabled}" != 1 ]; then
+		if [ "${WwanDisabled}" != ${UCIDISABLED} ]; then
 			wifi down "${WDevice}"
 			wifi up "${WDevice}"
 		else
@@ -1192,7 +1193,7 @@ HotspotLookup() {
 		_log "${msg}"
 		AddStatMsg "${msg}"
 		WatchWifi ${Sleep} &
-	elif [ "${WwanDisabled}" = 1 ]; then
+	elif [ "${WwanDisabled}" = ${UCIDISABLED} ]; then
 		WwanReset 0
 		TryConnection=2
 	else
@@ -1289,7 +1290,7 @@ Settle() {
 	[ -z "${pids}" ] || \
 		WaitSubprocess ${Sleep} "y" "${pids}" || :
 	if [ -n "${UpdateReport}" ] || \
-	[ -n "${StatMsgsChgd}" -a ${ReportUpdtLapse} -eq 0 ]; then
+	[ -n "${StatMsgsChgd}" -a ${ReportUpdtLapse} -eq ${NONE} ]; then
 		StatMsgsChgd=""
 		UpdateReport=""
 		Report &
@@ -1317,7 +1318,7 @@ Settle() {
 
 WifiStatus() {
 	# constants
-	readonly OK=0 ERR=1 \
+	readonly OK=0 ERR=1 UCIDISABLED=1 \
 		LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
 		HIDDENSSID="\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
@@ -1354,8 +1355,8 @@ WifiStatus() {
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		wwdsc="$(test "${WwanDisabled}" = 1 || IsWwanDisconnected)"
-		if [ "${WwanDisabled}" != 1 -a -z "${wwdsc}" ]; then
+		wwdsc="$(test "${WwanDisabled}" = ${UCIDISABLED} || IsWwanDisconnected)"
+		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -z "${wwdsc}" ]; then
 			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
@@ -1404,14 +1405,14 @@ WifiStatus() {
 			AddStatMsg "${msg}"
 		fi
 		CurrentHotspot || :
-		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = 1 ] || \
+		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = ${UCIDISABLED} ] || \
 		( [ -n "${WIfaceAP}" ] && \
-		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = 1 ] ); then
+		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = ${UCIDISABLED} ] ); then
 			WwanReset 0 "${WIfaceAP}"
 			Interval=${Sleep}
 			continue
 		fi
-		if [ "${WwanDisabled}" != 1 -a -n "${wwdsc}" ]; then
+		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -n "${wwdsc}" ]; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				ClrStatMsgs
 				msg="Lost connection $(HotspotName)"
@@ -1480,10 +1481,10 @@ WifiStatus() {
 			_applog "${msg}"
 			AddMsg "${msg}"
 		fi
-		if [ "${WwanDisabled}" != 1 -a -n "${WIfaceAP}" ]; then
+		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}
 		elif [ -n "${ScanAuto}" ] && \
-		[ $(ActiveDefaultRoutes) -eq 0 ]; then
+		[ $(ActiveDefaultRoutes) -eq ${NONE} ]; then
 			Interval=${SleepDsc}
 		else
 			Interval=${SleepScanAuto}
