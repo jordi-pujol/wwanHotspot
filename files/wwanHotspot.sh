@@ -185,6 +185,7 @@ HotspotBlackList() {
 		eval net${Hotspot}_blacklistexp=\"$((expires+$(_UTCseconds)))\" || :
 		msg="${msg} for ${expires} seconds"
 	fi
+	NetwFailures=${NONE}
 	ClrStatMsgs
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "${msg}"
@@ -369,8 +370,6 @@ ListStatus() {
 		UpdtMsgs="$(_datetime) ${msg}"
 		StatMsgsChgd="y"
 	fi
-	[ ${Status} -ne ${CONNECTED} ] || \
-		NetworkAttempts=${NONE}
 	NoSleep="y"
 }
 
@@ -628,6 +627,7 @@ LoadConfig() {
 	ConnAttempts=1
 	WarnBlackList=""
 	IndReScan=""
+	NetwFailures=${NONE}
 	Status=${NONE}
 	[ -z "${Debug}" ] || \
 		_applog "$(StatusName)"
@@ -1082,7 +1082,7 @@ CheckNetworking() {
 			[ $((b/t)) -ge ${MinTrafficBps} ]; then
 				rc=${OK}
 				_msg "Networking of $(HotspotName) to" \
-					"the external network is working"
+					"the external network does work"
 			fi
 			[ -z "${Debug}" ] || \
 				_applog "STA interface received ${b} bytes in ${t} seconds"
@@ -1101,28 +1101,28 @@ CheckNetworking() {
 			rc=${?}
 	fi
 	if [ ${rc} -eq ${OK} ]; then
-		if [ ${Status} -eq ${CONNECTED} -a ${NetworkAttempts} -eq 1 ]; then
+		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -eq ${NONE} ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
 			AddMsg "${msg}"
-			[ ${NetworkAttempts} -eq ${NONE} ] && \
+			[ ${NetwFailures} -eq ${NONE} ] && \
 				_applog "${msg}" || \
 				_log "${msg}"
-			NetworkAttempts=1
+			NetwFailures=${NONE}
 		fi
 		return ${OK}
 	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
+		NetwFailures=${NONE}
 		return ${OK}
 	fi
-	[ ${NetworkAttempts} -gt 0 ] || \
-		NetworkAttempts=1
-	_msg "${NetworkAttempts} networking" \
-		"failure$([ ${NetworkAttempts} -le 1 ] || echo "s")" \
+	[ $((NetwFailures++)) ]
+	_msg "${NetwFailures} networking" \
+		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
 	LogPrio="warn" _log "${msg}"
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
-	[ ${NetworkAttempts} -ge ${BlackListNetwork} ]; then
+	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
 		if ! HotspotLookup; then
 			WwanReset
@@ -1131,12 +1131,10 @@ CheckNetworking() {
 				_applog "$(StatusName)"
 			ScanRequest=1
 		fi
-		NetworkAttempts=${NONE}
 		return ${ERR}
 	fi
 	AddStatMsg "${msg}"
 	NoSleep=""
-	[ $((NetworkAttempts++)) ]
 }
 
 HotspotLookup() {
@@ -1217,6 +1215,7 @@ HotspotLookup() {
 	else
 		Interval=${Sleep}
 	fi
+	NetwFailures=${NONE}
 	[ ${ScanRequest} -le ${NONE} ] || \
 		[ $((ScanRequest--)) ]
 }
@@ -1244,7 +1243,7 @@ ReScanning() {
 
 ReScanningOnNetwFail() {
 	[ ${ReScanOnNetwFail} -ne ${NONE} -a \
-	${NetworkAttempts} -ge ${ReScanOnNetwFail} ] || \
+	${NetwFailures} -ge ${ReScanOnNetwFail} ] || \
 		return ${OK}
 	local hotspot ssid bssid msg \
 		failingHotspot="${Hotspot}"
@@ -1259,10 +1258,11 @@ ReScanningOnNetwFail() {
 		_applog "${msg}"
 		AddMsg "${msg}"
 		HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
-	elif [ -n "${Debug}" ]; then
+	else
 		msg="Another hotspot is not available"
-		_applog "${msg}"
 		AddMsg "${msg}"
+		[ -z "${Debug}" ] || \
+			_applog "${msg}"
 	fi
 	unset net${failingHotspot}_blacklisted
 }
@@ -1334,7 +1334,7 @@ WifiStatus() {
 		ScanRequest ScanErr IndReScan \
 		Status StatMsgsChgd StatMsgs \
 		UpdateReport UpdtMsgs Interval NoSleep \
-		Hotspot ConnAttempts NetworkAttempts Traffic CheckTime \
+		Hotspot ConnAttempts NetwFailures Traffic CheckTime \
 		LogPrio WarnBlackList \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection WIface WIfaceAP WIfaceSTA WDevice \
@@ -1365,7 +1365,7 @@ WifiStatus() {
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
 						"$(HotspotName)"
-				NetworkAttempts=1
+				NetwFailures=${NONE}
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
 					UpdateReport="y"
