@@ -336,7 +336,13 @@ Report() {
 	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
 	local i=0
 	while [ $((i++)) -lt ${Hotspots} ]; do
-		set | grep -se "^net${i}_"
+		set | awk -v i="${i}" \
+			'BEGIN{FS="="}
+			$1 ~ "^net"i"_blacklistexp" {
+				printf $0 " "
+				system("date +%F_%X --date=@" $2)
+				next}
+			$1 ~ "^net"i"_" {print}'
 		echo
 	done
 	iwinfo
@@ -848,6 +854,8 @@ EOF
 		eval ssid1=\"\${net${i}_ssid:-}\"
 		eval bssid1=\"\${net${i}_bssid:-}\"
 		eval blacklisted=\"\${net${i}_blacklisted:-}\"
+		! echo "${blacklisted}" | grep -qsF 'NetworkingFailure' || \
+			continue
 		eval hidden=\"\${net${i}_hidden:-}\"
 		if [ -n "${hidden}" ]; then
 			[ "${hidden}" = "y" ] && \
@@ -1015,6 +1023,108 @@ CheckNetw() {
 	fi
 }
 
+HotspotLookup() {
+	local clrmsgs="${1:-}" \
+		hotspot="${2:-}" \
+		bssid="${3:-}" \
+		ssid="${4:-}"
+
+	[ -n "${hotspot}" ] || \
+		DoScan || return ${?}
+
+	[ ${Hotspot} -eq ${hotspot} ] || {
+		ConnAttempts=1
+		Hotspot=${hotspot}; }
+
+	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
+		ClrStatMsgs
+	local encrypt key hidden wencrypt wkey
+	eval encrypt=\"\${net${Hotspot}_encrypt:-}\"
+	eval key=\"\${net${Hotspot}_key:-}\"
+	eval hidden=\"\${net${Hotspot}_hidden:-}\"
+	wencrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+	if printf '%s\n' "${wencrypt}" | grep -qsie "^wep"; then
+		wkey="$(uci -q get \
+			wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
+	else
+		wkey="$(uci -q get \
+			wireless.@wifi-iface[${WIfaceSTA}].key)" || :
+	fi
+	if [ "${ssid}" != "${WwanSsid}" -a \
+	\( -z "${hidden}" -o -n "${ssid}" \) ] || \
+	[ "${bssid}" != "${WwanBssid}" -o \
+	"${encrypt}" != "${wencrypt}" -o \
+	"${key}" != "${wkey}" ]; then
+		WwanSsid="${ssid}"
+		WwanBssid="${bssid}"
+		_log "Hotspot $(HotspotName) found. Applying settings..."
+		WwanErr=${NONE}
+		[ -n "${WwanSsid}" ] && \
+			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}" || \
+			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
+		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
+		SetEncryption
+		if [ "${WwanDisabled}" != ${UCIDISABLED} ]; then
+			wifi down "${WDevice}"
+			wifi up "${WDevice}"
+		else
+			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].disabled
+			/etc/init.d/network reload
+		fi
+		TryConnection=2
+		msg="Connecting to $(HotspotName)..."
+		_log "${msg}"
+		AddStatMsg "${msg}"
+		WatchWifi ${Sleep} &
+	elif [ "${WwanDisabled}" = ${UCIDISABLED} ]; then
+		WwanReset 0
+		TryConnection=2
+	else
+		_msg "Client interface to" \
+			"$(HotspotName) is already enabled"
+		[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
+			_applog "${msg}"
+		[ -z "${StatMsgsChgd}" ] || \
+			AddStatMsg "${msg}"
+	fi
+	Status=${CONNECTING}
+	[ -z "${Debug}" ] || \
+		_applog "$(StatusName)"
+	if [ $((WwanErr++)) -gt ${Hotspots} ]; then
+		Interval=${SleepScanAuto}
+		ScanRequest=${NONE}
+		_msg "Can't connect to any hotspot," \
+			"probably configuration is not correct"
+		LogPrio="err" _log "${msg}"
+		AddStatMsg "${msg}"
+	else
+		Interval=${Sleep}
+	fi
+	[ ${ScanRequest} -le ${NONE} ] || \
+		[ $((ScanRequest--)) ]
+}
+
+ReScanning() {
+	local hotspot ssid bssid msg
+	msg="Re-scanning"
+	_applog "${msg}"
+	AddMsg "${msg}"
+	NoSleep="y"
+	DoScan "y" || \
+		return ${OK}
+	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
+		msg="Actually the best hotspot is $(HotspotName)"
+		_applog "${msg}"
+		AddMsg "${msg}"
+		return ${OK}
+	fi
+	ClrStatMsgs
+	msg="Reconnection required"
+	_applog "${msg}"
+	AddMsg "${msg}"
+	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+}
+
 CheckNetworking() {
 	local check
 	eval check=\"\${net${Hotspot}_check:-}\"
@@ -1113,7 +1223,6 @@ CheckNetworking() {
 		fi
 		return ${OK}
 	elif [ ${rc} -gt 127 -a ${rc} -ne 143 ]; then
-		NetwFailures=${NONE}
 		return ${OK}
 	fi
 	[ $((NetwFailures++)) ]
@@ -1124,147 +1233,43 @@ CheckNetworking() {
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
-		if ! HotspotLookup; then
+		if HotspotLookup; then
+			return ${OK}
+		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
 			WwanReset
-			Status=${DISCONNECTED}
-			[ -z "${Debug}" ] || \
-				_applog "$(StatusName)"
-			ScanRequest=1
 		fi
+		Status=${DISCONNECTED}
+		[ -z "${Debug}" ] || \
+			_applog "$(StatusName)"
+		ScanRequest=1
 		return ${ERR}
 	fi
 	AddStatMsg "${msg}"
-	NoSleep=""
-}
-
-HotspotLookup() {
-	local clrmsgs="${1:-}" \
-		hotspot="${2:-}" \
-		bssid="${3:-}" \
-		ssid="${4:-}"
-
-	[ -n "${hotspot}" ] || \
-		DoScan || return ${?}
-
-	[ ${Hotspot} -eq ${hotspot} ] || {
-		ConnAttempts=1
-		Hotspot=${hotspot}; }
-
-	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
-		ClrStatMsgs
-	local encrypt key hidden wencrypt wkey
-	eval encrypt=\"\${net${Hotspot}_encrypt:-}\"
-	eval key=\"\${net${Hotspot}_key:-}\"
-	eval hidden=\"\${net${Hotspot}_hidden:-}\"
-	wencrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
-	if printf '%s\n' "${wencrypt}" | grep -qsie "^wep"; then
-		wkey="$(uci -q get \
-			wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
-	else
-		wkey="$(uci -q get \
-			wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-	fi
-	if [ "${ssid}" != "${WwanSsid}" -a \
-	\( -z "${hidden}" -o -n "${ssid}" \) ] || \
-	[ "${bssid}" != "${WwanBssid}" -o \
-	"${encrypt}" != "${wencrypt}" -o \
-	"${key}" != "${wkey}" ]; then
-		WwanSsid="${ssid}"
-		WwanBssid="${bssid}"
-		_log "Hotspot $(HotspotName) found. Applying settings..."
-		WwanErr=${NONE}
-		[ -n "${WwanSsid}" ] && \
-			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}" || \
-			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
-		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
-		SetEncryption
-		[ "${WwanDisabled}" != ${UCIDISABLED} ] || \
-			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].disabled
-		if [ "${WwanDisabled}" != ${UCIDISABLED} ]; then
-			wifi down "${WDevice}"
-			wifi up "${WDevice}"
-		else
-			/etc/init.d/network reload
-		fi
-		TryConnection=2
-		msg="Connecting to $(HotspotName)..."
-		_log "${msg}"
-		AddStatMsg "${msg}"
-		WatchWifi ${Sleep} &
-	elif [ "${WwanDisabled}" = ${UCIDISABLED} ]; then
-		WwanReset 0
-		TryConnection=2
-	else
-		_msg "Client interface to" \
-			"$(HotspotName) is already enabled"
-		[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
+	if [ ${ReScanOnNetwFail} -ne ${NONE} -a \
+	${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
+		local hotspot ssid bssid \
+			failingHotspot="${Hotspot}"
+		msg="Re-scanning on networking failure"
+		_applog "${msg}"
+		AddMsg "${msg}"
+		eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
+		if DoScan "y"; then
+			unset net${failingHotspot}_blacklisted
+			ClrStatMsgs
+			msg="Reconnection required"
 			_applog "${msg}"
-		[ -z "${StatMsgsChgd}" ] || \
-			AddStatMsg "${msg}"
-	fi
-	Status=${CONNECTING}
-	[ -z "${Debug}" ] || \
-		_applog "$(StatusName)"
-	if [ $((WwanErr++)) -gt ${Hotspots} ]; then
-		Interval=${SleepScanAuto}
-		ScanRequest=${NONE}
-		_msg "Can't connect to any hotspot," \
-			"probably configuration is not correct"
-		LogPrio="err" _log "${msg}"
-		AddStatMsg "${msg}"
-	else
-		Interval=${Sleep}
-	fi
-	NetwFailures=${NONE}
-	[ ${ScanRequest} -le ${NONE} ] || \
-		[ $((ScanRequest--)) ]
-}
-
-ReScanning() {
-	local hotspot ssid bssid msg
-	msg="Re-Scanning"
-	_applog "${msg}"
-	AddMsg "${msg}"
-	NoSleep="y"
-	DoScan "y" || \
-		return ${OK}
-	if [ "${ssid}" = "${WwanSsid}" -a "${bssid}" = "${WwanBssid}" ]; then
-		msg="Actually the best hotspot is $(HotspotName)"
-		_applog "${msg}"
-		AddMsg "${msg}"
-		return ${OK}
-	fi
-	ClrStatMsgs
-	msg="Reconnection required"
-	_applog "${msg}"
-	AddMsg "${msg}"
-	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
-}
-
-ReScanningOnNetwFail() {
-	[ ${ReScanOnNetwFail} -ne ${NONE} -a \
-	${NetwFailures} -ge ${ReScanOnNetwFail} ] || \
-		return ${OK}
-	local hotspot ssid bssid msg \
-		failingHotspot="${Hotspot}"
-	msg="Re-Scanning on networking failure"
-	_applog "${msg}"
-	AddMsg "${msg}"
-	NoSleep="y"
-	eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
-	if DoScan "y"; then
-		ClrStatMsgs
-		msg="Reconnection required"
-		_applog "${msg}"
-		AddMsg "${msg}"
-		HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
-	else
+			AddMsg "${msg}"
+			HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+			NoSleep=""
+			return ${ERR}
+		fi
+		unset net${failingHotspot}_blacklisted
 		msg="Another hotspot is not available"
 		AddMsg "${msg}"
 		[ -z "${Debug}" ] || \
 			_applog "${msg}"
 	fi
-	unset net${failingHotspot}_blacklisted
+	NoSleep=""
 }
 
 Settle() {
@@ -1378,8 +1383,6 @@ WifiStatus() {
 					[ -z "${Debug}" ] || \
 						_applog "$(StatusName)"
 					ScanRequest=${NONE}
-				else
-					ReScanningOnNetwFail
 				fi
 			elif [ -n "${IndReScan}" ]; then
 				ReScanning
@@ -1389,8 +1392,6 @@ WifiStatus() {
 					_applog "${msg}"
 				[ -z "${StatMsgsChgd}" ] || \
 					AddMsg "${msg}"
-			else
-				ReScanningOnNetwFail
 			fi
 			continue
 		fi
