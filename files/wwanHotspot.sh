@@ -338,7 +338,7 @@ Report() {
 	while [ $((i++)) -lt ${Hotspots} ]; do
 		set | awk -v i="${i}" \
 			'BEGIN{FS="="}
-			$1 ~ "^net"i"_blacklistexp" {
+			$1 == "net"i"_blacklistexp" {
 				printf $0 " "
 				system("date +%F_%X --date=@" $2)
 				next}
@@ -1234,7 +1234,7 @@ CheckNetworking() {
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
 		if HotspotLookup; then
-			return ${OK}
+			return ${ERR}
 		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
 			WwanReset
 		fi
