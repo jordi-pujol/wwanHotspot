@@ -5,7 +5,7 @@
 #  Wireless WAN Hotspot management application for OpenWrt routers.
 #  $Revision: 2.4 $
 #
-#  Copyright (C) 2017-2020 Jordi Pujol <jordipujolp AT gmail DOT com>
+#  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -41,7 +41,11 @@ _UTCseconds() {
 }
 
 _datetime() {
-	date +'%F %X'
+	date +'%F %X' "${@}"
+}
+
+_msgdatetime() {
+	_datetime "--date=@${MsgTime}"
 }
 
 _ps_children() {
@@ -144,7 +148,8 @@ ClrStatMsgs() {
 }
 
 AddStatMsg() {
-	local msg="$(_datetime) ${@}"
+	MsgTime=$(_UTCseconds)
+	local msg="$(_msgdatetime) ${@}"
 	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
@@ -163,9 +168,12 @@ AddStatMsg() {
 
 AddMsg() {
 	local msg="${@}"
-	[ -n "${UpdtMsgs}" ] && \
-		UpdtMsgs="${UpdtMsgs}${LF}$(_datetime) ${msg}" || \
+	if [ -n "${UpdtMsgs}" ]; then
+		MsgTime=$(_UTCseconds)
+		UpdtMsgs="${UpdtMsgs}${LF}$(_msgdatetime) ${msg}"
+	else
 		AddStatMsg "${msg}"
+	fi
 }
 
 IfaceTraffic() {
@@ -254,13 +262,12 @@ WatchWifi() {
 
 AnyOtherHotspot() {
 	local n=0
-	while [ $((n++)) ];
-	eval ssid=\"\${net${n}_ssid:-}\" && \
-	eval bssid=\"\${net${n}_bssid:-}\" && \
-	[ -n "${ssid}" -o -n "${bssid}" ]; do
+	while [ $((n++)) -lt ${Hotspots} ]; do
 		[ -z "$(eval echo \"\${net${n}_blacklisted:-}\")" ] || \
 			continue
 		hotspot=${n}
+		eval ssid=\"\${net${n}_ssid:-}\"
+		eval bssid=\"\${net${n}_bssid:-}\"
 		return ${OK}
 	done
 	hotspot=${NONE}
@@ -373,7 +380,8 @@ ListStatus() {
 	if [ ${ReportUpdtLapse} -eq ${NONE} ]; then
 		AddStatMsg "${msg}"
 	else
-		UpdtMsgs="$(_datetime) ${msg}"
+		MsgTime=$(_UTCseconds)
+		UpdtMsgs="$(_msgdatetime) ${msg}"
 		StatMsgsChgd="y"
 	fi
 	NoSleep="y"
@@ -1005,24 +1013,6 @@ WwanReset() {
 	WatchWifi &
 }
 
-CheckNetw() {
-	[ "${Debug}" = "xtrace" ] && \
-		exec >&2 || \
-		exec > /dev/null 2>&1
-	if [ -n "${CheckSrvr}" ]; then
-		if [ -n "${CheckInet}" ]; then
-			wget -nv --spider -T ${PingWait} --no-check-certificate \
-			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
-			grep -sF "200 OK"
-		else
-			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
-				nc "${CheckSrvr}" ${CheckPort}
-		fi
-	else
-		ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
-	fi
-}
-
 HotspotLookup() {
 	local clrmsgs="${1:-}" \
 		hotspot="${2:-}" \
@@ -1123,6 +1113,24 @@ ReScanning() {
 	_applog "${msg}"
 	AddMsg "${msg}"
 	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+}
+
+CheckNetw() {
+	[ "${Debug}" = "xtrace" ] && \
+		exec >&2 || \
+		exec > /dev/null 2>&1
+	if [ -n "${CheckSrvr}" ]; then
+		if [ -n "${CheckInet}" ]; then
+			wget -nv --spider -T ${PingWait} --no-check-certificate \
+			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
+			grep -sF "200 OK"
+		else
+			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
+				nc "${CheckSrvr}" ${CheckPort}
+		fi
+	else
+		ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
+	fi
 }
 
 CheckNetworking() {
@@ -1245,8 +1253,8 @@ CheckNetworking() {
 		return ${ERR}
 	fi
 	AddStatMsg "${msg}"
-	if [ ${ReScanOnNetwFail} -ne ${NONE} -a \
-	${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
+	if [ ${ReScanOnNetwFail} -ne ${NONE} ] && \
+	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
 		local hotspot ssid bssid \
 			failingHotspot="${Hotspot}"
 		msg="Re-scanning on networking failure"
@@ -1302,8 +1310,8 @@ Settle() {
 		WaitSubprocess "" "y" || :
 		UpdtMsgs=""
 	elif [ ${ReportUpdtLapse} -ne 0 ] && \
-	( [ $((tl=$(_UTCseconds)-$(date +'%s' -r "/var/log/${NAME}.stat"))) \
-	-lt 0 ] || [ ${ReportUpdtLapse} -lt ${tl} ] ); then
+	( [ $((tl=$(_UTCseconds)-MsgTime))	-lt 0 ] || \
+	[ ${ReportUpdtLapse} -lt ${tl} ] ); then
 		ListStatus "Time lapse exceeded, requesting a report update"
 	else
 		StatMsgsChgd=""
@@ -1337,7 +1345,7 @@ WifiStatus() {
 	local WwanSsid WwanBssid WwanDisabled WwanErr \
 		Ssids Hotspots HotspotsOrder IfaceWan \
 		ScanRequest ScanErr IndReScan \
-		Status StatMsgsChgd StatMsgs \
+		Status StatMsgsChgd StatMsgs MsgTime \
 		UpdateReport UpdtMsgs Interval NoSleep \
 		Hotspot ConnAttempts NetwFailures Traffic CheckTime \
 		LogPrio WarnBlackList \
