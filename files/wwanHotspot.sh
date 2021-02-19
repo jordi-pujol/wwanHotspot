@@ -1238,21 +1238,6 @@ CheckNetworking() {
 		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
 	LogPrio="warn" _log "${msg}"
-	if [ ${BlackListNetwork} -ne ${NONE} ] && \
-	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
-		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
-		if HotspotLookup; then
-			return ${ERR}
-		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
-			WwanReset
-		fi
-		Status=${DISCONNECTED}
-		[ -z "${Debug}" ] || \
-			_applog "$(StatusName)"
-		ScanRequest=1
-		return ${ERR}
-	fi
-	AddStatMsg "${msg}"
 	if [ ${ReScanOnNetwFail} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
 		local hotspot ssid bssid \
@@ -1277,6 +1262,24 @@ CheckNetworking() {
 		[ -z "${Debug}" ] || \
 			_applog "${msg}"
 	fi
+	_msg "${NetwFailures} networking" \
+		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
+		"on $(HotspotName)"
+	if [ ${BlackListNetwork} -ne ${NONE} ] && \
+	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
+		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
+		if HotspotLookup; then
+			return ${ERR}
+		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
+			WwanReset
+		fi
+		Status=${DISCONNECTED}
+		[ -z "${Debug}" ] || \
+			_applog "$(StatusName)"
+		ScanRequest=1
+		return ${ERR}
+	fi
+	AddStatMsg "${msg}"
 	NoSleep=""
 }
 
