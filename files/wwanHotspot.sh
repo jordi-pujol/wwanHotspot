@@ -768,7 +768,7 @@ DoScan() {
 	BlackListExpired
 
 	[ -z "${Debug}" ] || \
-		_applog "Do-Scan - Scanning"
+		_applog "Do-Scan - scanning"
 
 	local scanned msg
 
@@ -1115,6 +1115,33 @@ ReScanning() {
 	HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
 }
 
+ReScanningOnNetwFail() {
+	[ ${ReScanOnNetwFail} -ne ${NONE} ] && \
+	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ] || \
+		return ${OK}
+	local hotspot ssid bssid msg \
+		failingHotspot="${Hotspot}"
+	msg="Re-scanning on networking failure"
+	_applog "${msg}"
+	AddMsg "${msg}"
+	eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
+	if DoScan "y"; then
+		unset net${failingHotspot}_blacklisted
+		ClrStatMsgs
+		msg="Reconnection required"
+		_applog "${msg}"
+		AddMsg "${msg}"
+		HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
+		NoSleep=""
+		return ${ERR}
+	fi
+	unset net${failingHotspot}_blacklisted
+	msg="Another hotspot is not available"
+	AddMsg "${msg}"
+	[ -z "${Debug}" ] || \
+		_applog "${msg}"
+}
+
 CheckNetw() {
 	[ "${Debug}" = "xtrace" ] && \
 		exec >&2 || \
@@ -1238,33 +1265,8 @@ CheckNetworking() {
 		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
 	LogPrio="warn" _log "${msg}"
-	if [ ${ReScanOnNetwFail} -ne ${NONE} ] && \
-	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
-		local hotspot ssid bssid \
-			failingHotspot="${Hotspot}"
-		msg="Re-scanning on networking failure"
-		_applog "${msg}"
-		AddMsg "${msg}"
-		eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
-		if DoScan "y"; then
-			unset net${failingHotspot}_blacklisted
-			ClrStatMsgs
-			msg="Reconnection required"
-			_applog "${msg}"
-			AddMsg "${msg}"
-			HotspotLookup "" "${hotspot}" "${bssid}" "${ssid}"
-			NoSleep=""
-			return ${ERR}
-		fi
-		unset net${failingHotspot}_blacklisted
-		msg="Another hotspot is not available"
-		AddMsg "${msg}"
-		[ -z "${Debug}" ] || \
-			_applog "${msg}"
-	fi
-	_msg "${NetwFailures} networking" \
-		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
-		"on $(HotspotName)"
+	ReScanningOnNetwFail || \
+		return ${ERR}
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
@@ -1313,7 +1315,7 @@ Settle() {
 		WaitSubprocess "" "y" || :
 		UpdtMsgs=""
 	elif [ ${ReportUpdtLapse} -ne 0 ] && \
-	( [ $((tl=$(_UTCseconds)-MsgTime))	-lt 0 ] || \
+	( [ $((tl=$(_UTCseconds)-MsgTime)) -lt 0 ] || \
 	[ ${ReportUpdtLapse} -lt ${tl} ] ); then
 		ListStatus "Time lapse exceeded, requesting a report update"
 	else
