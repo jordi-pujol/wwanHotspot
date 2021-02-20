@@ -688,8 +688,8 @@ Scanning() {
 		fi
 		printf '%s\n' "${err}" | \
 		grep -qsF 'command failed: Network is down' || \
-			LogPrio="err"
-		_log "Can't scan wifi, restarting the network"
+			LogPrio="err" \
+			_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network reload
 		WatchWifi ${Sleep}
 	done
