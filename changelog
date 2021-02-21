@@ -1,5 +1,7 @@
 wwanHotspot v2.4
 
+  * Update Copyright period to include current year 2021.
+
   * Optionally, when a networking failure occurs wwanHotspot will look for
     another hotspot and connect to it, if found.
     - New configuration variable: ReScanOnNetwFail
@@ -10,12 +12,11 @@ wwanHotspot v2.4
     - Observe that this feature does not depend on the current setting of
       BlackListNetwork: blacklisting due to networking failures.
 
-  * Adding some other readonly variables to clarify code.
-
-  * Update Copyright period to include current year 2021.
-
-  * Don't set the modification time of wwanHotspot.stat
-    but save the time of the last message added.
+  * wwanHotspot.sh
+    - Adding some other readonly variables to clarify code.
+    - Don't set the modification time of file /var/log/wwanHotspot.stat
+      instead save the time of the last message added.
+    - variable WwanDisabled is an indicator.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 20 Jan 2021 08:55:55 +0100
 

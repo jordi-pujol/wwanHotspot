@@ -688,8 +688,8 @@ Scanning() {
 		fi
 		printf '%s\n' "${err}" | \
 		grep -qsF 'command failed: Network is down' || \
-			LogPrio="err" \
-			_log "Can't scan wifi, restarting the network"
+			LogPrio="err"
+		_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network reload
 		WatchWifi ${Sleep}
 	done
@@ -1054,7 +1054,7 @@ HotspotLookup() {
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		SetEncryption
-		if [ "${WwanDisabled}" != ${UCIDISABLED} ]; then
+		if [ -z "${WwanDisabled}" ]; then
 			wifi down "${WDevice}"
 			wifi up "${WDevice}"
 		else
@@ -1066,7 +1066,7 @@ HotspotLookup() {
 		_log "${msg}"
 		AddStatMsg "${msg}"
 		WatchWifi ${Sleep} &
-	elif [ "${WwanDisabled}" = ${UCIDISABLED} ]; then
+	elif [ -n "${WwanDisabled}" ]; then
 		WwanReset 0
 		TryConnection=2
 	else
@@ -1370,11 +1370,13 @@ WifiStatus() {
 	trap 'ListStatus' USR2
 
 	while Settle; do
-		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" || :
+		WwanDisabled="$(test "$(uci -q get \
+		wireless.@wifi-iface[${WIfaceSTA}].disabled)" != "${UCIDISABLED}" || \
+		echo "${UCIDISABLED}")" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		wwdsc="$(test "${WwanDisabled}" = ${UCIDISABLED} || IsWwanDisconnected)"
-		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -z "${wwdsc}" ]; then
+		wwdsc="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
+		if [ -z "${WwanDisabled}" -a -z "${wwdsc}" ]; then
 			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
@@ -1419,14 +1421,14 @@ WifiStatus() {
 			AddStatMsg "${msg}"
 		fi
 		CurrentHotspot || :
-		if [ -z "${WIfaceAP}" -a "${WwanDisabled}" = ${UCIDISABLED} ] || \
+		if [ -z "${WIfaceAP}" -a -n "${WwanDisabled}" ] || \
 		( [ -n "${WIfaceAP}" ] && \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = ${UCIDISABLED} ] ); then
 			WwanReset 0 "${WIfaceAP}"
 			Interval=${Sleep}
 			continue
 		fi
-		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -n "${wwdsc}" ]; then
+		if [ -z "${WwanDisabled}" -a -n "${wwdsc}" ]; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				ClrStatMsgs
 				msg="Lost connection $(HotspotName)"
@@ -1495,7 +1497,7 @@ WifiStatus() {
 			_applog "${msg}"
 			AddMsg "${msg}"
 		fi
-		if [ "${WwanDisabled}" != ${UCIDISABLED} -a -n "${WIfaceAP}" ]; then
+		if [ -z "${WwanDisabled}" -a -n "${WIfaceAP}" ]; then
 			Interval=${Sleep}
 		elif [ -n "${ScanAuto}" ] && \
 		[ $(ActiveDefaultRoutes) -eq ${NONE} ]; then
