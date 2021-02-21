@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.4 $
+#  $Revision: 2.5 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -100,7 +100,7 @@ start_service() {
 	_wwan_network > /dev/null || \
 		return 1
 	procd_open_instance
-	procd_set_param command "${PROG}" "start"
+	procd_set_param command "${PROG}" "start" "${@}"
 	procd_set_param pidfile "${PIDFILE}"
 	procd_close_instance
 }

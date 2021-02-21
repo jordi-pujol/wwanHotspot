@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.4 $
+#  $Revision: 2.5 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -464,6 +464,34 @@ AddHotspot() {
 		net_blacklisted net_check
 }
 
+ImportHotspot() {
+	local noHotspots="${1:-}" \
+		msg add_cfg
+	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
+	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
+	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+	net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
+	! printf '%s\n' "${net_encrypt}" | grep -qse "^wep" || \
+		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
+	LogPrio="warn"
+	msg="Importing the current router setup for the STA interface"
+	[ -z "${noHotspots}" ] || \
+		msg="No hotspots configured, ${msg}"
+	_log "${msg}"
+	AddStatMsg "Warning:" "${msg}"
+	add_cfg="$(set | grep -se '^net_')"
+	AddHotspot
+	[ -z "${noHotspots}" -o ! -s "/etc/config/${NAME}" ] || \
+		sed -i.bak \
+		-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
+		"/etc/config/${NAME}"
+	{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
+	printf '%s\n' "${add_cfg}"
+	printf '%s\n' "#net_hidden=y"
+	printf '%s\n' "#net_check='https://www.google.com/'"
+	printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
+}
+
 LoadConfig() {
 	local net_ssid net_bssid net_encrypt net_key net_hidden \
 		net_blacklisted net_check \
@@ -485,6 +513,7 @@ LoadConfig() {
 	MinTrafficBps=1024
 	LogRotate=3
 	ReportUpdtLapse=$((6*SleepScanAuto))
+	ImportAuto=""
 	unset $(set | awk -F '=' \
 		'$1 ~ "^net[[:digit:]]*_" {print $1}') 2> /dev/null || :
 
@@ -514,6 +543,7 @@ LoadConfig() {
 	MinTrafficBps="$(_integer_value "${MinTrafficBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
 	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
+	ImportAuto="${ImportAuto:-}"
 
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
@@ -591,30 +621,8 @@ LoadConfig() {
 			Hotspots=${n}
 		done
 	fi
-	if [ ${Hotspots} -eq ${NONE} ]; then
-		net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
-		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-		! printf '%s\n' "${net_encrypt}" grep -qse "^wep" || \
-			net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
-		LogPrio="warn"
-		_msg "No hotspots configured," \
-			"importing the current router setup for the STA interface"
-		_log "${msg}"
-		AddStatMsg "Warning:" "${msg}"
-		local add_cfg="$(set | grep -se '^net_')"
-		AddHotspot
-		[ ! -s "/etc/config/${NAME}" ] || \
-			sed -i.bak \
-			-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
-			"/etc/config/${NAME}"
-		{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
-		printf '%s\n' "${add_cfg}"
-		printf '%s\n' "#net_hidden=y"
-		printf '%s\n' "#net_check='https://www.google.com/'"
-		printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
-	fi
+	[ ${Hotspots} -ne ${NONE} ] || \
+		ImportHotspot "y"
 	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
 	$1 {print $1}' | sort | uniq -d)" -o \
 	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
@@ -1345,7 +1353,7 @@ WifiStatus() {
 	local Debug ScanAuto ReScan ReScanOnNetwFail \
 		Sleep SleepDsc SleepScanAuto \
 		BlackList BlackListExpires BlackListNetwork BlackListNetworkExpires \
-		PingWait MinTrafficBps LogRotate ReportUpdtLapse
+		PingWait MinTrafficBps LogRotate ReportUpdtLapse ImportAuto
 	# internal variables, daemon scope
 	local WwanSsid WwanBssid WwanDisabled WwanErr \
 		Ssids Hotspots HotspotsOrder IfaceWan \
@@ -1364,6 +1372,9 @@ WifiStatus() {
 	LoadConfig || exit 1
 	Interval=${Sleep}
 
+	! printf '%s\n' "${@}" | grep -qswiF 'import' || \
+		ImportAuto="y"
+
 	trap 'LoadConfig' HUP
 	trap 'NetworkChange' ALRM
 	trap 'PleaseScan' USR1
@@ -1381,10 +1392,16 @@ WifiStatus() {
 			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
-				CurrentHotspot "y" || \
+				if ! CurrentHotspot "y"; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
 						"$(HotspotName)"
+					if [ -n "${ImportAuto}" ]; then
+						ImportHotspot
+						LoadConfig
+						continue
+					fi
+				fi
 				NetwFailures=${NONE}
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
@@ -1514,7 +1531,8 @@ set -o errexit -o nounset -o pipefail +o noglob
 NAME="$(basename "${0}")"
 case "${1:-}" in
 start)
-	WifiStatus
+	shift
+	WifiStatus "${@}"
 	;;
 *)
 	echo "Wrong arguments" >&2
