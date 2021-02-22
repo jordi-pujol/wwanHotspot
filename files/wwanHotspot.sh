@@ -340,9 +340,10 @@ Report() {
 		"$(test ${MinTrafficBps} -eq ${NONE} && echo "Disabled" || echo "bytes per second")"
 	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
 		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "Disabled" || echo "seconds")"
-	printf '%s=%d %s\n\n' "LogRotate" "${LogRotate}" "log files to keep"
+	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "log files to keep"
 	printf '%s="%s" %s\n' "ImportAuto" "${ImportAuto}" \
 		"$(test -z "${ImportAuto}" && echo "Disabled" || echo "Enabled")"
+	echo
 	local i=0
 	while [ $((i++)) -lt ${Hotspots} ]; do
 		set | awk -v i="${i}" \
