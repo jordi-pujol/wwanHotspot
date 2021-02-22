@@ -429,16 +429,15 @@ BackupRotate() {
 }
 
 AddHotspot() {
-	[ $((Hotspots++)) ]
 	if [ -z "${net_ssid:=""}" -a -z "${net_bssid:=""}" ] || \
 	[ -z "${net_encrypt:-}" ]; then
-		LogPrio="err"
-		_msg "Adding hotspot, Invalid config ${Hotspots}." \
+		_msg "Adding hotspot, Invalid config." \
 			"No ssid, bssid or encrypt specified"
-		_log "${msg}"
+		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
-		exit 1
+		return ${ERR}
 	fi
+	[ $((Hotspots++)) ]
 	[ -z "${net_ssid}" ] || \
 		eval net${Hotspots}_ssid=\"${net_ssid}\"
 	[ -z "${net_bssid}" ] || {
@@ -482,7 +481,8 @@ ImportHotspot() {
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "Warning:" "${msg}"
 	add_cfg="$(set | grep -se '^net_')"
-	AddHotspot
+	AddHotspot || \
+		return ${ERR}
 	[ -z "${noHotspots}" -o ! -s "/etc/config/${NAME}" ] || \
 		sed -i.bak \
 		-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
@@ -528,7 +528,8 @@ LoadConfig() {
 	AddStatMsg "${msg}"
 
 	[ ! -s "/etc/config/${NAME}" ] || \
-		. "/etc/config/${NAME}"
+		. "/etc/config/${NAME}" || \
+		exit 1
 
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
@@ -588,9 +589,8 @@ LoadConfig() {
 		done
 	done
 	if [ -z "${WIfaceSTA}" ]; then
-		LogPrio="err"
 		msg="Invalid AP+STA configuration"
-		_log "${msg}"
+		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
@@ -608,10 +608,9 @@ LoadConfig() {
 		[ -n "${ssid}" -o -n "${bssid}" -o -n "${encrypt}" ]; do
 			if [ -z "${ssid}" -a -z "${bssid}" ] || \
 			[ -z "${encrypt:-}" ]; then
-				LogPrio="err"
 				_msg "Invalid config" \
 					"Hotspot ${n}, no ssid, bssid or encryption specified"
-				_log "${msg}"
+				LogPrio="err" _log "${msg}"
 				AddStatMsg "Error:" "${msg}"
 				exit 1
 			fi
@@ -624,13 +623,13 @@ LoadConfig() {
 		done
 	fi
 	[ ${Hotspots} -ne ${NONE} ] || \
-		ImportHotspot "y"
+		ImportHotspot "y" || \
+			exit 1
 	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
 	$1 {print $1}' | sort | uniq -d)" -o \
 	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
-		LogPrio="err"
 		msg="Invalid configuration. Duplicate hotspots SSIDs or BSSIDs"
-		_log "${msg}"
+		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
 		exit 1
 	fi
@@ -783,7 +782,7 @@ DoScan() {
 	local scanned msg
 
 	if ! scanned="$(Scanning)"; then
-		LogPrio="err"
+		LogPrio="err" \
 		_log "Serious error: Can't scan wifi for access points"
 		ScanErr="y"
 		return ${ERR}
@@ -1399,13 +1398,17 @@ WifiStatus() {
 					_log "Connected to a non-configured hotspot:" \
 						"$(HotspotName)"
 					if [ -n "${ImportAuto}" ]; then
-						ImportHotspot
-						LoadConfig
-						msg="Currently connected hotspot has been added to the config file"
+						if ImportHotspot; then
+							LoadConfig
+							NoSleep="y"
+							msg="This connected hotspot has been added to the config file"
+							_applog "${msg}"
+							AddStatMsg "${msg}"
+							continue
+						fi
+						msg="Can't add this connected hotspot to the config file"
 						_applog "${msg}"
 						AddStatMsg "${msg}"
-						NoSleep="y"
-						continue
 					fi
 				fi
 				NetwFailures=${NONE}
