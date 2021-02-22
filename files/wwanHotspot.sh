@@ -476,11 +476,10 @@ ImportHotspot() {
 	net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 	! printf '%s\n' "${net_encrypt}" | grep -qse "^wep" || \
 		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
-	LogPrio="warn"
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
-	_log "${msg}"
+	LogPrio="warn" _log "${msg}"
 	AddStatMsg "Warning:" "${msg}"
 	add_cfg="$(set | grep -se '^net_')"
 	AddHotspot
@@ -1402,6 +1401,10 @@ WifiStatus() {
 					if [ -n "${ImportAuto}" ]; then
 						ImportHotspot
 						LoadConfig
+						msg="Currently connected hotspot has been added to the config file"
+						_applog "${msg}"
+						AddStatMsg "${msg}"
+						NoSleep="y"
 						continue
 					fi
 				fi
