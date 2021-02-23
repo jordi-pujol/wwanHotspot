@@ -468,6 +468,7 @@ AddHotspot() {
 
 ImportHotspot() {
 	local noHotspots="${1:-}" \
+		net_ssid net_bssid net_encrypt net_key \
 		msg add_cfg
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
@@ -487,11 +488,12 @@ ImportHotspot() {
 		sed -i.bak \
 		-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
 		"/etc/config/${NAME}"
-	{ printf '\n%s\n' "# $(_datetime) Auto-added hotspot"
-	printf '%s\n' "${add_cfg}"
-	printf '%s\n' "#net_hidden=y"
-	printf '%s\n' "#net_check='https://www.google.com/'"
-	printf '%s\n' "AddHotspot"; } >> "/etc/config/${NAME}"
+	printf '%s\n' "" \
+		"# $(_datetime) Auto-added hotspot" \
+		"${add_cfg}" \
+		"#net_hidden=y" \
+		"#net_check='https://www.google.com/'" \
+		"AddHotspot" >> "/etc/config/${NAME}"
 }
 
 LoadConfig() {
@@ -529,7 +531,7 @@ LoadConfig() {
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}" || \
-		exit 1
+		exit ${ERR}
 
 	Debug="${Debug:-}"
 	ScanAuto="${ScanAuto:-}"
@@ -592,7 +594,7 @@ LoadConfig() {
 		msg="Invalid AP+STA configuration"
 		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
-		exit 1
+		exit ${ERR}
 	fi
 	LogPrio="info" _log "Radio device is ${WDevice}"
 	LogPrio="info" _log "STA network interface is ${WIface}"
@@ -612,7 +614,7 @@ LoadConfig() {
 					"Hotspot ${n}, no ssid, bssid or encryption specified"
 				LogPrio="err" _log "${msg}"
 				AddStatMsg "Error:" "${msg}"
-				exit 1
+				exit ${ERR}
 			fi
 			[ -z "${bssid}" ] || {
 				bssid="$(_tolower  "${bssid}")"
@@ -624,14 +626,14 @@ LoadConfig() {
 	fi
 	[ ${Hotspots} -ne ${NONE} ] || \
 		ImportHotspot "y" || \
-			exit 1
+			exit ${ERR}
 	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
 	$1 {print $1}' | sort | uniq -d)" -o \
 	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
 		msg="Invalid configuration. Duplicate hotspots SSIDs or BSSIDs"
 		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
-		exit 1
+		exit ${ERR}
 	fi
 
 	local cdt_bssids
@@ -1370,7 +1372,7 @@ WifiStatus() {
 	trap '_exit' EXIT
 	trap 'exit' INT
 
-	LoadConfig || exit 1
+	LoadConfig || exit ${ERR}
 	Interval=${Sleep}
 
 	! printf '%s\n' "${@}" | grep -qswiF 'import' || \
