@@ -58,14 +58,6 @@ _ps_children() {
 	done
 }
 
-_exit() {
-	trap - EXIT INT HUP ALRM USR1 USR2
-	LogPrio="warn" _log "Exit"
-	UpdateReport="" ReportUpdtLapse=1 AddStatMsg "Daemon exit"
-	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
-	wait || :
-}
-
 _applog() {
 	local msg="${@}"
 	printf '%s\n' "$(_datetime) ${msg}" >> "/var/log/${NAME}"
@@ -174,6 +166,14 @@ AddMsg() {
 	else
 		AddStatMsg "${msg}"
 	fi
+}
+
+_exit() {
+	trap - EXIT INT HUP ALRM USR1 USR2
+	LogPrio="warn" _log "Exit"
+	UpdateReport="" ReportUpdtLapse=1 AddStatMsg "Daemon exit"
+	kill -s TERM $(_ps_children) > /dev/null 2>&1 || :
+	wait || :
 }
 
 IfaceTraffic() {
@@ -679,34 +679,6 @@ IsWwanDisconnected() {
 	echo "y" || :
 }
 
-MustScan() {
-	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
-		return ${OK}
-	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq ${NONE} ]
-}
-
-Scanning() {
-	local err i=5
-	while [ $((i--)) -gt 0 ]; do
-		sleep 1
-		! err="$(iw "${WIface}" scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
-			return ${OK}
-		[ -z "${Debug}" ] || \
-			_applog "${err}"
-		if [ ${i} -ne 2 ]; then
-			sleep 5
-			continue
-		fi
-		printf '%s\n' "${err}" | \
-		grep -qsF 'command failed: Network is down' || \
-			LogPrio="err"
-		_log "Can't scan wifi, restarting the network"
-		/etc/init.d/network reload
-		WatchWifi ${Sleep}
-	done
-	return ${ERR}
-}
-
 # param: connected = indicator
 # returns: Hotspot WwanSsid WwanBssid
 # 	when not listed: returns false and Hotspot=${NONE} 
@@ -761,6 +733,34 @@ CurrentHotspot() {
 			'BEGIN{FS="\t"}
 			! $1 && $2 == ssid {n = NR; exit}
 			END{print n+0; exit (n+0 == 0)}')"
+}
+
+MustScan() {
+	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
+		return ${OK}
+	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq ${NONE} ]
+}
+
+Scanning() {
+	local err i=5
+	while [ $((i--)) -gt 0 ]; do
+		sleep 1
+		! err="$(iw "${WIface}" scan 3>&2 2>&1 1>&3 3>&-)" 2>&1 || \
+			return ${OK}
+		[ -z "${Debug}" ] || \
+			_applog "${err}"
+		if [ ${i} -ne 2 ]; then
+			sleep 5
+			continue
+		fi
+		printf '%s\n' "${err}" | \
+		grep -qsF 'command failed: Network is down' || \
+			LogPrio="err"
+		_log "Can't scan wifi, restarting the network"
+		/etc/init.d/network reload
+		WatchWifi ${Sleep}
+	done
+	return ${ERR}
 }
 
 # returns hotspot ssid bssid
