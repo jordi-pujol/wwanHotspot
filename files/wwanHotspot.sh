@@ -301,81 +301,6 @@ SetEncryption() {
 	fi
 }
 
-Report() {
-	[ -z "${Debug}" ] || \
-		_applog "Writing status report"
-	exec > "/var/log/${NAME}.stat"
-	printf '%s\n\n' "${NAME} status report."
-	printf '%s\n' "${StatMsgs}"
-	[ -z "${UpdtMsgs}" ] || \
-		printf '%s\n' "${UpdtMsgs}"
-	printf '\n'
-	printf '%s\n' "Radio device is ${WDevice}"
-	printf '%s\n' "STA network interface is ${WIface}"
-	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
-	[ -n "${WIfaceAP}" ] && \
-		printf '%s\n\n' "Detected AP config in wifi-iface ${WIfaceAP}" || \
-		printf '%s\n\n' "Non standard STA only configuration"
-	printf '%s="%s" %s\n' "Debug" "${Debug}" \
-		"$(test -z "${Debug}" && echo "Disabled" || echo "Enabled")"
-	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
-	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
-		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
-	printf '%s=%s %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
-		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "Disabled" || \
-		echo "networking failures")"
-	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
-	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
-	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
-	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
-		"$(test ${BlackList} -eq ${NONE} && echo "Disabled" || echo "errors")"
-	printf '%s=%d %s\n' "BlackListExpires" "${BlackListExpires}" \
-		"$(test ${BlackListExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
-	printf '%s=%d %s\n' "BlackListNetwork" "${BlackListNetwork}" \
-		"$(test ${BlackListNetwork} -eq ${NONE} && echo "Disabled" || echo "errors")"
-	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
-		"$(test ${BlackListNetworkExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
-	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
-	printf '%s=%d %s\n' "MinTrafficBps" "${MinTrafficBps}" \
-		"$(test ${MinTrafficBps} -eq ${NONE} && echo "Disabled" || echo "bytes per second")"
-	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
-		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "Disabled" || echo "seconds")"
-	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "log files to keep"
-	printf '%s="%s" %s\n' "ImportAuto" "${ImportAuto}" \
-		"$(test -z "${ImportAuto}" && echo "Disabled" || echo "Enabled")"
-	echo
-	local i=0
-	while [ $((i++)) -lt ${Hotspots} ]; do
-		set | awk -v i="${i}" \
-			'BEGIN{FS="="}
-			$1 == "net"i"_blacklistexp" {
-				printf $0 " "
-				system("date +%F_%X --date=@" $2)
-				next}
-			$1 ~ "^net"i"_" {print}'
-		echo
-	done
-	iwinfo
-	printf '%s %s\n' "Current hotspot client is" \
-		"$(HotspotName)"
-	printf '%s %s%s\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != ${UCIDISABLED} && \
-		echo "en" || echo "dis")" "abled"
-	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
-		"$(IsWifiActive "${WwanBssid:-}" "${WwanSsid:-}" || \
-		echo " not")" "active"
-	if [ -n "${IfaceWan}" ]; then
-		printf '%s%s%s\n\n' "WAN interface is " \
-			"$(IsWanConnected || echo "dis")" "connected"
-	else
-		printf '%s\n\n' "There is no WAN interface"
-	fi
-	printf '%s\n\n' "Active default routes: $(ActiveDefaultRoutes)"
-	ip route show
-	[ -z "${Debug}" ] || \
-		_applog "End of status report"
-}
-
 ListStatus() {
 	local msg="${@:-"Updating status report"}"
 	UpdateReport="y"
@@ -677,6 +602,81 @@ IsWwanDisconnected() {
 	sleep 5 && \
 	IsWifiActive "${NULLBSSID}" && \
 	echo "y" || :
+}
+
+Report() {
+	[ -z "${Debug}" ] || \
+		_applog "Writing status report"
+	exec > "/var/log/${NAME}.stat"
+	printf '%s\n\n' "${NAME} status report."
+	printf '%s\n' "${StatMsgs}"
+	[ -z "${UpdtMsgs}" ] || \
+		printf '%s\n' "${UpdtMsgs}"
+	printf '\n'
+	printf '%s\n' "Radio device is ${WDevice}"
+	printf '%s\n' "STA network interface is ${WIface}"
+	printf '%s\n' "Detected STA config in wifi-iface ${WIfaceSTA}"
+	[ -n "${WIfaceAP}" ] && \
+		printf '%s\n\n' "Detected AP config in wifi-iface ${WIfaceAP}" || \
+		printf '%s\n\n' "Non standard STA only configuration"
+	printf '%s="%s" %s\n' "Debug" "${Debug}" \
+		"$(test -z "${Debug}" && echo "Disabled" || echo "Enabled")"
+	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
+	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
+		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
+	printf '%s=%s %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
+		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "Disabled" || \
+		echo "networking failures")"
+	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
+	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
+	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
+	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
+		"$(test ${BlackList} -eq ${NONE} && echo "Disabled" || echo "errors")"
+	printf '%s=%d %s\n' "BlackListExpires" "${BlackListExpires}" \
+		"$(test ${BlackListExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
+	printf '%s=%d %s\n' "BlackListNetwork" "${BlackListNetwork}" \
+		"$(test ${BlackListNetwork} -eq ${NONE} && echo "Disabled" || echo "errors")"
+	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
+		"$(test ${BlackListNetworkExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
+	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
+	printf '%s=%d %s\n' "MinTrafficBps" "${MinTrafficBps}" \
+		"$(test ${MinTrafficBps} -eq ${NONE} && echo "Disabled" || echo "bytes per second")"
+	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
+		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "Disabled" || echo "seconds")"
+	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "log files to keep"
+	printf '%s="%s" %s\n' "ImportAuto" "${ImportAuto}" \
+		"$(test -z "${ImportAuto}" && echo "Disabled" || echo "Enabled")"
+	echo
+	local i=0
+	while [ $((i++)) -lt ${Hotspots} ]; do
+		set | awk -v i="${i}" \
+			'BEGIN{FS="="}
+			$1 == "net"i"_blacklistexp" {
+				printf $0 " "
+				system("date +%F_%X --date=@" $2)
+				next}
+			$1 ~ "^net"i"_" {print}'
+		echo
+	done
+	iwinfo
+	printf '%s %s\n' "Current hotspot client is" \
+		"$(HotspotName)"
+	printf '%s %s%s\n' "Hotspot client is" \
+		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != ${UCIDISABLED} && \
+		echo "en" || echo "dis")" "abled"
+	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
+		"$(IsWifiActive "${WwanBssid:-}" "${WwanSsid:-}" || \
+		echo " not")" "active"
+	if [ -n "${IfaceWan}" ]; then
+		printf '%s%s%s\n\n' "WAN interface is " \
+			"$(IsWanConnected || echo "dis")" "connected"
+	else
+		printf '%s\n\n' "There is no WAN interface"
+	fi
+	printf '%s\n\n' "Active default routes: $(ActiveDefaultRoutes)"
+	ip route show
+	[ -z "${Debug}" ] || \
+		_applog "End of status report"
 }
 
 # param: connected = indicator
