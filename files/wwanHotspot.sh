@@ -384,8 +384,6 @@ AddHotspot() {
 	eval net${Hotspots}_encrypt=\"${net_encrypt}\"
 	[ -z "${net_key:-}" ] || \
 		eval net${Hotspots}_key=\"${net_key}\"
-	[ -z "${net_key:-}" ] || \
-		eval net${Hotspots}_key=\"${net_key}\"
 	[ -z "${net_key1:-}" ] || \
 		eval net${Hotspots}_key1=\"${net_key1}\"
 	[ -z "${net_key2:-}" ] || \
