@@ -416,7 +416,7 @@ ImportHotspot() {
 	local noHotspots="${1:-}" \
 		net_ssid net_bssid net_encrypt \
 		net_key net_key1 net_key2 net_key3 net_key4 \
-		msg add_cfg
+		msg hidden add_cfg
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
@@ -432,6 +432,24 @@ ImportHotspot() {
 	[ -n "${net_key2}" ] || unset net_key2
 	[ -n "${net_key3}" ] || unset net_key3
 	[ -n "${net_key4}" ] || unset net_key4
+	if [ -z "${WwanSsid}" ] && \
+	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
+	awk -v iface="${WIface}" \
+	'function trim(s) {
+		if (!s) s=$0
+		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
+	}
+	$1 == iface && $2 == "ESSID:" {
+		$2=""; $1=""
+		print trim()
+		rc=-1; exit
+	}
+	END{exit rc+1}')" && \
+	[ "${ssid}" = "${NULLSSID}" ]; then
+		hidden="net_hidden='y'"
+	else
+		hidden="#net_hidden='y'"
+	fi
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
@@ -447,7 +465,7 @@ ImportHotspot() {
 	printf '%s\n' "" \
 		"# $(_datetime) Auto-added hotspot" \
 		"${add_cfg}" \
-		"#net_hidden=y" \
+		"${hidden}" \
 		"#net_check='https://www.google.com/'" \
 		"AddHotspot" >> "/etc/config/${NAME}"
 }
