@@ -425,6 +425,13 @@ ImportHotspot() {
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
+	[ -n "${net_ssid}" ] || unset net_ssid
+	[ -n "${net_bssid}" ] || unset net_bssid
+	[ -n "${net_key}" ] || unset net_key
+	[ -n "${net_key1}" ] || unset net_key1
+	[ -n "${net_key2}" ] || unset net_key2
+	[ -n "${net_key3}" ] || unset net_key3
+	[ -n "${net_key4}" ] || unset net_key4
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
