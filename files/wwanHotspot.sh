@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.5 $
+#  $Revision: 2.6 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -276,29 +276,41 @@ AnyOtherHotspot() {
 }
 
 SetEncryption() {
-	local encrypt key
-	eval encrypt=\"\${net${Hotspot}_encrypt:-}\"
-	eval key=\"\${net${Hotspot}_key:-}\"
-	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
-	if printf '%s\n' "${encrypt}" | grep -qsie "^psk"; then
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key2 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key3 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key4 || :
-	elif printf '%s\n' "${encrypt}" | grep -qsie "^wep"; then
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key="1"
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key}"
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key2 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key3 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key4 || :
-	else
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key2 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key3 || :
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key4 || :
+	local encrypt="${1:-}" \
+		key="${2:-}" \
+		key1="${3:-}" \
+		key2="${4:-}" \
+		key3="${5:-}" \
+		key4="${6:-}"
+	if [ -z "${encrypt}" ]; then
+		eval encrypt=\"\${net${Hotspot}_encrypt:-}\"
+		eval key=\"\${net${Hotspot}_key:-}\"
+		eval key1=\"\${net${Hotspot}_key1:-}\"
+		eval key2=\"\${net${Hotspot}_key2:-}\"
+		eval key3=\"\${net${Hotspot}_key3:-}\"
+		eval key4=\"\${net${Hotspot}_key4:-}\"
 	fi
+	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
+	[ -z "${key}" ] && {
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key || :
+		} || \
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
+	[ -z "${key1}" ] && {
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
+		} || \
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key1}"
+	[ -z "${key2}" ] && {
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key2 || :
+		} || \
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key2="${key2}"
+	[ -z "${key3}" ] && {
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key3 || :
+		} || \
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key3="${key3}"
+	[ -z "${key4}" ] && {
+		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key4 || :
+		} || \
+		uci set wireless.@wifi-iface[${WIfaceSTA}].key4="${key4}"
 }
 
 ListStatus() {
@@ -372,6 +384,16 @@ AddHotspot() {
 	eval net${Hotspots}_encrypt=\"${net_encrypt}\"
 	[ -z "${net_key:-}" ] || \
 		eval net${Hotspots}_key=\"${net_key}\"
+	[ -z "${net_key:-}" ] || \
+		eval net${Hotspots}_key=\"${net_key}\"
+	[ -z "${net_key1:-}" ] || \
+		eval net${Hotspots}_key1=\"${net_key1}\"
+	[ -z "${net_key2:-}" ] || \
+		eval net${Hotspots}_key2=\"${net_key2}\"
+	[ -z "${net_key3:-}" ] || \
+		eval net${Hotspots}_key3=\"${net_key3}\"
+	[ -z "${net_key4:-}" ] || \
+		eval net${Hotspots}_key4=\"${net_key4}\"
 	[ -z "${net_hidden:-}" ] || \
 		eval net${Hotspots}_hidden=\"${net_hidden}\"
 	[ -z "${net_blacklisted:-}" ] || \
@@ -387,20 +409,24 @@ AddHotspot() {
 		_applog "${msg}"
 		AddStatMsg "${msg}"
 	fi
-	unset net_ssid net_bssid net_encrypt net_key net_hidden \
-		net_blacklisted net_check
+	unset net_ssid net_bssid net_encrypt \
+		net_key net_key1 net_key2 net_key3 net_key4 \
+		net_hidden net_blacklisted net_check
 }
 
 ImportHotspot() {
 	local noHotspots="${1:-}" \
-		net_ssid net_bssid net_encrypt net_key \
+		net_ssid net_bssid net_encrypt \
+		net_key net_key1 net_key2 net_key3 net_key4 \
 		msg add_cfg
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
 	net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-	! printf '%s\n' "${net_encrypt}" | grep -qse "^wep" || \
-		net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
+	net_key1="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
+	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
+	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
+	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
@@ -422,8 +448,9 @@ ImportHotspot() {
 }
 
 LoadConfig() {
-	local net_ssid net_bssid net_encrypt net_key net_hidden \
-		net_blacklisted net_check \
+	local net_ssid net_bssid net_encrypt \
+		net_key net_key1 net_key2 net_key3 net_key4 \
+		net_hidden net_blacklisted net_check \
 		msg="Loading configuration"
 
 	# config variables, default values
@@ -1039,23 +1066,30 @@ HotspotLookup() {
 
 	[ -z "${clrmsgs}" -o ${Status} -le ${CONNECTING} ] || \
 		ClrStatMsgs
-	local encrypt key hidden wencrypt wkey
+	local encrypt wencrypt \
+		key key1 key2 key3 key4 \
+		wkey wkey1 wkey2 wkey3 wkey4 \
+		hidden
 	eval encrypt=\"\${net${Hotspot}_encrypt:-}\"
 	eval key=\"\${net${Hotspot}_key:-}\"
+	eval key1=\"\${net${Hotspot}_key1:-}\"
+	eval key2=\"\${net${Hotspot}_key2:-}\"
+	eval key3=\"\${net${Hotspot}_key3:-}\"
+	eval key4=\"\${net${Hotspot}_key4:-}\"
 	eval hidden=\"\${net${Hotspot}_hidden:-}\"
 	wencrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
-	if printf '%s\n' "${wencrypt}" | grep -qsie "^wep"; then
-		wkey="$(uci -q get \
-			wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
-	else
-		wkey="$(uci -q get \
-			wireless.@wifi-iface[${WIfaceSTA}].key)" || :
-	fi
+	wkey="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
+	wkey1="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
+	wkey2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
+	wkey3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
+	wkey4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
 	if [ "${ssid}" != "${WwanSsid}" -a \
 	\( -z "${hidden}" -o -n "${ssid}" \) ] || \
 	[ "${bssid}" != "${WwanBssid}" -o \
 	"${encrypt}" != "${wencrypt}" -o \
-	"${key}" != "${wkey}" ]; then
+	"${key}" != "${wkey}" -o "${key1}" != "${wkey1}" -o \
+	"${key2}" != "${wkey2}" -o "${key3}" != "${wkey3}" -o \
+	"${key4}" != "${wkey4}" ]; then
 		WwanSsid="${ssid}"
 		WwanBssid="${bssid}"
 		_log "Hotspot $(HotspotName) found. Applying settings..."
@@ -1064,12 +1098,13 @@ HotspotLookup() {
 			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}" || \
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
-		SetEncryption
+		SetEncryption "${encrypt}" \
+			"${key}" "${key1}" "${key2}" "${key3}" "${key4}"
 		if [ -z "${WwanDisabled}" ]; then
 			wifi down "${WDevice}"
 			wifi up "${WDevice}"
 		else
-			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].disabled
+			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].disabled || :
 			/etc/init.d/network reload
 		fi
 		TryConnection=2
@@ -1481,9 +1516,9 @@ WifiStatus() {
 						HotspotBlackList "connect" "${BlackListExpires}" \
 							"${msg}"
 						WwanSsid=""
-						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid
+						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 						WwanBssid="${NULLBSSID}"
-						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid
+						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid || :
 					else
 						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]

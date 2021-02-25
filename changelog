@@ -1,3 +1,9 @@
+wwanHotspot v2.6
+
+  * configure hotspots using all corresponding UCI key fields.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 24 Feb 2021 09:39:54 +0100
+
 wwanHotspot v2.5
 
   * Auto import the configuration for a currently connected hotspot.
