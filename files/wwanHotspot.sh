@@ -412,11 +412,35 @@ AddHotspot() {
 		net_hidden net_blacklisted net_check
 }
 
+ConnectedBssid() {
+	iwinfo "${WIface}" info 2> /dev/null | \
+	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
+		print tolower($NF)
+		rc=-1
+		exit}
+	END{exit rc+1}'
+}
+
+ConnectedSsid() {
+	iwinfo "${WIface}" info 2> /dev/null | \
+	awk -v iface="${WIface}" \
+	'function trim(s) {
+		if (!s) s=$0
+		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
+	}
+	$1 == iface && $2 == "ESSID:" {
+		$2=""; $1=""
+		print trim()
+		rc=-1; exit
+	}
+	END{exit rc+1}'
+}
+
 ImportHotspot() {
 	local noHotspots="${1:-}" \
-		net_ssid net_bssid net_encrypt \
+		net_ssid net_bssid net_encrypt net_hidden \
 		net_key net_key1 net_key2 net_key3 net_key4 \
-		msg hidden add_cfg
+		msg add_cfg
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
@@ -432,24 +456,9 @@ ImportHotspot() {
 	[ -n "${net_key2}" ] || unset net_key2
 	[ -n "${net_key3}" ] || unset net_key3
 	[ -n "${net_key4}" ] || unset net_key4
-	if [ -z "${WwanSsid}" ] && \
-	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
-	awk -v iface="${WIface}" \
-	'function trim(s) {
-		if (!s) s=$0
-		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
-	}
-	$1 == iface && $2 == "ESSID:" {
-		$2=""; $1=""
-		print trim()
-		rc=-1; exit
-	}
-	END{exit rc+1}')" && \
-	[ "${ssid}" = "${NULLSSID}" ]; then
-		hidden="net_hidden='y'"
-	else
-		hidden="#net_hidden='y'"
-	fi
+	[ "$(ConnectedSsid)" = "${NULLSSID}" ] && \
+		net_hidden="y" || \
+		unset net_hidden
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
@@ -465,7 +474,6 @@ ImportHotspot() {
 	printf '%s\n' "" \
 		"# $(_datetime) Auto-added hotspot" \
 		"${add_cfg}" \
-		"${hidden}" \
 		"#net_check='https://www.google.com/'" \
 		"AddHotspot" >> "/etc/config/${NAME}"
 }
@@ -738,29 +746,13 @@ CurrentHotspot() {
 	[ ${Hotspot} -eq ${NONE} ] || \
 		return ${OK}
 	if [ -n "${connected}" -a -z "${WwanBssid}" ] && \
-	WwanBssid="$(iwinfo "${WIface}" info 2> /dev/null | \
-	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
-		print tolower($NF)
-		rc=-1
-		exit}
-	END{exit rc+1}')"; then
+	WwanBssid="$(ConnectedBssid)"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		[ -z "${Debug}" ] || \
 			_applog "Setting uci bssid ${WwanBssid}"
 	fi
 	if [ -n "${connected}" -a -z "${WwanSsid}" ] && \
-	ssid="$(iwinfo "${WIface}" info 2> /dev/null | \
-	awk -v iface="${WIface}" \
-	'function trim(s) {
-		if (!s) s=$0
-		return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
-	}
-	$1 == iface && $2 == "ESSID:" {
-		$2=""; $1=""
-		print trim()
-		rc=-1; exit
-	}
-	END{exit rc+1}')"; then
+	ssid="$(ConnectedSsid)"; then
 		[ -z "${Debug}" ] || \
 			_applog "Setting uci ssid ${ssid}"
 		if [ "${ssid}" = "${NULLSSID}" ]; then
