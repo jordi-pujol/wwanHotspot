@@ -561,7 +561,8 @@ LoadConfig() {
 		WIface="wlan$(iwinfo "${WDevice}" info | \
 			sed -nre '/.*PHY name: phy([[:digit:]]+)$/ s//\1/p')" || {
 				LogPrio="err" _log "Invalid device ${WDevice}"
-				exit; }
+				exit ${ERR}
+				}
 		j=-1
 		while [ $((j++)) ];
 		m="$(uci -q get wireless.@wifi-iface[${j}].mode)"; do
