@@ -26,6 +26,10 @@ _tolower() {
 	printf '%s\n' "${@}" | tr '[A-Z]' '[a-z]'
 }
 
+_unquote() {
+	printf '%s\n' "${@}" | sed -e 's/^"//; s/"$//'
+}
+
 _integer_value() {
 	local n="${1}" \
 		d="${2}" \
@@ -328,12 +332,7 @@ ListStatus() {
 }
 
 NetworkChange() {
-	[ ${Status} -le ${CONNECTING} ] || {
-		msg="Network status has changed"
-		AddStatMsg "${msg}"
-		_applog "${msg}"
-	}
-	NoSleep="y"
+	ListStatus "Network status has changed"
 }
 
 PleaseScan() {
@@ -440,7 +439,7 @@ ImportHotspot() {
 	local noHotspots="${1:-}" \
 		net_ssid net_bssid net_encrypt net_hidden \
 		net_key net_key1 net_key2 net_key3 net_key4 \
-		msg add_cfg
+		msg add_cfg ssid
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
@@ -449,16 +448,27 @@ ImportHotspot() {
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
-	[ -n "${net_ssid}" ] || unset net_ssid
-	[ -n "${net_bssid}" ] || unset net_bssid
+	if ssid="$(ConnectedSsid)"; then
+		if [ "$(ssid)" = "${NULLSSID}" ]; then
+			[ -n "${net_ssid}" ] || \
+				unset net_ssid
+			net_hidden="y"
+		else
+			net_ssid="${net_ssid:-"$(_unquote "${ssid}")"}"
+			unset net_hidden
+		fi
+	fi
+	if [ -z "${net_bssid}" ]; then
+		net_bssid="$(ConnectedBssid)" || \
+			unset net_bssid
+	else
+		net_bssid="$(_tolower "${net_bssid}")"
+	fi
 	[ -n "${net_key}" ] || unset net_key
 	[ -n "${net_key1}" ] || unset net_key1
 	[ -n "${net_key2}" ] || unset net_key2
 	[ -n "${net_key3}" ] || unset net_key3
 	[ -n "${net_key4}" ] || unset net_key4
-	[ "$(ConnectedSsid)" = "${NULLSSID}" ] && \
-		net_hidden="y" || \
-		unset net_hidden
 	msg="Importing the current router setup for the STA interface"
 	[ -z "${noHotspots}" ] || \
 		msg="No hotspots configured, ${msg}"
@@ -760,8 +770,7 @@ CurrentHotspot() {
 			WwanSsid=""
 			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
 		else
-			WwanSsid="$(printf '%s\n' "${ssid}" | \
-				sed -e 's/^"//; s/"$//')"
+			WwanSsid="$(_unquote "${ssid}")"
 			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		fi
 	fi

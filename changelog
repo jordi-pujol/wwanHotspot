@@ -1,8 +1,11 @@
 wwanHotspot v2.6
 
   * configure hotspots using all corresponding UCI key fields.
-  * wwanHotspot.sh, ImportHotspot():
+  * wwanHotspot.sh,
+    ImportHotspot():
     - detect hidden SSID
+    - fill up ssid and bssid from iwinfo
+      when are not specified in UCI wireless.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 24 Feb 2021 09:39:54 +0100
 
