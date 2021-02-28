@@ -1,6 +1,7 @@
 wwanHotspot v2.6
 
   * configure hotspots using all corresponding UCI key fields.
+  * any network change requires a report update.
   * wwanHotspot.sh,
     ImportHotspot():
     - detect hidden SSID

@@ -1462,7 +1462,6 @@ WifiStatus() {
 					if [ -n "${ImportAuto}" ]; then
 						if ImportHotspot; then
 							LoadConfig
-							NoSleep="y"
 							msg="This connected hotspot has been added to the config file"
 							_applog "${msg}"
 							AddStatMsg "${msg}"
