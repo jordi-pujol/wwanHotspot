@@ -1324,7 +1324,7 @@ CheckNetworking() {
 			rc=${?}
 	fi
 	if [ ${rc} -eq ${OK} ]; then
-		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -gt ${NONE} ]; then
+		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -eq ${NONE} ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
