@@ -448,7 +448,8 @@ ImportHotspot() {
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
-	if ssid="$(ConnectedSsid)"; then
+	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
+	ssid="$(ConnectedSsid)"; then
 		if [ "$(ssid)" = "${NULLSSID}" ]; then
 			[ -n "${net_ssid}" ] || \
 				unset net_ssid
@@ -459,6 +460,7 @@ ImportHotspot() {
 		fi
 	fi
 	if [ -z "${net_bssid}" ]; then
+		[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 		net_bssid="$(ConnectedBssid)" || \
 			unset net_bssid
 	else
@@ -486,6 +488,19 @@ ImportHotspot() {
 		"${add_cfg}" \
 		"#net_check='https://www.google.com/'" \
 		"AddHotspot" >> "/etc/config/${NAME}"
+}
+
+IsWanConnected() {
+	local status
+	status="$(cat "/sys/class/net/${IfaceWan}/operstate" 2> /dev/null)" && \
+	[ -n "${status}" -a "${status}" != "down" ]
+}
+
+IsWwanDisconnected() {
+	IsWifiActive "${NULLBSSID}" && \
+	sleep 5 && \
+	IsWifiActive "${NULLBSSID}" && \
+	echo "y" || :
 }
 
 LoadConfig() {
@@ -618,9 +633,14 @@ LoadConfig() {
 			Hotspots=${n}
 		done
 	fi
-	[ ${Hotspots} -ne ${NONE} ] || \
+	if [ ${Hotspots} -eq ${NONE} ]; then
+		WwanDisabled="$(test "$(uci -q get \
+		wireless.@wifi-iface[${WIfaceSTA}].disabled)" != "${UCIDISABLED}" || \
+		echo "${UCIDISABLED}")" || :
+		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
 		ImportHotspot "y" || \
 			exit ${ERR}
+	fi
 	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
 	$1 {print $1}' | sort | uniq -d)" -o \
 	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
@@ -658,19 +678,6 @@ ActiveDefaultRoutes() {
 	ip -4 route show default | \
 	awk '$1 == "default" && $NF != "linkdown" {n++}
 		END{print n+0}'
-}
-
-IsWanConnected() {
-	local status
-	status="$(cat "/sys/class/net/${IfaceWan}/operstate" 2> /dev/null)" && \
-	[ -n "${status}" -a "${status}" != "down" ]
-}
-
-IsWwanDisconnected() {
-	IsWifiActive "${NULLBSSID}" && \
-	sleep 5 && \
-	IsWifiActive "${NULLBSSID}" && \
-	echo "y" || :
 }
 
 Report() {
