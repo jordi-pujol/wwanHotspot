@@ -1325,8 +1325,10 @@ CheckNetworking() {
 	fi
 	if [ ${rc} -eq ${OK} ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -eq ${NONE} ]; then
-			[ -z "${Debug}" ] || \
+			[ -z "${Debug}" -a  -z "${StatMsgsChgd}" ] || \
 				_applog "${msg}"
+			[ -z "${StatMsgsChgd}" ] || \
+				AddMsg "${msg}"
 		else
 			AddMsg "${msg}"
 			[ ${NetwFailures} -eq ${NONE} ] && \
