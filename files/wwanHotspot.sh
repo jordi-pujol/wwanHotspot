@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.6 $
+#  $Revision: 2.7 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -186,7 +186,7 @@ IfaceTraffic() {
 		$(cat "/sys/class/net/${iface}/statistics/tx_bytes") ))	2> /dev/null
 }
 
-HotspotBlackList() {
+BlackListHotspot() {
 	local cause="${1}" \
 		expires="${2}" \
 		reason="${3}" \
@@ -1025,7 +1025,7 @@ WwanReset() {
 		msg
 
 	if [ -z "${WIfaceAP}" ] && \
-	[ ${disable} -eq 1 ]; then
+	[ ${disable} -eq ${UCIDISABLED} ]; then
 		local hotspot ssid bssid ssid1 bssid1
 		DoScan "y" || \
 			AnyOtherHotspot
@@ -1317,7 +1317,7 @@ CheckNetworking() {
 			rc=${?}
 	fi
 	if [ ${rc} -eq ${OK} ]; then
-		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -eq ${NONE} ]; then
+		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -gt ${NONE} ]; then
 			[ -z "${Debug}" ] || \
 				_applog "${msg}"
 		else
@@ -1340,7 +1340,7 @@ CheckNetworking() {
 		return ${ERR}
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
-		HotspotBlackList "network" "${BlackListNetworkExpires}" "${msg}"
+		BlackListHotspot "network" "${BlackListNetworkExpires}" "${msg}"
 		if HotspotLookup; then
 			return ${ERR}
 		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
@@ -1427,7 +1427,7 @@ WifiStatus() {
 		LogPrio WarnBlackList \
 		Gateway CheckAddr CheckSrvr CheckInet CheckPort \
 		TryConnection WIface WIfaceAP WIfaceSTA WDevice \
-		msg wwdsc
+		WwanDisconnected msg
 
 	trap '_exit' EXIT
 	trap 'exit' INT
@@ -1449,8 +1449,8 @@ WifiStatus() {
 		echo "${UCIDISABLED}")" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
-		wwdsc="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
-		if [ -z "${WwanDisabled}" -a -z "${wwdsc}" ]; then
+		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
+		if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
 			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
@@ -1515,7 +1515,7 @@ WifiStatus() {
 			Interval=${Sleep}
 			continue
 		fi
-		if [ -z "${WwanDisabled}" -a -n "${wwdsc}" ]; then
+		if [ -z "${WwanDisabled}" -a -n "${WwanDisconnected}" ]; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
 				ClrStatMsgs
 				msg="Lost connection $(HotspotName)"
@@ -1537,7 +1537,7 @@ WifiStatus() {
 					AddStatMsg "${msg}"
 					if [ ${BlackList} -ne ${NONE} ] && \
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
-						HotspotBlackList "connect" "${BlackListExpires}" \
+						BlackListHotspot "connect" "${BlackListExpires}" \
 							"${msg}"
 						WwanSsid=""
 						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :

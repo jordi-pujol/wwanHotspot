@@ -1,3 +1,11 @@
+wwanHotspot v2.7
+
+  * wwanHotspot.sh,
+    CheckNetworking():
+    - show again lost message when time updating a connected hotspot
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 27 Feb 2021 08:38:12 +0100
+
 wwanHotspot v2.6
 
   * configure hotspots using all corresponding UCI key fields.
