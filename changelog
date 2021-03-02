@@ -1,11 +1,15 @@
 wwanHotspot v2.7
 
   * wwanHotspot.sh,
+    LoadConfig():
+    - set WwanDisabled and WwanDisconnected before importing current
+    UCI wwan configuration.
     CheckNetworking():
     - show again "networking has been verified" message when
     updating status report of a connected hotspot.
     ImportHotspot():
-    - only fill up ssid and bssid from iwinfo when the hotstpot
+    - ConnectedBssid() and ConnectedSsid():
+    only must fill up ssid and bssid from iwinfo when the hotstpot
     is really connected.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 27 Feb 2021 08:38:12 +0100

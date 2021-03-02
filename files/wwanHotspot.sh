@@ -412,6 +412,7 @@ AddHotspot() {
 }
 
 ConnectedBssid() {
+	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 	iwinfo "${WIface}" info 2> /dev/null | \
 	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
 		print tolower($NF)
@@ -421,6 +422,7 @@ ConnectedBssid() {
 }
 
 ConnectedSsid() {
+	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 	iwinfo "${WIface}" info 2> /dev/null | \
 	awk -v iface="${WIface}" \
 	'function trim(s) {
@@ -436,31 +438,28 @@ ConnectedSsid() {
 }
 
 ImportHotspot() {
-	local noHotspots="${1:-}" \
-		net_ssid net_bssid net_encrypt net_hidden \
+	local net_ssid net_bssid net_encrypt net_hidden \
 		net_key net_key1 net_key2 net_key3 net_key4 \
 		msg add_cfg ssid
 	net_ssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 	net_bssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 	net_encrypt="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].encryption)" || :
+	unset net_hidden
 	net_key="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key)" || :
 	net_key1="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key1)" || :
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
-	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
-	ssid="$(ConnectedSsid)"; then
+	if ssid="$(ConnectedSsid)"; then
 		if [ "$(ssid)" = "${NULLSSID}" ]; then
 			[ -n "${net_ssid}" ] || \
 				unset net_ssid
 			net_hidden="y"
 		else
 			net_ssid="${net_ssid:-"$(_unquote "${ssid}")"}"
-			unset net_hidden
 		fi
 	fi
 	if [ -z "${net_bssid}" ]; then
-		[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 		net_bssid="$(ConnectedBssid)" || \
 			unset net_bssid
 	else
@@ -472,14 +471,14 @@ ImportHotspot() {
 	[ -n "${net_key3}" ] || unset net_key3
 	[ -n "${net_key4}" ] || unset net_key4
 	msg="Importing the current router setup for the STA interface"
-	[ -z "${noHotspots}" ] || \
+	[ ${Hotspots} -ne ${NONE} ] || \
 		msg="No hotspots configured, ${msg}"
 	LogPrio="warn" _log "${msg}"
 	AddStatMsg "Warning:" "${msg}"
 	add_cfg="$(set | grep -se '^net_')"
 	AddHotspot || \
 		return ${ERR}
-	[ -z "${noHotspots}" -o ! -s "/etc/config/${NAME}" ] || \
+	[ ${Hotspots} -ne ${NONE} -o ! -s "/etc/config/${NAME}" ] || \
 		sed -i.bak \
 		-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
 		"/etc/config/${NAME}"
@@ -638,7 +637,7 @@ LoadConfig() {
 		wireless.@wifi-iface[${WIfaceSTA}].disabled)" != "${UCIDISABLED}" || \
 		echo "${UCIDISABLED}")" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
-		ImportHotspot "y" || \
+		ImportHotspot || \
 			exit ${ERR}
 	fi
 	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
@@ -759,17 +758,16 @@ Report() {
 # returns: Hotspot WwanSsid WwanBssid
 # 	when not listed: returns false and Hotspot=${NONE} 
 CurrentHotspot() {
-	local connected="${1:-}" \
-		ssid
 	[ ${Hotspot} -eq ${NONE} ] || \
 		return ${OK}
-	if [ -n "${connected}" -a -z "${WwanBssid}" ] && \
+	local ssid
+	if [ -z "${WwanBssid}" ] && \
 	WwanBssid="$(ConnectedBssid)"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		[ -z "${Debug}" ] || \
 			_applog "Setting uci bssid ${WwanBssid}"
 	fi
-	if [ -n "${connected}" -a -z "${WwanSsid}" ] && \
+	if [ -z "${WwanSsid}" ] && \
 	ssid="$(ConnectedSsid)"; then
 		[ -z "${Debug}" ] || \
 			_applog "Setting uci ssid ${ssid}"
@@ -1028,7 +1026,7 @@ EOF
 
 WwanReset() {
 	local disable="${1:-${UCIDISABLED}}" \
-		iface="${2:-"${WIfaceSTA}"}" \
+		iface="${2:-${WIfaceSTA}}" \
 		msg
 
 	if [ -z "${WIfaceAP}" ] && \
@@ -1073,6 +1071,9 @@ WwanReset() {
 				echo "interface to $(HotspotName)" || \
 				echo "Access Point")"
 	fi
+
+	! test ${iface} -eq ${WIfaceSTA} -a ${disable} -eq ${UCIDISABLED} || \
+		Hotspot=${NONE}
 
 	_log "${msg}"
 	AddStatMsg "${msg}"
@@ -1464,7 +1465,7 @@ WifiStatus() {
 			ScanErr=""
 			WwanErr=${NONE}
 			if [ ${Status} -ne ${CONNECTED} ]; then
-				if ! CurrentHotspot "y"; then
+				if ! CurrentHotspot; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
 						"$(HotspotName)"
