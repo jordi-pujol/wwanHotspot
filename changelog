@@ -1,3 +1,9 @@
+wwanHotspot v2.8
+
+  * 
+
+-- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 05 Mar 2021 08:11:20 +0100
+
 wwanHotspot v2.7
 
   * wwanHotspot.sh, LoadConfig():
@@ -7,7 +13,7 @@ wwanHotspot v2.7
     - show again "networking has been verified" message when
     updating status report of a connected hotspot.
   * wwanHotspot.sh, ConnectedBssid() and ConnectedSsid():
-    only must fill up ssid and bssid from iwinfo when the hotstpot
+    - only must fill up ssid and bssid from iwinfo when the hotstpot
     is really connected.
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 27 Feb 2021 08:38:12 +0100

@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.7 $
+#  $Revision: 2.8 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -754,7 +754,6 @@ Report() {
 		_applog "End of status report"
 }
 
-# param: connected = indicator
 # returns: Hotspot WwanSsid WwanBssid
 # 	when not listed: returns false and Hotspot=${NONE} 
 CurrentHotspot() {
@@ -1445,7 +1444,7 @@ WifiStatus() {
 	LoadConfig || exit ${ERR}
 	Interval=${Sleep}
 
-	! printf '%s\n' "${@}" | grep -qswiF 'import' || \
+	! printf '%s\n' "${@}" | grep -qsxiF 'import' || \
 		ImportAuto="y"
 
 	trap 'LoadConfig' HUP
