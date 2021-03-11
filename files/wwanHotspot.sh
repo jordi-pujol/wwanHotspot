@@ -27,7 +27,7 @@ _tolower() {
 }
 
 _unquote() {
-	printf '%s\n' "${@}" | sed -e 's/^"//; s/"$//'
+	printf '%s\n' "${@}" | sed -re 's/^"(.*)"$/\1/'
 }
 
 _integer_value() {
