@@ -695,32 +695,33 @@ Report() {
 		printf '%s\n\n' "Detected AP config in wifi-iface ${WIfaceAP}" || \
 		printf '%s\n\n' "Non standard STA only configuration"
 	printf '%s="%s" %s\n' "Debug" "${Debug}" \
-		"$(test -z "${Debug}" && echo "Disabled" || echo "Enabled")"
+		"$(test -z "${Debug}" && echo "# Disabled" || echo "# Enabled")"
 	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
 	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
-		"$(test -z "${ReScan}" && echo "Disabled" || echo "Enabled")"
+		"$(test -z "${ReScan}" && echo "# Disabled" || echo "# Enabled")"
 	printf '%s=%s %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
-		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "Disabled" || \
-		echo "networking failures")"
-	printf '%s=%d %s\n' "Sleep" "${Sleep}" "seconds"
-	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "seconds"
-	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "seconds"
+		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "# Disabled" || \
+		echo "# networking failures")"
+	printf '%s=%d %s\n' "Sleep" "${Sleep}" "# seconds"
+	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "# seconds"
+	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "# seconds"
 	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
-		"$(test ${BlackList} -eq ${NONE} && echo "Disabled" || echo "errors")"
+		"$(test ${BlackList} -eq ${NONE} && echo "# Disabled" || echo "# errors")"
 	printf '%s=%d %s\n' "BlackListExpires" "${BlackListExpires}" \
-		"$(test ${BlackListExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
+		"$(test ${BlackListExpires} -eq ${NONE} && echo "# Never" || echo "# seconds")"
 	printf '%s=%d %s\n' "BlackListNetwork" "${BlackListNetwork}" \
-		"$(test ${BlackListNetwork} -eq ${NONE} && echo "Disabled" || echo "errors")"
+		"$(test ${BlackListNetwork} -eq ${NONE} && echo "# Disabled" || echo "# errors")"
 	printf '%s=%d %s\n' "BlackListNetworkExpires" "${BlackListNetworkExpires}" \
-		"$(test ${BlackListNetworkExpires} -eq ${NONE} && echo "Never" || echo "seconds")"
-	printf '%s=%d %s\n' "PingWait" "${PingWait}" "seconds"
+		"$(test ${BlackListNetworkExpires} -eq ${NONE} \
+			&& echo "# Never" || echo "# seconds")"
+	printf '%s=%d %s\n' "PingWait" "${PingWait}" "# seconds"
 	printf '%s=%d %s\n' "MinTrafficBps" "${MinTrafficBps}" \
-		"$(test ${MinTrafficBps} -eq ${NONE} && echo "Disabled" || echo "bytes per second")"
+		"$(test ${MinTrafficBps} -eq ${NONE} && echo "# Disabled" || echo "# bytes per second")"
 	printf '%s=%d %s\n' "ReportUpdtLapse" "${ReportUpdtLapse}" \
-		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "Disabled" || echo "seconds")"
-	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "log files to keep"
+		"$(test ${ReportUpdtLapse} -eq ${NONE} && echo "# Disabled" || echo "# seconds")"
+	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "# log files to keep"
 	printf '%s="%s" %s\n' "ImportAuto" "${ImportAuto}" \
-		"$(test -z "${ImportAuto}" && echo "Disabled" || echo "Enabled")"
+		"$(test -z "${ImportAuto}" && echo "# Disabled" || echo "# Enabled")"
 	echo
 	local i=0
 	while [ $((i++)) -lt ${Hotspots} ]; do
@@ -1441,7 +1442,8 @@ WifiStatus() {
 	trap '_exit' EXIT
 	trap 'exit' INT
 
-	LoadConfig || exit ${ERR}
+	LoadConfig || \
+		exit ${ERR}
 	Interval=${Sleep}
 
 	! printf '%s\n' "${@}" | grep -qsxiF 'import' || \
@@ -1470,7 +1472,8 @@ WifiStatus() {
 						"$(HotspotName)"
 					if [ -n "${ImportAuto}" ]; then
 						if ImportHotspot; then
-							LoadConfig
+							LoadConfig || \
+								exit ${ERR}
 							msg="This connected hotspot has been added to the config file"
 							_applog "${msg}"
 							AddStatMsg "${msg}"
