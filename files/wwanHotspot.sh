@@ -640,9 +640,7 @@ LoadConfig() {
 		ImportHotspot || \
 			exit ${ERR}
 	fi
-	if [ -n "$(printf '%s\n' "${Ssids}" | awk 'BEGIN{FS="\t"}
-	$1 {print $1}' | sort | uniq -d)" -o \
-	-n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
+	if [ -n "$(printf '%s\n' "${Ssids}" | sort | uniq -d)" ]; then
 		msg="Invalid configuration. Duplicate hotspots SSIDs or BSSIDs"
 		LogPrio="err" _log "${msg}"
 		AddStatMsg "Error:" "${msg}"
@@ -758,9 +756,7 @@ Report() {
 # returns: Hotspot WwanSsid WwanBssid
 # 	when not listed: returns false and Hotspot=${NONE} 
 CurrentHotspot() {
-	[ ${Hotspot} -eq ${NONE} ] || \
-		return ${OK}
-	local ssid
+	local ssid hotspot
 	if [ -z "${WwanBssid}" ] && \
 	WwanBssid="$(ConnectedBssid)"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
@@ -779,6 +775,7 @@ CurrentHotspot() {
 			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		fi
 	fi
+	hotspot=${Hotspot}
 	Hotspot="$(printf '%s\n' "${Ssids}" | \
 			awk -v ssid="${WwanSsid}" \
 			-v bssid="${WwanBssid}" \
@@ -789,7 +786,10 @@ CurrentHotspot() {
 			awk -v ssid="${WwanSsid}" \
 			'BEGIN{FS="\t"}
 			! $1 && $2 == ssid {n = NR; exit}
-			END{print n+0; exit (n+0 == 0)}')"
+			END{print n+0; exit (n+0 == 0)}')" || \
+		return ${ERR}
+	[ ${Hotspot} -eq ${hotspot} ] || \
+		return ${ERR}
 }
 
 MustScan() {
@@ -1465,8 +1465,9 @@ WifiStatus() {
 			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
-			if [ ${Status} -ne ${CONNECTED} ]; then
-				if ! CurrentHotspot; then
+			if ! CurrentHotspot || \
+			[ ${Status} -ne ${CONNECTED} ]; then
+				if [ ${Hotspot} -eq ${NONE} ]; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
 						"$(HotspotName)"

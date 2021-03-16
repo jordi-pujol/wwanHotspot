@@ -1,6 +1,15 @@
 wwanHotspot v2.8
 
-  * 
+  * wwanHotspot.sh, Report():
+    - comment out the descriptions for variable values
+  * wwanHotspot.sh, LoadConfig():
+    - allow more config freedom
+    relaxing the check for duplicate SSID and BSSIDS,
+  * wwanHotspot.sh, WifiStatus():
+    - better way to check if the currently connected hotspot is configured
+  * wwanHotspot.sh, CurrentHotspot():
+    - allways check that the currently connected hotspot corresponds
+    to the currently stored Hotspot number
 
 -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 05 Mar 2021 08:11:20 +0100
 
