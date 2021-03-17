@@ -633,9 +633,8 @@ LoadConfig() {
 		done
 	fi
 	if [ ${Hotspots} -eq ${NONE} ]; then
-		WwanDisabled="$(test "$(uci -q get \
-		wireless.@wifi-iface[${WIfaceSTA}].disabled)" != "${UCIDISABLED}" || \
-		echo "${UCIDISABLED}")" || :
+		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled | \
+			grep -sxF "${UCIDISABLED}")" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
 		ImportHotspot || \
 			exit ${ERR}
@@ -736,8 +735,9 @@ Report() {
 	printf '%s %s\n' "Current hotspot client is" \
 		"$(HotspotName)"
 	printf '%s %s%s\n' "Hotspot client is" \
-		"$(test "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled)" != ${UCIDISABLED} && \
-		echo "en" || echo "dis")" "abled"
+		"$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled | \
+		grep -qsxF "${UCIDISABLED}" && \
+		echo "dis" || echo "en")" "abled"
 	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
 		"$(IsWifiActive "${WwanBssid:-}" "${WwanSsid:-}" || \
 		echo " not")" "active"
@@ -1041,7 +1041,8 @@ WwanReset() {
 		msg="${msg} hotspot for the STA interface"
 	else
 		local disabled
-		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled)" || :
+		disabled="$(uci -q get wireless.@wifi-iface[${iface}].disabled | \
+			grep -sxF "${UCIDISABLED}")" || :
 		[ ${disabled:-"0"} -ne ${disable} ] || \
 			return ${OK}
 		[ ${disable} -eq ${UCIDISABLED} ] && \
@@ -1074,21 +1075,21 @@ IsHotspotSet() {
 	WwanBssid="$(ConnectedBssid)"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		[ -z "${Debug}" ] || \
-			_applog "Setting uci bssid ${WwanBssid}"
+			_applog "Setting UCI bssid ${WwanBssid}"
 		update="y"
 	fi
 	if [ -z "${WwanSsid}" ] && \
 	ssid="$(ConnectedSsid)" && \
 	[ "${ssid}" != "${NULLSSID}" ]; then
 		[ -z "${Debug}" ] || \
-			_applog "Setting uci ssid ${ssid}"
+			_applog "Setting UCI ssid ${ssid}"
 		WwanSsid="$(_unquote "${ssid}")"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		update="y"
 	fi
 	[ -n "${update}" ] || \
 		return ${OK}
-	msg="Resetting wireless interface to $(HotspotName)"
+	msg="Resetting wireless interface for $(HotspotName)"
 	_log "${msg}"
 	AddStatMsg "${msg}"
 	wifi down "${WDevice}"
@@ -1469,9 +1470,8 @@ WifiStatus() {
 	trap 'ListStatus' USR2
 
 	while Settle; do
-		WwanDisabled="$(test "$(uci -q get \
-		wireless.@wifi-iface[${WIfaceSTA}].disabled)" != "${UCIDISABLED}" || \
-		echo "${UCIDISABLED}")" || :
+		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled | \
+			grep -sxF "${UCIDISABLED}")" || :
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
