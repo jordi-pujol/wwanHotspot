@@ -1067,7 +1067,9 @@ WwanReset() {
 }
 
 IsHotspotSet() {
-	local ssid update=""
+	local ssid \
+		update="" \
+		msg
 	if [ -z "${WwanBssid}" ] && \
 	WwanBssid="$(ConnectedBssid)"; then
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
