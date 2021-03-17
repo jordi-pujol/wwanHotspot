@@ -10,6 +10,9 @@ wwanHotspot v2.8
   * wwanHotspot.sh, CurrentHotspot():
     - allways check that the currently connected hotspot corresponds
     to the currently stored Hotspot number
+  * wwanHotspot.sh, IsHotspotSet():
+    - new function IsHotspotSet to deduce and fill UCI empty values of
+    SSID or BSSID
 
 -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 05 Mar 2021 08:11:20 +0100
 

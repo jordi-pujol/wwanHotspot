@@ -753,29 +753,11 @@ Report() {
 		_applog "End of status report"
 }
 
-# returns: Hotspot WwanSsid WwanBssid
-# 	when not listed: returns false and Hotspot=${NONE} 
+# returns: current Hotspot number
+# 	when changed: returns false
+# 	when not listed: returns false and Hotspot=${NONE}
 CurrentHotspot() {
-	local ssid hotspot
-	if [ -z "${WwanBssid}" ] && \
-	WwanBssid="$(ConnectedBssid)"; then
-		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
-		[ -z "${Debug}" ] || \
-			_applog "Setting uci bssid ${WwanBssid}"
-	fi
-	if [ -z "${WwanSsid}" ] && \
-	ssid="$(ConnectedSsid)"; then
-		[ -z "${Debug}" ] || \
-			_applog "Setting uci ssid ${ssid}"
-		if [ "${ssid}" = "${NULLSSID}" ]; then
-			WwanSsid=""
-			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
-		else
-			WwanSsid="$(_unquote "${ssid}")"
-			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-		fi
-	fi
-	hotspot=${Hotspot}
+	local hotspot=${Hotspot}
 	Hotspot="$(printf '%s\n' "${Ssids}" | \
 			awk -v ssid="${WwanSsid}" \
 			-v bssid="${WwanBssid}" \
@@ -1082,6 +1064,36 @@ WwanReset() {
 	wifi up "${WDevice}"
 	UpdateReport="y"
 	WatchWifi &
+}
+
+IsHotspotSet() {
+	local ssid update=""
+	if [ -z "${WwanBssid}" ] && \
+	WwanBssid="$(ConnectedBssid)"; then
+		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
+		[ -z "${Debug}" ] || \
+			_applog "Setting uci bssid ${WwanBssid}"
+		update="y"
+	fi
+	if [ -z "${WwanSsid}" ] && \
+	ssid="$(ConnectedSsid)" && \
+	[ "${ssid}" != "${NULLSSID}" ]; then
+		[ -z "${Debug}" ] || \
+			_applog "Setting uci ssid ${ssid}"
+		WwanSsid="$(_unquote "${ssid}")"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
+		update="y"
+	fi
+	[ -n "${update}" ] || \
+		return ${OK}
+	msg="Resetting wireless interface to $(HotspotName)"
+	_log "${msg}"
+	AddStatMsg "${msg}"
+	wifi down "${WDevice}"
+	wifi up "${WDevice}"
+	UpdateReport="y"
+	WatchWifi &
+	return ${ERR}
 }
 
 HotspotLookup() {
@@ -1467,6 +1479,8 @@ WifiStatus() {
 			WwanErr=${NONE}
 			if ! CurrentHotspot || \
 			[ ${Status} -ne ${CONNECTED} ]; then
+				IsHotspotSet || \
+					continue
 				if [ ${Hotspot} -eq ${NONE} ]; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
