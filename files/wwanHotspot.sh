@@ -412,7 +412,6 @@ AddHotspot() {
 }
 
 ConnectedBssid() {
-	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 	iwinfo "${WIface}" info 2> /dev/null | \
 	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
 		print tolower($NF)
@@ -422,7 +421,6 @@ ConnectedBssid() {
 }
 
 ConnectedSsid() {
-	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ] && \
 	iwinfo "${WIface}" info 2> /dev/null | \
 	awk -v iface="${WIface}" \
 	'function trim(s) {
@@ -450,21 +448,23 @@ ImportHotspot() {
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
-	if ssid="$(ConnectedSsid)"; then
-		if [ "$(ssid)" = "${NULLSSID}" ]; then
-			[ -n "${net_ssid}" ] || \
-				unset net_ssid
-			net_hidden="y"
-		else
-			net_ssid="${net_ssid:-"$(_unquote "${ssid}")"}"
+	if [ ${Hotspots} -eq ${NONE} ] && \
+	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
+		if [ -z "${net_ssid}" ] && \
+		ssid="$(ConnectedSsid)"; then
+			[ "$(ssid)" = "${NULLSSID}" ] && \
+				net_hidden="y" || \
+				net_ssid="$(_unquote "${ssid}")"
+		fi
+		if [ -z "${net_bssid}" ]; then
+			net_bssid="$(ConnectedBssid)" || \
+				unset net_bssid
 		fi
 	fi
-	if [ -z "${net_bssid}" ]; then
-		net_bssid="$(ConnectedBssid)" || \
-			unset net_bssid
-	else
-		net_bssid="$(_tolower "${net_bssid}")"
-	fi
+	[ -n "${net_ssid}" ] || unset net_ssid
+	[ -n "${net_bssid}" ] && \
+		net_bssid="$(_tolower "${net_bssid}")" || \
+		unset net_bssid
 	[ -n "${net_key}" ] || unset net_key
 	[ -n "${net_key1}" ] || unset net_key1
 	[ -n "${net_key2}" ] || unset net_key2
@@ -664,6 +664,7 @@ LoadConfig() {
 	IndReScan=""
 	NetwFailures=${NONE}
 	Status=${NONE}
+	ConnectedName=""
 	[ -z "${Debug}" ] || \
 		_applog "$(StatusName)"
 	AddStatMsg "Configuration reloaded"
@@ -693,7 +694,8 @@ Report() {
 		printf '%s\n\n' "Non standard STA only configuration"
 	printf '%s="%s" %s\n' "Debug" "${Debug}" \
 		"$(test -z "${Debug}" && echo "# Disabled" || echo "# Enabled")"
-	printf '%s="%s"\n' "ScanAuto" "${ScanAuto}"
+	printf '%s="%s" %s\n' "ScanAuto" "${ScanAuto}" \
+		"$(test -z "${ScanAuto}" && echo "# Disabled" || echo "# Enabled")"
 	printf '%s="%s" %s\n' "ReScan" "${ReScan}" \
 		"$(test -z "${ReScan}" && echo "# Disabled" || echo "# Enabled")"
 	printf '%s=%s %s\n' "ReScanOnNetwFail" "${ReScanOnNetwFail}" \
@@ -753,11 +755,7 @@ Report() {
 		_applog "End of status report"
 }
 
-# returns: current Hotspot number
-# 	when changed: returns false
-# 	when not listed: returns false and Hotspot=${NONE}
 CurrentHotspot() {
-	local hotspot=${Hotspot}
 	Hotspot="$(printf '%s\n' "${Ssids}" | \
 			awk -v ssid="${WwanSsid}" \
 			-v bssid="${WwanBssid}" \
@@ -768,10 +766,7 @@ CurrentHotspot() {
 			awk -v ssid="${WwanSsid}" \
 			'BEGIN{FS="\t"}
 			! $1 && $2 == ssid {n = NR; exit}
-			END{print n+0; exit (n+0 == 0)}')" || \
-		return ${ERR}
-	[ ${Hotspot} -eq ${hotspot} ] || \
-		return ${ERR}
+			END{print n+0}')"
 }
 
 MustScan() {
@@ -1073,9 +1068,9 @@ IsHotspotSet() {
 		msg
 	if [ -z "${WwanBssid}" ] && \
 	WwanBssid="$(ConnectedBssid)"; then
-		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		[ -z "${Debug}" ] || \
 			_applog "Setting UCI bssid ${WwanBssid}"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		update="y"
 	fi
 	if [ -z "${WwanSsid}" ] && \
@@ -1445,7 +1440,7 @@ WifiStatus() {
 	# internal variables, daemon scope
 	local WwanSsid WwanBssid WwanDisabled WwanErr \
 		Ssids Hotspots HotspotsOrder IfaceWan \
-		ScanRequest ScanErr IndReScan \
+		ConnectedName ScanRequest ScanErr IndReScan \
 		Status StatMsgsChgd StatMsgs MsgTime \
 		UpdateReport UpdtMsgs Interval NoSleep \
 		Hotspot ConnAttempts NetwFailures Traffic CheckTime \
@@ -1475,12 +1470,13 @@ WifiStatus() {
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
+		CurrentHotspot
 		if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
 			TryConnection=${NONE}
 			ScanErr=""
 			WwanErr=${NONE}
-			if ! CurrentHotspot || \
-			[ ${Status} -ne ${CONNECTED} ]; then
+			if [ "${ConnectedName}" != "$(HotspotName)" -o \
+			${Status} -ne ${CONNECTED} ]; then
 				IsHotspotSet || \
 					continue
 				if [ ${Hotspot} -eq ${NONE} ]; then
@@ -1511,6 +1507,7 @@ WifiStatus() {
 					_log "${msg}"
 					AddMsg "${msg}"
 					Status=${CONNECTED}
+					ConnectedName="$(HotspotName)"
 					[ -z "${Debug}" ] || \
 						_applog "$(StatusName)"
 					ScanRequest=${NONE}
@@ -1536,7 +1533,6 @@ WifiStatus() {
 			_log "${msg}"
 			AddStatMsg "${msg}"
 		fi
-		CurrentHotspot || :
 		if [ -z "${WIfaceAP}" -a -n "${WwanDisabled}" ] || \
 		( [ -n "${WIfaceAP}" ] && \
 		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = ${UCIDISABLED} ] ); then

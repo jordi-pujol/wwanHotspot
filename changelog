@@ -8,8 +8,7 @@ wwanHotspot v2.8
   * wwanHotspot.sh, WifiStatus():
     - better way to check if the currently connected hotspot is configured
   * wwanHotspot.sh, CurrentHotspot():
-    - allways check that the currently connected hotspot corresponds
-    to the currently stored Hotspot number
+    - allways check the current Hotspot number
   * wwanHotspot.sh, IsHotspotSet():
     - new function IsHotspotSet to deduce and fill UCI empty values of
     SSID or BSSID
