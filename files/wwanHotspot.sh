@@ -448,13 +448,13 @@ ImportHotspot() {
 	net_key2="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key2)" || :
 	net_key3="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key3)" || :
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
-	if [ ${Hotspots} -eq ${NONE} ] && \
-	[ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
-		if [ -z "${net_ssid}" ] && \
-		ssid="$(ConnectedSsid)"; then
-			[ "$(ssid)" = "${NULLSSID}" ] && \
-				net_hidden="y" || \
+	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
+		if ssid="$(ConnectedSsid)"; then
+			if [ "$(ssid)" = "${NULLSSID}" ]; then
+				net_hidden="y"
+			elif [ -z "${net_ssid}" ]; then
 				net_ssid="$(_unquote "${ssid}")"
+			fi
 		fi
 		if [ -z "${net_bssid}" ]; then
 			net_bssid="$(ConnectedBssid)" || \
@@ -1507,9 +1507,9 @@ WifiStatus() {
 					_log "${msg}"
 					AddMsg "${msg}"
 					Status=${CONNECTED}
-					ConnectedName="$(HotspotName)"
 					[ -z "${Debug}" ] || \
 						_applog "$(StatusName)"
+					ConnectedName="$(HotspotName)"
 					ScanRequest=${NONE}
 				fi
 			elif [ -n "${IndReScan}" ]; then
