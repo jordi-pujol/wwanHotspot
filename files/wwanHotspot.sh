@@ -456,10 +456,8 @@ ImportHotspot() {
 				net_ssid="$(_unquote "${ssid}")"
 			fi
 		fi
-		if [ -z "${net_bssid}" ]; then
-			net_bssid="$(ConnectedBssid)" || \
-				unset net_bssid
-		fi
+		[ -n "${net_bssid}" ] || \
+			net_bssid="$(ConnectedBssid)" || :
 	fi
 	[ -n "${net_ssid}" ] || unset net_ssid
 	[ -n "${net_bssid}" ] && \
