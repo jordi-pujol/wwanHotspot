@@ -182,9 +182,9 @@ _exit() {
 }
 
 IfaceTraffic() {
-	local iface="${1:-"${WIface}"}"
-	printf '%s\n' $(( $(cat "/sys/class/net/${iface}/statistics/rx_bytes") + \
-		$(cat "/sys/class/net/${iface}/statistics/tx_bytes") ))	2> /dev/null
+	local statistics="/sys/class/net/${1:-"${WIface}"}/statistics/"
+	printf '%s\n' $(( $(cat "${statistics}rx_bytes") + \
+		$(cat "${statistics}tx_bytes") ))	2> /dev/null
 }
 
 BlackListHotspot() {
