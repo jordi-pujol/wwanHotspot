@@ -67,6 +67,7 @@ _applog() {
 	printf '%s\n' "$(_datetime) ${msg}" >> "/var/log/${NAME}"
 }
 
+# priority: info notice warn err debug
 _log() {
 	local msg="${@}" \
 		p="daemon.${LogPrio:-"notice"}"
@@ -1061,35 +1062,19 @@ WwanReset() {
 }
 
 IsHotspotSet() {
-	local ssid \
-		update="" \
-		msg
+	local ssid
 	if [ -z "${WwanBssid}" ] && \
 	WwanBssid="$(ConnectedBssid)"; then
-		[ -z "${Debug}" ] || \
-			_applog "Setting UCI bssid ${WwanBssid}"
+		LogPrio="debug" _log "Setting UCI BSSID ${WwanBssid}"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
-		update="y"
 	fi
 	if [ -z "${WwanSsid}" ] && \
 	ssid="$(ConnectedSsid)" && \
 	[ "${ssid}" != "${NULLSSID}" ]; then
-		[ -z "${Debug}" ] || \
-			_applog "Setting UCI ssid ${ssid}"
+		LogPrio="debug" _log "Setting UCI SSID ${ssid}"
 		WwanSsid="$(_unquote "${ssid}")"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-		update="y"
 	fi
-	[ -n "${update}" ] || \
-		return ${OK}
-	msg="Resetting wireless interface for $(HotspotName)"
-	_log "${msg}"
-	AddStatMsg "${msg}"
-	wifi down "${WDevice}"
-	wifi up "${WDevice}"
-	UpdateReport="y"
-	WatchWifi &
-	return ${ERR}
 }
 
 HotspotLookup() {
@@ -1475,8 +1460,8 @@ WifiStatus() {
 			WwanErr=${NONE}
 			if [ "${ConnectedName}" != "$(HotspotName)" -o \
 			${Status} -ne ${CONNECTED} ]; then
-				IsHotspotSet || \
-					continue
+				[ -z "${Debug}" ] || \
+					IsHotspotSet
 				if [ ${Hotspot} -eq ${NONE} ]; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
