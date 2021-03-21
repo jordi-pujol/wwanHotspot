@@ -955,7 +955,7 @@ EOF
 			END{exit rc+1}'; then
 				[ -z "${Debug}" ] || \
 					_applog "Do-Scan: hotspot" \
-						"$(HotspotName "${i}" "${bssid2}" "${ssid1}")" \
+						"$(HotspotName "${i}" "${bssid2}" "${ssid2}")" \
 						"iw scan already listed BSSID"
 				continue
 			fi
@@ -1059,22 +1059,6 @@ WwanReset() {
 	wifi up "${WDevice}"
 	UpdateReport="y"
 	WatchWifi &
-}
-
-IsHotspotSet() {
-	local ssid
-	if [ -z "${WwanBssid}" ] && \
-	WwanBssid="$(ConnectedBssid)"; then
-		LogPrio="debug" _log "Setting UCI BSSID ${WwanBssid}"
-		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
-	fi
-	if [ -z "${WwanSsid}" ] && \
-	ssid="$(ConnectedSsid)" && \
-	[ "${ssid}" != "${NULLSSID}" ]; then
-		LogPrio="debug" _log "Setting UCI SSID ${ssid}"
-		WwanSsid="$(_unquote "${ssid}")"
-		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
-	fi
 }
 
 HotspotLookup() {
@@ -1460,8 +1444,6 @@ WifiStatus() {
 			WwanErr=${NONE}
 			if [ "${ConnectedName}" != "$(HotspotName)" -o \
 			${Status} -ne ${CONNECTED} ]; then
-				[ -z "${Debug}" ] || \
-					IsHotspotSet
 				if [ ${Hotspot} -eq ${NONE} ]; then
 					LogPrio="warn" \
 					_log "Connected to a non-configured hotspot:" \
