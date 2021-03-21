@@ -829,7 +829,8 @@ DoScan() {
 			_log "${msg}"
 		ScanErr=""
 	fi
-	scanned="$(printf '%s\n' "${scanned}" | awk \
+	scanned="$(printf '%s\n' "${scanned}" | \
+		awk \
 		'function trim(s) {
 			if (!s) s=$0
 			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
@@ -845,6 +846,8 @@ DoScan() {
 			bssid=""
 		}
 		BEGIN{OFS="\t"}
+		$1 == "BSS" && $NF == "associated" {
+			next}
 		$1 == "BSS" {
 			prt()
 			bssid=substr($2,1,17)
@@ -854,8 +857,7 @@ DoScan() {
 			ciph="*"
 			pair="*"
 			auth="*"
-			next
-		}
+			next}
 		{if (! bssid) next}
 		$1 == "signal:" {
 			signal=0-$2
@@ -880,7 +882,8 @@ DoScan() {
 			auth=nospaces()
 			next}
 		END{prt()
-		exit rc+1}' | sort -n -k 1,1)" || \
+		exit rc+1}' | \
+		sort -n -k 1,1)" || \
 			return ${ERR}
 
 	local i ssid1 bssid1 blacklisted hidden net_ssid \
