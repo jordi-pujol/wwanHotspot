@@ -846,10 +846,9 @@ DoScan() {
 			bssid=""
 		}
 		BEGIN{OFS="\t"}
-		$1 == "BSS" && $NF == "associated" {
-			next}
 		$1 == "BSS" {
 			prt()
+			if ($NF == "associated") next
 			bssid=substr($2,1,17)
 			seen="999999999"
 			signal="99"
