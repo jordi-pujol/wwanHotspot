@@ -451,7 +451,7 @@ ImportHotspot() {
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
 	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
 		if ssid="$(ConnectedSsid)"; then
-			if [ "$(ssid)" = "${NULLSSID}" ]; then
+			if [ "${ssid}" = "${NULLSSID}" ]; then
 				net_hidden="y"
 			elif [ -z "${net_ssid}" ]; then
 				net_ssid="$(_unquote "${ssid}")"
@@ -482,7 +482,7 @@ ImportHotspot() {
 		-re '/^[[:blank:]]*(net[[:digit:]]*_|AddHotspot)/s//# &/' \
 		"/etc/config/${NAME}"
 	printf '%s\n' "" \
-		"# $(_datetime) Auto-added hotspot" \
+		"# $(_datetime) Automatic hotspot import" \
 		"${add_cfg}" \
 		"#net_check='https://www.google.com/'" \
 		"AddHotspot" >> "/etc/config/${NAME}"
@@ -1454,12 +1454,12 @@ WifiStatus() {
 						if ImportHotspot; then
 							LoadConfig || \
 								exit ${ERR}
-							msg="This connected hotspot has been added to the config file"
+							msg="This connected hotspot has been imported to the config file"
 							_applog "${msg}"
 							AddStatMsg "${msg}"
 							continue
 						fi
-						msg="Can't add this connected hotspot to the config file"
+						msg="Can't import this connected hotspot to the config file"
 						_applog "${msg}"
 						AddStatMsg "${msg}"
 					fi
