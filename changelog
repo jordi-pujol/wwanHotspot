@@ -1,3 +1,11 @@
+wwanHotspot v2.9
+
+  * wwanHotspot.sh, WifiStatus():
+    - first check allways must be that the wifi interface is up,
+    solving the rare case when STA is enabled but AP is disabled.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 26 Mar 2021 16:37:12 +0100
+
 wwanHotspot v2.8
 
   * wwanHotspot.sh, Report():

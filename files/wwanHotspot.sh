@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.8 $
+#  $Revision: 2.9 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -147,7 +147,7 @@ ClrStatMsgs() {
 AddStatMsg() {
 	MsgTime=$(_UTCseconds)
 	local msg="$(_msgdatetime) ${@}"
-	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne 0 ]; then
+	if [ -z "${UpdateReport}" -a ${ReportUpdtLapse} -ne ${NONE} ]; then
 		awk -v msg="${msg}" \
 			'b == 1 {if ($0 ~ "^Radio device is") {print msg; b=2}
 				else b=0
@@ -769,7 +769,7 @@ CurrentHotspot() {
 }
 
 MustScan() {
-	[ ${ScanRequest} -le 0 -a "${ScanAuto}" != "allways" ] || \
+	[ ${ScanRequest} -le ${NONE} -a "${ScanAuto}" != "allways" ] || \
 		return ${OK}
 	[ -n "${ScanAuto}" ] && [ $(ActiveDefaultRoutes) -eq ${NONE} ]
 }
@@ -1275,7 +1275,7 @@ CheckNetworking() {
 				_applog "check networking, ping ${CheckAddr}"
 		fi
 	rc=${ERR}
-	if [ ${MinTrafficBps} -ne 0 ]; then
+	if [ ${MinTrafficBps} -ne ${NONE} ]; then
 		local r=$(IfaceTraffic) \
 			c=$(_UTCseconds)
 		if [ -n "${CheckTime}" ]; then
@@ -1293,7 +1293,7 @@ CheckNetworking() {
 		CheckTime=${c}
 		Traffic=${r}
 	fi
-	if [ ${rc} -ne 0 ]; then
+	if [ ${rc} -ne ${OK} ]; then
 		CheckNetw &
 		rc=${OK}
 		WaitSubprocess && \
@@ -1374,7 +1374,7 @@ Settle() {
 		Report &
 		WaitSubprocess "" "y" || :
 		UpdtMsgs=""
-	elif [ ${ReportUpdtLapse} -ne 0 ] && \
+	elif [ ${ReportUpdtLapse} -ne ${NONE} ] && \
 	( [ $((tl=$(_UTCseconds)-MsgTime)) -lt 0 ] || \
 	[ ${ReportUpdtLapse} -lt ${tl} ] ); then
 		ListStatus "Time lapse exceeded, requesting a report update"
@@ -1436,6 +1436,13 @@ WifiStatus() {
 	while Settle; do
 		WwanDisabled="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].disabled | \
 			grep -sxF "${UCIDISABLED}")" || :
+		if [ -z "${WIfaceAP}" -a -n "${WwanDisabled}" ] || \
+		( [ -n "${WIfaceAP}" ] && \
+		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = ${UCIDISABLED} ] ); then
+			WwanReset 0 "${WIfaceAP}"
+			Interval=${Sleep}
+			continue
+		fi
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
 		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
@@ -1490,7 +1497,7 @@ WifiStatus() {
 			fi
 			continue
 		fi
-		if [ ${TryConnection} -gt 0 ]; then
+		if [ ${TryConnection} -gt ${NONE} ]; then
 			if DoScan "y" "${WwanBssid}" "${WwanSsid}"; then
 				[ $((TryConnection--)) ]
 				continue
@@ -1499,13 +1506,6 @@ WifiStatus() {
 			msg="Hotspot $(HotspotName) is gone while connecting"
 			_log "${msg}"
 			AddStatMsg "${msg}"
-		fi
-		if [ -z "${WIfaceAP}" -a -n "${WwanDisabled}" ] || \
-		( [ -n "${WIfaceAP}" ] && \
-		[ "$(uci -q get wireless.@wifi-iface[${WIfaceAP}].disabled)" = ${UCIDISABLED} ] ); then
-			WwanReset 0 "${WIfaceAP}"
-			Interval=${Sleep}
-			continue
 		fi
 		if [ -z "${WwanDisabled}" -a -n "${WwanDisconnected}" ]; then
 			if [ ${Status} -eq ${CONNECTED} ]; then
@@ -1584,7 +1584,7 @@ WifiStatus() {
 		else
 			Interval=${SleepScanAuto}
 		fi
-		[ ${ScanRequest} -le 0 ] || \
+		[ ${ScanRequest} -le ${NONE} ] || \
 			[ $((ScanRequest--)) ]
 	done
 }
