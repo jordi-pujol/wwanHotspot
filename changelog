@@ -1,3 +1,10 @@
+wwanHotspot v2.10
+
+  * wwanHotspot.sh:
+    - use command ip instead of ifconfig
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Tue, 30 Mar 2021 20:14:26 +0200
+
 wwanHotspot v2.9
 
   * wwanHotspot.sh, WifiStatus():
