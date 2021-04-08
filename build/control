@@ -8,6 +8,7 @@ Architecture: all
 OE: wwanHotspot
 Homepage: https://github.com/jordi-pujol/wwanHotspot
 Depends: iwinfo, ip,
+Recommends: wget, ipset, iptables, iptables-mod-conntrack-extra, iptables-mod-ipopt,
 Source: N/A
 Description: OpenWrt daemon to maintain allways up a dual wifi config:
  Access Point and HotSpot client.
