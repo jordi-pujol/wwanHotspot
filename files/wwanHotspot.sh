@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.10 $
+#  $Revision: 2.11 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -1207,7 +1207,7 @@ CheckNetw() {
 	if [ -n "${CheckSrvr}" ]; then
 		if [ -n "${CheckInet}" ]; then
 			wget -nv --spider -T ${PingWait} --no-check-certificate \
-			--bind-address "${CheckInet##"addr:"}" "${CheckAddr}" 2>&1 | \
+			--bind-address "${CheckInet}" "${CheckAddr}" 2>&1 | \
 			grep -sF "200 OK"
 		else
 			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
