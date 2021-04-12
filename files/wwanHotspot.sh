@@ -1241,9 +1241,8 @@ CheckNetworking() {
 			CheckAddr="${check}"
 			if [ -z "$(which wget)" ] ||  \
 			! CheckInet="$(ip -o -4 addr show "${WIface}" 2> /dev/null | \
-			awk '{split($4, ip_addr, "/")
-				if (ip_addr[1]) {print ip_addr[1]; rc=-1}
-			}
+			awk 'BEGIN{FS="[ \t\n/]+"}
+			$4 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $4; rc=-1}
 			END{exit rc+1}')"; then
 				[ "${CheckAddr:0:8}" = "https://" ] && \
 					CheckPort=443 || \
