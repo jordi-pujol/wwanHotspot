@@ -1230,7 +1230,8 @@ CheckNetworking() {
 	Interval=${Sleep}
 	local delay=${Sleep} msg rc
 	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
-	awk '$1 == "default" {print $3; exit}')"}" ] && \
+	awk '$1 == "default" && \
+	$3 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $3; exit}')"}" ] && \
 	[ $((delay--)) -gt 0 ]; do
 		sleep 1
 	done
