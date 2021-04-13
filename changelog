@@ -3,7 +3,7 @@ wwanHotspot v2.11
   * wwanHotspot.sh, command ip:
     - check format of ip addresses
   * wwanHotspot.sh, ImportHotspot():
-    - a null ssid may be blank also
+    - a null SSID may be blank also
   * wwanHotspot.sh, ReScanningOnNetwFail():
     - Perform another scan excluding current BSSID instead of blacklisting
     current hotspot. This handles the case where several hotspots have been
