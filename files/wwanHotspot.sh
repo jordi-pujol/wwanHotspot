@@ -451,7 +451,7 @@ ImportHotspot() {
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
 	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
 		if ssid="$(ConnectedSsid)"; then
-			if [ "${ssid}" = "${NULLSSID}" ]; then
+			if [ -z "${ssid}" -o "${ssid}" = "${NULLSSID}" ]; then
 				net_hidden="y"
 			elif [ -z "${net_ssid}" ]; then
 				net_ssid="$(_unquote "${ssid}")"
@@ -800,7 +800,8 @@ Scanning() {
 DoScan() {
 	local forceScan="${1:-}" \
 		availBssid="${2:-}" \
-		availSsid="${3:-}"
+		availSsid="${3:-}" \
+		excludeBssid="${4:-}"
 
 	[ -n "${forceScan}" ] || \
 		if ! MustScan; then
@@ -830,7 +831,7 @@ DoScan() {
 		ScanErr=""
 	fi
 	scanned="$(printf '%s\n' "${scanned}" | \
-		awk \
+		awk -v excludeBssid="${excludeBssid}" \
 		'function trim(s) {
 			if (!s) s=$0
 			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
@@ -848,7 +849,8 @@ DoScan() {
 		BEGIN{OFS="\t"}
 		$1 == "BSS" {
 			prt()
-			if ($NF == "associated") next
+			if ($NF == "associated" || \
+				excludeBssid == substr($2,1,17)) next
 			bssid=substr($2,1,17)
 			seen="999999999"
 			signal="99"
@@ -1182,9 +1184,7 @@ ReScanningOnNetwFail() {
 	msg="Re-scanning on networking failure"
 	_applog "${msg}"
 	AddMsg "${msg}"
-	eval net${Hotspot}_blacklisted=\"NetworkingFailure $(_datetime)\" || :
-	if DoScan "y"; then
-		unset net${failingHotspot}_blacklisted
+	if DoScan "y" "" "" "${WwanBssid}"; then
 		ClrStatMsgs
 		msg="Reconnection required"
 		_applog "${msg}"
@@ -1193,7 +1193,6 @@ ReScanningOnNetwFail() {
 		NoSleep=""
 		return ${ERR}
 	fi
-	unset net${failingHotspot}_blacklisted
 	msg="Another hotspot is not available"
 	AddMsg "${msg}"
 	[ -z "${Debug}" ] || \
