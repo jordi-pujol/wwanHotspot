@@ -1179,8 +1179,7 @@ ReScanningOnNetwFail() {
 	[ ${ReScanOnNetwFail} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ] || \
 		return ${OK}
-	local hotspot ssid bssid msg \
-		failingHotspot="${Hotspot}"
+	local hotspot ssid bssid msg
 	msg="Re-scanning on networking failure"
 	_applog "${msg}"
 	AddMsg "${msg}"
