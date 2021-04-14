@@ -451,7 +451,7 @@ ImportHotspot() {
 	net_key4="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].key4)" || :
 	if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
 		if ssid="$(ConnectedSsid)"; then
-			if [ -z "${ssid}" -o "${ssid}" = "${NULLSSID}" ]; then
+			if [ "${ssid}" = "${NULLSSID}" ]; then
 				net_hidden="y"
 			elif [ -z "${net_ssid}" ]; then
 				net_ssid="$(_unquote "${ssid}")"
