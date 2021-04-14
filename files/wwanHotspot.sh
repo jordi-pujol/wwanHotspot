@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.11 $
+#  $Revision: 2.12 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -897,7 +897,7 @@ DoScan() {
 		[ -n "${bssid2}" ]; do
 			! test "${bssid2}" = "${availBssid}" -a \
 			\( "${ssid2}" = "${availSsid}" -o \
-			"${ssid2}" = "${HIDDENSSID}" \) || \
+			"${ssid2}" = "${HIDDENSSID}" -o -z "${ssid2}" \) || \
 				return ${OK}
 		done << EOF
 ${scanned}
@@ -963,7 +963,7 @@ EOF
 						"iw scan already listed BSSID"
 				continue
 			fi
-			if [ "${ssid2}" = "${HIDDENSSID}" ]; then
+			if [ "${ssid2}" = "${HIDDENSSID}" -o -z "${ssid2}" ]; then
 				ssid2="${BEL}"
 			elif [ -z "${ssid1}" ]; then
 				ssid1="${ssid2}"
