@@ -2,6 +2,11 @@ wwanHotspot v2.12
 
   * wwanHotspot.sh, Scanning():
     - a hidden ssid may be blank also
+  * wwanHotspot.sh, DoScan():
+    - only discard associated hotspots when must be excluded
+  * wwanHotspot.sh, ReScanningOnNetwFail():
+    - request DoScan() to discard associated hotspots
+    instead of excluding current BSSID
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Wed, 14 Apr 2021 09:15:02 +0200
 

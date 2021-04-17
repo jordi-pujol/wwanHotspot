@@ -801,7 +801,7 @@ DoScan() {
 	local forceScan="${1:-}" \
 		availBssid="${2:-}" \
 		availSsid="${3:-}" \
-		excludeBssid="${4:-}"
+		discardAssociated="${4:-}"
 
 	[ -n "${forceScan}" ] || \
 		if ! MustScan; then
@@ -831,7 +831,7 @@ DoScan() {
 		ScanErr=""
 	fi
 	scanned="$(printf '%s\n' "${scanned}" | \
-		awk -v excludeBssid="${excludeBssid}" \
+		awk -v discardAssociated="${discardAssociated}" \
 		'function trim(s) {
 			if (!s) s=$0
 			return gensub(/^[[:blank:]]+|[[:blank:]]+$/, "", "g", s)
@@ -849,8 +849,7 @@ DoScan() {
 		BEGIN{OFS="\t"}
 		$1 == "BSS" {
 			prt()
-			if ($NF == "associated" || \
-				excludeBssid == substr($2,1,17)) next
+			if (discardAssociated && $NF == "associated") next
 			bssid=substr($2,1,17)
 			seen="999999999"
 			signal="99"
@@ -1183,7 +1182,7 @@ ReScanningOnNetwFail() {
 	msg="Re-scanning on networking failure"
 	_applog "${msg}"
 	AddMsg "${msg}"
-	if DoScan "y" "" "" "${WwanBssid}"; then
+	if DoScan "y" "" "" "y"; then
 		ClrStatMsgs
 		msg="Reconnection required"
 		_applog "${msg}"
