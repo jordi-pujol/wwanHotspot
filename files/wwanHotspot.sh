@@ -909,8 +909,6 @@ EOF
 		eval ssid1=\"\${net${i}_ssid:-}\"
 		eval bssid1=\"\${net${i}_bssid:-}\"
 		eval blacklisted=\"\${net${i}_blacklisted:-}\"
-		! echo "${blacklisted}" | grep -qsF 'NetworkingFailure' || \
-			continue
 		eval hidden=\"\${net${i}_hidden:-}\"
 		if [ -n "${hidden}" ]; then
 			[ "${hidden}" = "y" ] && \
@@ -1198,9 +1196,9 @@ ReScanningOnNetwFail() {
 }
 
 CheckNetw() {
-	[ "${Debug}" = "xtrace" ] && \
+	{ [ "${Debug}" = "xtrace" ] && \
 		exec >&2 || \
-		exec > /dev/null 2>&1
+		exec > /dev/null 2>&1; } 2> /dev/null
 	if [ -n "${CheckSrvr}" ]; then
 		if [ -n "${CheckInet}" ]; then
 			wget -nv --spider -T ${PingWait} --no-check-certificate \
