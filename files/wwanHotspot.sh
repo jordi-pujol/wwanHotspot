@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.12 $
+#  $Revision: 2.13 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -296,26 +296,11 @@ SetEncryption() {
 		eval key4=\"\${net${Hotspot}_key4:-}\"
 	fi
 	uci set wireless.@wifi-iface[${WIfaceSTA}].encryption="${encrypt}"
-	[ -z "${key}" ] && {
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key || :
-		} || \
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
-	[ -z "${key1}" ] && {
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key1 || :
-		} || \
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key1}"
-	[ -z "${key2}" ] && {
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key2 || :
-		} || \
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key2="${key2}"
-	[ -z "${key3}" ] && {
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key3 || :
-		} || \
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key3="${key3}"
-	[ -z "${key4}" ] && {
-		uci -q delete wireless.@wifi-iface[${WIfaceSTA}].key4 || :
-		} || \
-		uci set wireless.@wifi-iface[${WIfaceSTA}].key4="${key4}"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].key="${key}"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].key1="${key1}"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].key2="${key2}"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].key3="${key3}"
+	uci set wireless.@wifi-iface[${WIfaceSTA}].key4="${key4}"
 }
 
 ListStatus() {
@@ -1023,9 +1008,7 @@ WwanReset() {
 		fi
 		WwanSsid="${ssid}"
 		WwanBssid="${bssid}"
-		[ -n "${ssid}" ] && \
-			uci set wireless.@wifi-iface[${iface}].ssid="${ssid}" || \
-			uci -q delete wireless.@wifi-iface[${iface}].ssid || :
+		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
 		uci set wireless.@wifi-iface[${iface}].bssid="${bssid}"
 		if [ ${Hotspot} -ne ${NONE} ]; then
 			SetEncryption
@@ -1105,9 +1088,7 @@ HotspotLookup() {
 		WwanBssid="${bssid}"
 		_log "Hotspot $(HotspotName) found. Applying settings..."
 		WwanErr=${NONE}
-		[ -n "${WwanSsid}" ] && \
-			uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}" || \
-			uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
+		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${WwanSsid}"
 		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${WwanBssid}"
 		SetEncryption "${encrypt}" \
 			"${key}" "${key1}" "${key2}" "${key3}" "${key4}"
