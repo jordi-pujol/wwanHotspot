@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.13 $
+#  $Revision: 2.14 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -22,8 +22,8 @@
 #  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #************************************************************************
 
-_tolower() {
-	printf '%s\n' "${@}" | tr '[A-Z]' '[a-z]'
+_toupper() {
+	printf '%s\n' "${@}" | tr '[a-z]' '[A-Z]'
 }
 
 _unquote() {
@@ -245,7 +245,7 @@ IsWifiActive() {
 			{s//\1/p;q}')"
 	[ "${ssid}" = "${ssid1}" ] || \
 		return ${ERR}
-	bssid1="$(_tolower "$(echo "${info}" | \
+	bssid1="$(_toupper "$(echo "${info}" | \
 			sed -nre '/^[[:blank:]]+Access Point:[[:blank:]]+(.*)$/ \
 			{s//\1/p;q}')")"
 	[ "${bssid}" = "${bssid1}" ] || \
@@ -363,7 +363,7 @@ AddHotspot() {
 	[ -z "${net_ssid}" ] || \
 		eval net${Hotspots}_ssid=\"${net_ssid}\"
 	[ -z "${net_bssid}" ] || {
-		net_bssid="$(_tolower "${net_bssid}")"
+		net_bssid="$(_toupper "${net_bssid}")"
 		eval net${Hotspots}_bssid=\"${net_bssid}\"
 	}
 	eval net${Hotspots}_encrypt=\"${net_encrypt}\"
@@ -400,7 +400,7 @@ AddHotspot() {
 ConnectedBssid() {
 	iwinfo "${WIface}" info 2> /dev/null | \
 	awk '/^[[:blank:]]+Access Point:[[:blank:]]+/ {
-		print tolower($NF)
+		print toupper($NF)
 		rc=-1
 		exit}
 	END{exit rc+1}'
@@ -447,7 +447,7 @@ ImportHotspot() {
 	fi
 	[ -n "${net_ssid}" ] || unset net_ssid
 	[ -n "${net_bssid}" ] && \
-		net_bssid="$(_tolower "${net_bssid}")" || \
+		net_bssid="$(_toupper "${net_bssid}")" || \
 		unset net_bssid
 	[ -n "${net_key}" ] || unset net_key
 	[ -n "${net_key1}" ] || unset net_key1
@@ -609,7 +609,7 @@ LoadConfig() {
 				exit ${ERR}
 			fi
 			[ -z "${bssid}" ] || {
-				bssid="$(_tolower  "${bssid}")"
+				bssid="$(_toupper  "${bssid}")"
 				eval net${n}_bssid=\"${bssid}\"
 			}
 			Ssids="${Ssids:+"${Ssids}${LF}"}${bssid}${TAB}${ssid}"
@@ -835,7 +835,7 @@ DoScan() {
 		$1 == "BSS" {
 			prt()
 			if (discardAssociated && $NF == "associated") next
-			bssid=substr($2,1,17)
+			bssid=toupper(substr($2,1,17))
 			seen="999999999"
 			signal="99"
 			ssid=""
@@ -999,7 +999,8 @@ WwanReset() {
 		Hotspot="${hotspot}"
 
 		ssid1="$(uci -q get wireless.@wifi-iface[${iface}].ssid)" || :
-		bssid1="$(uci -q get wireless.@wifi-iface[${iface}].bssid)" || :
+		bssid1="$(_toupper "$(uci -q get \
+			wireless.@wifi-iface[${iface}].bssid)")" || :
 		if [ -z "${bssid1}" -a "${ssid1}" = "${ssid}" ] || \
 		[ -z "${ssid1}" -a "${bssid1}" = "${bssid}" ] || \
 		[ -n "${ssid1}" -a -n "${bssid1}" \
@@ -1422,7 +1423,7 @@ WifiStatus() {
 			continue
 		fi
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		WwanBssid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)" || :
+		WwanBssid="$(_toupper "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)")" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
 		CurrentHotspot
 		if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then

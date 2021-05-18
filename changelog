@@ -1,3 +1,9 @@
+wwanHotspot v2.14
+
+  * hexadecimal alphabetic chars are uppercase, A-F
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 14 May 2021 19:26:26 +0200
+
 wwanHotspot v2.13
 
   * wwanHotspot.sh, ():
