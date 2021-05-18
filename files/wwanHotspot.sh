@@ -1423,7 +1423,8 @@ WifiStatus() {
 			continue
 		fi
 		WwanSsid="$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].ssid)" || :
-		WwanBssid="$(_toupper "$(uci -q get wireless.@wifi-iface[${WIfaceSTA}].bssid)")" || :
+		WwanBssid="$(_toupper "$(uci -q get \
+			wireless.@wifi-iface[${WIfaceSTA}].bssid)")" || :
 		WwanDisconnected="$(test -n "${WwanDisabled}" || IsWwanDisconnected)"
 		CurrentHotspot
 		if [ -z "${WwanDisabled}" -a -z "${WwanDisconnected}" ]; then
