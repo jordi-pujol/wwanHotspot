@@ -4,7 +4,7 @@ wwanHotspot v2.13
     - simplify code for "uci delete" commands,
     setting a parameter to an empty value
     has the same effect as deleting this parameter value
-    
+
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 17 Apr 2021 08:52:45 +0200
 
 wwanHotspot v2.12
