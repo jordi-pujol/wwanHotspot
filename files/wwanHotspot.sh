@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.14 $
+#  $Revision: 2.15 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -33,12 +33,18 @@ _unquote() {
 _integer_value() {
 	local n="${1}" \
 		d="${2}" \
-		v
-	v="$(2> /dev/null printf '%d' "$(printf '%s\n' "${n}" | \
-	sed -nre '/^[[:digit:]]+$/p;q')")" && \
-		echo ${v} || \
+		v 
+	if v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
+	sed -nre '/^[[:digit:]]+$/p;q')")"; then
+		echo ${v}
+	else
+		_applog "Config error:" \
+			"Invalid integer value \"${n}\"," \
+			"assuming default ${d}"
 		echo ${d}
+	fi
 }
+
 
 _UTCseconds() {
 	date +'%s'
@@ -525,21 +531,7 @@ LoadConfig() {
 		exit ${ERR}
 
 	Debug="${Debug:-}"
-	ScanAuto="${ScanAuto:-}"
-	ReScan="${ReScan:-}"
-	ReScanOnNetwFail="$(_integer_value "${ReScanOnNetwFail}" 1)"
-	Sleep="$(_integer_value "${Sleep}" 20)"
-	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
-	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
-	BlackList="$(_integer_value "${BlackList}" 3)"
-	BlackListExpires="$(_integer_value "${BlackListExpires}" ${NONE})"
-	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
-	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
-	PingWait="$(_integer_value "${PingWait}" 7)"
-	MinTrafficBps="$(_integer_value "${MinTrafficBps}" 1024)"
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
-	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
-	ImportAuto="${ImportAuto:-}"
 
 	BackupRotate "/var/log/${NAME}"
 	BackupRotate "/var/log/${NAME}.xtrace"
@@ -553,6 +545,21 @@ LoadConfig() {
 	fi
 
 	LogPrio="info" _log "${msg}"
+
+	ScanAuto="${ScanAuto:-}"
+	ReScan="${ReScan:-}"
+	ReScanOnNetwFail="$(_integer_value "${ReScanOnNetwFail}" 1)"
+	Sleep="$(_integer_value "${Sleep}" 20)"
+	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
+	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
+	BlackList="$(_integer_value "${BlackList}" 3)"
+	BlackListExpires="$(_integer_value "${BlackListExpires}" ${NONE})"
+	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
+	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
+	PingWait="$(_integer_value "${PingWait}" 7)"
+	MinTrafficBps="$(_integer_value "${MinTrafficBps}" 1024)"
+	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
+	ImportAuto="${ImportAuto:-}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :
 
