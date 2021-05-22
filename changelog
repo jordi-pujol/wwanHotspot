@@ -2,7 +2,7 @@ wwanHotspot v2.15
 
   * wwanHotspot.sh, LoadConfig():
     - /etc/config/wwanHotspot, warn on invalid integer values
-    - start logging to files so early as possible
+    - start logging to files as soon as possible
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 21 May 2021 10:14:34 +0200
 
