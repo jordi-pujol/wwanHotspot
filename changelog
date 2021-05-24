@@ -1,8 +1,12 @@
 wwanHotspot v2.15
 
-  * wwanHotspot.sh, LoadConfig():
-    - /etc/config/wwanHotspot, warn on invalid integer values
-    - start logging to files as soon as possible
+  * Check networking:
+    - allow http://, https://, domain names or IP addresses.
+    Also, net_check="y" will look for the hotspot's gateway IP
+  * wwanHotspot.sh
+    - _integer_value(): warn on invalid integer values in configuration
+    - LoadConfig(): start writing to log files as soon as possible
+    - BackupRotate(): more coherent way to rotate logs
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 21 May 2021 10:14:34 +0200
 

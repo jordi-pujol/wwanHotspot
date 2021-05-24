@@ -30,22 +30,6 @@ _unquote() {
 	printf '%s\n' "${@}" | sed -re 's/^"(.*)"$/\1/'
 }
 
-_integer_value() {
-	local n="${1}" \
-		d="${2}" \
-		v 
-	if v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
-	sed -nre '/^[[:digit:]]+$/p;q')")"; then
-		echo ${v}
-	else
-		_applog "Config error:" \
-			"Invalid integer value \"${n}\"," \
-			"assuming default ${d}"
-		echo ${d}
-	fi
-}
-
-
 _UTCseconds() {
 	date +'%s'
 }
@@ -70,7 +54,7 @@ _ps_children() {
 
 _applog() {
 	local msg="${@}"
-	printf '%s\n' "$(_datetime) ${msg}" >> "/var/log/${NAME}"
+	printf '%s\n' "$(_datetime) ${msg}" >> "${LOGFILE}"
 }
 
 # priority: info notice warn err debug
@@ -84,6 +68,21 @@ _log() {
 
 _msg() {
 	msg="${@}"
+}
+
+_integer_value() {
+	local n="${1}" \
+		d="${2}" \
+		v 
+	if v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
+	sed -nre '/^[[:digit:]]+$/p;q')")"; then
+		echo ${v}
+	else
+		_applog "Config error:" \
+			"Invalid integer value \"${n}\"," \
+			"assuming default ${d}"
+		echo ${d}
+	fi
 }
 
 _pids_active() {
@@ -162,8 +161,8 @@ AddStatMsg() {
 			1
 			END{if (b == 1) print ""
 				if (b != 2) print msg}' \
-			< "/var/log/${NAME}.stat" > "/var/log/${NAME}.stat.part"
-		mv -f "/var/log/${NAME}.stat.part" "/var/log/${NAME}.stat"
+			< "${STATFILE}" > "${STATFILE}.part"
+		mv -f "${STATFILE}.part" "${STATFILE}"
 	fi
 	StatMsgs="${StatMsgs:+"${StatMsgs}${LF}"}${msg}"
 	StatMsgsChgd="y"
@@ -343,19 +342,6 @@ PleaseScan() {
 	fi
 }
 
-BackupRotate() {
-	local f="${1}" \
-		n=${LogRotate}
-	[ -f "${f}" ] && \
-		mv -f "${f}" "${f}_$(_UTCseconds)" || \
-		n=${NONE}
-	printf '%s\n' "${f}_"* | \
-	head -qn -${n} | \
-	while IFS= read -r f; do
-		rm -f "${f}"
-	done
-}
-
 AddHotspot() {
 	if [ -z "${net_ssid:=""}" -a -z "${net_bssid:=""}" ] || \
 	[ -z "${net_encrypt:-}" ]; then
@@ -392,7 +378,7 @@ AddHotspot() {
 	Ssids="${Ssids:+"${Ssids}${LF}"}${net_bssid}${TAB}${net_ssid}"
 	if [ -n "${Debug}" ]; then
 		local msg="Adding new hotspot $( \
-		HotspotName "${Hotspots}" \
+			HotspotName "${Hotspots}" \
 			"${net_bssid:-"${BEL}"}" \
 			"${net_ssid:-"${BEL}"}")"
 		_applog "${msg}"
@@ -492,6 +478,24 @@ IsWwanDisconnected() {
 	echo "y" || :
 }
 
+PreBackupRotate() {
+	local f="${1}"
+	[ ! -f "${f}" ] || \
+		mv -f "${f}" "${f}_${MsgTime}"
+}
+
+BackupRotate() {
+	local f="${1}" \
+		n=${LogRotate} \
+		g
+	printf '%s\n' "${f}_"* | \
+	head -qn -${n} | \
+	while IFS= read -r g; do
+		rm -f "${f}"*"_$(echo "${g}" | \
+			sed -re '\|.*_([^_]+)$|s||\1|' )"
+	done
+}
+
 LoadConfig() {
 	local net_ssid net_bssid net_encrypt \
 		net_key net_key1 net_key2 net_key3 net_key4 \
@@ -523,26 +527,26 @@ LoadConfig() {
 	UpdtMsgs=""
 	Ssids=""
 	Hotspots=${NONE}
-	: > "/var/log/${NAME}.stat"
+	: > "${STATFILE}"
 	AddStatMsg "${msg}"
+	PreBackupRotate "${LOGFILE}"
+	PreBackupRotate "${LOGFILE}.xtrace"
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}" || \
 		exit ${ERR}
 
 	Debug="${Debug:-}"
-	LogRotate="$(_integer_value "${LogRotate}" 3)"
-
-	BackupRotate "/var/log/${NAME}"
-	BackupRotate "/var/log/${NAME}.xtrace"
-
 	if [ "${Debug}" = "xtrace" ]; then
-		exec >> "/var/log/${NAME}.xtrace" 2>&1
+		exec >> "${LOGFILE}.xtrace" 2>&1
 		set -o xtrace
 	else
 		set +o xtrace
-		exec >> "/var/log/${NAME}" 2>&1
+		exec >> "${LOGFILE}" 2>&1
 	fi
+
+	LogRotate="$(_integer_value "${LogRotate}" 3)"
+	BackupRotate "${LOGFILE}"
 
 	LogPrio="info" _log "${msg}"
 
@@ -671,7 +675,7 @@ ActiveDefaultRoutes() {
 Report() {
 	[ -z "${Debug}" ] || \
 		_applog "Writing status report"
-	exec > "/var/log/${NAME}.stat"
+	exec > "${STATFILE}"
 	printf '%s\n\n' "${NAME} status report."
 	printf '%s\n' "${StatMsgs}"
 	[ -z "${UpdtMsgs}" ] || \
@@ -1242,12 +1246,13 @@ CheckNetworking() {
 				fi
 			else
 				[ -z "${Debug}" ] || \
-					_applog "check networking, wget ${CheckAddr}"
+					_applog "check networking, wget \"${CheckAddr}\""
 			fi
 		else
-			CheckAddr="$(printf '%s\n' "${check}" | \
-			sed -nre '\|^([[:digit:]]+[.]){3}[[:digit:]]+$|p')"
-			if [ -z "${CheckAddr:="${Gateway}"}" ]; then
+			[ "${check}" = "y" ] && \
+				CheckAddr="${Gateway}" || \
+				CheckAddr="${check}"
+			if [ -z "${CheckAddr}" ]; then
 				_msg "Serious Error: no default route for" \
 					"$(HotspotName)." \
 					"Disabling networking check."
@@ -1258,7 +1263,7 @@ CheckNetworking() {
 				return ${OK}
 			fi
 			[ -z "${Debug}" ] || \
-				_applog "check networking, ping ${CheckAddr}"
+				_applog "check networking, ping \"${CheckAddr}\""
 		fi
 	rc=${ERR}
 	if [ ${MinTrafficBps} -ne ${NONE} ]; then
@@ -1382,7 +1387,9 @@ Settle() {
 
 WifiStatus() {
 	# constants
-	readonly OK=0 ERR=1 UCIDISABLED=1 \
+	readonly NAME LOGFILE="/var/log/${NAME}" \
+		STATFILE="/var/log/${NAME}.stat" \
+		OK=0 ERR=1 UCIDISABLED=1 \
 		LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
 		HIDDENSSID="\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
