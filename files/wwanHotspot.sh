@@ -488,12 +488,11 @@ PreBackupRotate() {
 
 BackupRotate() {
 	local f="${1}" \
-		g
+		g t
 	{ ls -1 "${f}_"* 2> /dev/null || :; } | \
 	head -qn -${LogRotate} | \
-	while IFS= read -r g; do
-		rm -f "${f}"*"_$(echo "${g}" | \
-			sed -re '\|.*_([^_]+)$|s||\1|')"
+	while IFS="_" read -r g t; do
+		rm -f "${f}"*"_${t}"
 	done
 }
 
