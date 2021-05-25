@@ -487,7 +487,7 @@ PreBackupRotate() {
 BackupRotate() {
 	local f="${1}" \
 		g
-	printf '%s\n' "${f}_"* | \
+	ls -1 "${f}_"* 2> /dev/null | \
 	head -qn -${LogRotate} | \
 	while IFS= read -r g; do
 		rm -f "${f}"*"_$(echo "${g}" | \
