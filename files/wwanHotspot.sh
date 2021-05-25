@@ -491,7 +491,7 @@ BackupRotate() {
 	head -qn -${LogRotate} | \
 	while IFS= read -r g; do
 		rm -f "${f}"*"_$(echo "${g}" | \
-			sed -re '\|.*_([^_]+)$|s||\1|' )"
+			sed -re '\|.*_([^_]+)$|s||\1|')"
 	done
 }
 
