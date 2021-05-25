@@ -479,9 +479,11 @@ IsWwanDisconnected() {
 }
 
 PreBackupRotate() {
-	local f="${1}"
-	[ ! -f "${f}" ] || \
-		mv -f "${f}" "${f}_${MsgTime}"
+	while [ -n "${1:-}" ]; do
+		[ ! -f "${1}" ] || \
+			mv -f "${1}" "${1}_${MsgTime}"
+		shift
+	done
 }
 
 BackupRotate() {
@@ -528,8 +530,7 @@ LoadConfig() {
 	Hotspots=${NONE}
 	: > "${STATFILE}"
 	AddStatMsg "${msg}"
-	PreBackupRotate "${LOGFILE}"
-	PreBackupRotate "${LOGFILE}.xtrace"
+	PreBackupRotate "${LOGFILE}" "${LOGFILE}.xtrace"
 
 	[ ! -s "/etc/config/${NAME}" ] || \
 		. "/etc/config/${NAME}" || \
