@@ -487,12 +487,11 @@ PreBackupRotate() {
 }
 
 BackupRotate() {
-	local f="${1}" \
-		g t
-	{ ls -1 "${f}_"* 2> /dev/null || :; } | \
+	local f t
+	ls -1 "${LOGFILE}_"* 2> /dev/null | \
 	head -qn -${LogRotate} | \
-	while IFS="_" read -r g t; do
-		rm -f "${f}"*"_${t}"
+	while IFS="_" read -r f t; do
+		rm -f "${LOGFILE}"*"_${t}"
 	done
 }
 
@@ -545,7 +544,7 @@ LoadConfig() {
 	fi
 
 	LogRotate="$(_integer_value "${LogRotate}" 3)"
-	BackupRotate "${LOGFILE}"
+	BackupRotate || :
 
 	LogPrio="info" _log "${msg}"
 
