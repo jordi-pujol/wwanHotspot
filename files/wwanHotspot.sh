@@ -483,7 +483,6 @@ PreBackupRotate() {
 	for f in "${LOGFILE}" "${LOGFILE}.xtrace"; do
 		[ ! -f "${f}" ] || \
 			mv -f "${f}" "${f}_${MsgTime}"
-		shift
 	done
 }
 
