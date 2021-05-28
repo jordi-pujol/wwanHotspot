@@ -7,6 +7,8 @@ wwanHotspot v2.15
     - _integer_value(): warn on invalid integer values in configuration
     - LoadConfig(): start writing to log files as soon as possible
     - BackupRotate(): more coherent way to rotate logs
+    - BlackListExpired(): hotspot SSID or BSSID are unknown when are not
+    stored in configuration
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 21 May 2021 10:14:34 +0200
 

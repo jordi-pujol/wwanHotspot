@@ -220,8 +220,8 @@ BlackListExpired() {
 			net${hotspot}_blacklistexp || :
 		_msg "Blacklisting has expired for" \
 			"$(HotspotName "${hotspot}" \
-				"$(eval echo \"\${net${hotspot}_bssid:-}\")" \
-				"$(eval echo \"\${net${hotspot}_ssid:-}\")")"
+				"$(eval echo \"\${net${hotspot}_bssid:-\"${BEL}\"}\")" \
+				"$(eval echo \"\${net${hotspot}_ssid:-\"${BEL}\"}\")")"
 		LogPrio="info" _log "${msg}"
 		[ -n "${rc}" ] || \
 			[ -n "${WIfaceAP}" ] || \
