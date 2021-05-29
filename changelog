@@ -1,5 +1,7 @@
 wwanHotspot v2.15
 
+  * Set time interval between networking cheks to SleepDsc value when
+    a hotspot is connected and there is no interface traffic.
   * Check networking:
     - allow http://, https://, domain names or IP addresses.
     Also, net_check="y" will look for the hotspot's gateway IP

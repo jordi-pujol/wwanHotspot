@@ -1273,6 +1273,7 @@ CheckNetworking() {
 			if [ ${t} -gt 0 ] && \
 			[ $((b/t)) -ge ${MinTrafficBps} ]; then
 				rc=${OK}
+				Interval=${Sleep}
 				_msg "Networking of $(HotspotName) to" \
 					"the external network does work"
 				[ -z "${Debug}" ] || \
@@ -1290,13 +1291,17 @@ CheckNetworking() {
 	fi
 	if [ ${rc} -ne ${OK} ]; then
 		CheckNetw &
-		rc=${OK}
-		WaitSubprocess && \
+		if WaitSubprocess; then
+			rc=${OK}
 			_msg "Networking of $(HotspotName) to" \
 				"$(test "${CheckAddr}" != "${Gateway}" || \
 				echo "gateway:")${CheckAddr}" \
-				"has been verified" || \
+				"has been verified"
+			Interval=${SleepDsc}
+		else
 			rc=${?}
+			Interval=${Sleep}
+		fi
 	fi
 	if [ ${rc} -eq ${OK} ]; then
 		if [ ${Status} -eq ${CONNECTED} -a ${NetwFailures} -eq ${NONE} ]; then
