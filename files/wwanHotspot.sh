@@ -1275,9 +1275,15 @@ CheckNetworking() {
 				rc=${OK}
 				_msg "Networking of $(HotspotName) to" \
 					"the external network does work"
+				[ -z "${Debug}" ] || \
+					_applog "STA interface received" \
+					"${b} bytes in ${t} seconds," \
+					"$((b/t)) Bps"
+			else
+				[ -z "${Debug}" ] || \
+					_applog "STA interface received" \
+					"${b} bytes in ${t} seconds"
 			fi
-			[ -z "${Debug}" ] || \
-				_applog "STA interface received ${b} bytes in ${t} seconds"
 		fi
 		CheckTime=${c}
 		Traffic=${r}
