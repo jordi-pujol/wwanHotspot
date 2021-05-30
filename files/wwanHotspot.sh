@@ -507,8 +507,9 @@ LoadConfig() {
 	ReScan="y"
 	ReScanOnNetwFail=1
 	Sleep=20
-	SleepDsc="$((Sleep*3))"
-	SleepScanAuto="$((Sleep*15))"
+	SleepInactive=$((Sleep*3))
+	SleepDsc=$((Sleep*3))
+	SleepScanAuto=$((Sleep*15))
 	BlackList=3
 	BlackListExpires=${NONE}
 	BlackListNetwork=3
@@ -552,6 +553,7 @@ LoadConfig() {
 	ReScan="${ReScan:-}"
 	ReScanOnNetwFail="$(_integer_value "${ReScanOnNetwFail}" 1)"
 	Sleep="$(_integer_value "${Sleep}" 20)"
+	SleepInactive="$(_integer_value "${SleepInactive}" $((Sleep*3)) )"
 	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
 	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
 	BlackList="$(_integer_value "${BlackList}" 3)"
@@ -695,6 +697,7 @@ Report() {
 		"$(test ${ReScanOnNetwFail} -eq ${NONE} && echo "# Disabled" || \
 		echo "# networking failures")"
 	printf '%s=%d %s\n' "Sleep" "${Sleep}" "# seconds"
+	printf '%s=%d %s\n' "SleepInactive" "${SleepInactive}" "# seconds"
 	printf '%s=%d %s\n' "SleepDsc" "${SleepDsc}" "# seconds"
 	printf '%s=%d %s\n' "SleepScanAuto" "${SleepScanAuto}" "# seconds"
 	printf '%s=%d %s\n' "BlackList" "${BlackList}" \
@@ -970,12 +973,14 @@ EOF
 	done
 	if [ -z "${cdts}" ]; then
 		if [ -n "${warning}" ]; then
+			local pl="$(test $(echo "${warning}" | wc -w) -le 1 || \
+				echo "s")"
 			warning="$(echo $(echo "${warning}" | sort -n -k 1,1) | \
 				tr -s ' ' ',')"
 			if [ -n "${Debug}" -o -n "${StatMsgsChgd}" ] || \
 			[ "${WarnBlackList}" != "${warning}" ]; then
 				_msg "Warning, all available hotspots" \
-					"(${warning}) are blacklisted"
+					"(no${pl}. ${warning}) are blacklisted"
 				_applog "${msg}"
 				AddMsg "${msg}"
 			fi
@@ -1297,7 +1302,7 @@ CheckNetworking() {
 				"$(test "${CheckAddr}" != "${Gateway}" || \
 				echo "gateway:")${CheckAddr}" \
 				"has been verified"
-			Interval=${SleepDsc}
+			Interval=${SleepInactive}
 		else
 			rc=${?}
 			Interval=${Sleep}
@@ -1330,7 +1335,7 @@ CheckNetworking() {
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		BlackListHotspot "network" "${BlackListNetworkExpires}" "${msg}"
-		if HotspotLookup; then
+		if HotspotLookup "y"; then
 			return ${ERR}
 		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
 			WwanReset
@@ -1405,7 +1410,7 @@ WifiStatus() {
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
 	# config variables
 	local Debug ScanAuto ReScan ReScanOnNetwFail \
-		Sleep SleepDsc SleepScanAuto \
+		Sleep SleepInactive SleepDsc SleepScanAuto \
 		BlackList BlackListExpires BlackListNetwork BlackListNetworkExpires \
 		PingWait MinTrafficBps LogRotate ReportUpdtLapse ImportAuto
 	# internal variables, daemon scope

@@ -1,6 +1,10 @@
 wwanHotspot v2.15
 
-  * Set time interval between networking cheks to SleepDsc value when
+  * Check networking:
+    - force a HotspotLookup when BlackListing a Hotspot due to
+    networking failures.
+  * Config value SleepInactive:
+    New time interval between networking cheks when
     a hotspot is connected and there is no interface traffic.
   * Check networking:
     - allow http://, https://, domain names or IP addresses.
