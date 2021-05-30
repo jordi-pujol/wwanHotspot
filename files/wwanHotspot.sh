@@ -1169,9 +1169,6 @@ ReScanning() {
 }
 
 ReScanningOnNetwFail() {
-	[ ${ReScanOnNetwFail} -ne ${NONE} ] && \
-	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ] || \
-		return ${OK}
 	local hotspot ssid bssid msg
 	msg="Re-scanning on networking failure"
 	_applog "${msg}"
@@ -1330,16 +1327,17 @@ CheckNetworking() {
 		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
 	LogPrio="warn" _log "${msg}"
-	ReScanningOnNetwFail || \
-		return ${ERR}
+	if [ ${ReScanOnNetwFail} -ne ${NONE} ] && \
+	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
+		ReScanningOnNetwFail || \
+			return ${ERR}
+	fi
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		BlackListHotspot "network" "${BlackListNetworkExpires}" "${msg}"
-		if HotspotLookup "y"; then
+		ReScanningOnNetwFail || \
 			return ${ERR}
-		elif [ ${?} -ne ${ERR} -o -n "${WIfaceAP}" ]; then
-			WwanReset
-		fi
+		WwanReset
 		Status=${DISCONNECTED}
 		[ -z "${Debug}" ] || \
 			_applog "$(StatusName)"

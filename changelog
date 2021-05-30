@@ -1,7 +1,7 @@
 wwanHotspot v2.15
 
   * Check networking:
-    - force a HotspotLookup when BlackListing a Hotspot due to
+    - perform ReScanningOnNetwFail() when BlackListing a Hotspot due to
     networking failures.
   * Config value SleepInactive:
     New time interval between networking cheks when
