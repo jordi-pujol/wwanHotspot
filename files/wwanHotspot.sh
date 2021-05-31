@@ -1327,16 +1327,19 @@ CheckNetworking() {
 		"failure$([ ${NetwFailures} -le 1 ] || echo "s")" \
 		"on $(HotspotName)"
 	LogPrio="warn" _log "${msg}"
+	local rs=""
 	if [ ${ReScanOnNetwFail} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
 		ReScanningOnNetwFail || \
 			return ${ERR}
+		rs=${OK}
 	fi
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
 		BlackListHotspot "network" "${BlackListNetworkExpires}" "${msg}"
-		ReScanningOnNetwFail || \
-			return ${ERR}
+		[ -n "${rs}" ] || \
+			ReScanningOnNetwFail || \
+				return ${ERR}
 		WwanReset
 		Status=${DISCONNECTED}
 		[ -z "${Debug}" ] || \
