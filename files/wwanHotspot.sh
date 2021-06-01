@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.15 $
+#  $Revision: 2.16 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -27,7 +27,43 @@ _toupper() {
 }
 
 _unquote() {
-	printf '%s\n' "${@}" | sed -re 's/^"(.*)"$/\1/'
+	printf '%s\n' "${@}" | \
+		sed -re "s/^([\"](.*)[\"]|['](.*)['])$/\2\3/"
+}
+
+_list_add() {
+	local l="${1}" \
+		v="${2}" \
+		p
+	p="$(eval echo \"\${${l}:-}\")"
+	eval ${l}=\"${p:+"${p}${TAB}"}${v}\"
+}
+
+_list_get() {
+	local l="${1}" \
+		i="${2}" \
+		v
+	v="$(printf '%s\t' "$(eval echo \"\${${l}:-}\")" | \
+		cut -s -f ${i})"
+	[ -n "${v}" ] && \
+		printf '%s\n' "${v}" || \
+		return ${ERR}
+}
+
+_list_remove() {
+	local l="${1}" \
+		i="${2}" \
+		m="" v j=0
+	while [ $((j++)) ]; do
+		[ ${j} -ne ${i} ] || \
+			continue
+		v="$(_list_get "${l}" "${j}")" || \
+			break
+		m="${m:+"${m}${TAB}"}${v}"
+	done
+	[ -n "${m}" ] && \
+		eval ${l}=\"${m}\" || \
+		unset "${l}"
 }
 
 _UTCseconds() {
@@ -197,11 +233,22 @@ BlackListHotspot() {
 		expires="${2}" \
 		reason="${3}" \
 		msg
-	eval net${Hotspot}_blacklisted=\"${cause} $(_datetime)\" || :
 	msg="Blacklisting $(HotspotName)"
-	if [ ${expires} -gt ${NONE} ]; then
-		eval net${Hotspot}_blacklistexp=\"$((expires+$(_UTCseconds)))\" || :
-		msg="${msg} for ${expires} seconds"
+	if [ -z "$(eval echo \"\${net${Hotspot}_bssid:-}\")" ]; then
+		_list_add "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
+		_list_add "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
+		local exp=${NONE}
+		if [ ${expires} -gt ${NONE} ]; then
+			exp=$(( expires + $(_UTCseconds) ))
+			msg="${msg} for ${expires} seconds"
+		fi
+		_list_add "net${Hotspot}_blacklistexp" "${exp}"
+	else
+		eval net${Hotspot}_blacklisted=\"${cause}-$(_datetime)\" || :
+		if [ ${expires} -gt ${NONE} ]; then
+			eval net${Hotspot}_blacklistexp=\"$(( expires+$(_UTCseconds) ))\" || :
+			msg="${msg} for ${expires} seconds"
+		fi
 	fi
 	NetwFailures=${NONE}
 	ClrStatMsgs
@@ -211,16 +258,40 @@ BlackListHotspot() {
 	AddStatMsg "Reason:" "${reason}"
 }
 
+BlackListExp() {
+	local alone="${1:-}" \
+		hotspot bl i v
+	set | \
+	sed -nre "\|^net([[:digit:]]+)_blacklistexp='(.*)'$| s||\1 \2|p" | \
+	while read -r hotspot bl; do
+		i=0
+		for v in ${bl}; do
+			[ $((i++)) ]
+			[ "${v}" -ne 0 ] || \
+				continue
+			[ -z "${alone}" ] && \
+				printf '%d %d %d\n' ${v} ${hotspot} ${i} || \
+				printf '%d\n' ${v}
+		done
+	done | \
+	sort -n -k 1,1
+}
+
 BlackListExpired() {
-	local d="" exp hotspot msg rc=""
-	while read -r exp hotspot && \
+	local d="" exp hotspot index bssid bssid1 \
+		msg rc=""
+	while read -r exp hotspot index && \
 	[ -n "${exp}" ] && \
 	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
-		unset net${hotspot}_blacklisted \
-			net${hotspot}_blacklistexp || :
+		bssid="$(eval echo \"\${net${hotspot}_bssid:-}\")"
+		bssid="${bssid:-"$(_list_get "net${hotspot}_blacklistBSSID" \
+			${index})"}" || :
+		_list_remove "net${hotspot}_blacklisted" ${index}
+		_list_remove "net${hotspot}_blacklistexp" ${index}
+		_list_remove "net${hotspot}_blacklistBSSID" ${index}
 		_msg "Blacklisting has expired for" \
 			"$(HotspotName "${hotspot}" \
-				"$(eval echo \"\${net${hotspot}_bssid:-\"${BEL}\"}\")" \
+				"${bssid:-"${BEL}"}" \
 				"$(eval echo \"\${net${hotspot}_ssid:-\"${BEL}\"}\")")"
 		LogPrio="info" _log "${msg}"
 		[ -n "${rc}" ] || \
@@ -230,9 +301,7 @@ BlackListExpired() {
 		rc=${ERR}
 		AddStatMsg "${msg}"
 	done << EOF
-$(set | \
-sed -nre "\|^net([[:digit:]]+)_blacklistexp='([[:digit:]]+)'| s||\2 \1|p" | \
-sort -n -k 1,1)
+$(BlackListExp)
 EOF
 }
 
@@ -717,18 +786,31 @@ Report() {
 	printf '%s=%d %s\n' "LogRotate" "${LogRotate}" "# log files to keep"
 	printf '%s="%s" %s\n' "ImportAuto" "${ImportAuto}" \
 		"$(test -z "${ImportAuto}" && echo "# Disabled" || echo "# Enabled")"
-	echo
-	local i=0
-	while [ $((i++)) -lt ${Hotspots} ]; do
-		set | awk -v i="${i}" \
-			'BEGIN{FS="="}
-			$1 == "net"i"_blacklistexp" {
-				printf $0 " "
-				system("date +%F_%X --date=@" $2)
-				next}
-			$1 ~ "^net"i"_" {print}'
-		echo
+	local n="" m o v
+	set | \
+	grep -sEe '^net[[:digit:]]+_' | \
+	while IFS="=" read -r m v; do
+		o="$(echo "${m}" | cut -f 1 -d "_")"
+		if [ "${n}" != "${o}" ]; then
+			echo
+			n="${o}"
+		fi
+		if echo "${m}" | \
+		grep -qsF '_blacklistexp'; then
+			printf '%s=' "${m}"
+			o="y"
+			for v in $(eval echo \"\${${m}:-}\"); do
+				[ -n "${o}" ] && \
+					o="" || \
+					printf ','
+				printf ' %d=%s' "${v}" "$(_datetime "--date=@${v}")"
+			done
+			echo
+		else
+			echo "${m}=${v}"
+		fi
 	done
+	echo
 	iwinfo
 	printf '%s %s\n' "Current hotspot client is" \
 		"$(HotspotName)"
@@ -927,24 +1009,28 @@ EOF
 			#printf '%s\n' "${encrypt}" | grep -qsie "${auth}" || \
 			#	continue
 			if [ -n "${blacklisted}" ]; then
-				warning="${warning:+"${warning}${LF}"}${i}"
-				if [ -z "${bssid1}" -a "${ssid1}" = "${WwanSsid}" ] || \
-				[ -z "${ssid1}" -a "${bssid1}" = "${WwanBssid}" ] || \
-				[ -n "${ssid1}" -a -n "${bssid1}" \
-				-a "${ssid1}" = "${WwanSsid}" \
-				-a "${bssid1}" = "${WwanBssid}" ]; then
-					[ -z "${Debug}" ] || \
-						_applog "Do-Scan: current hotspot" \
-							"$(HotspotName "${i}")" \
-							"is blacklisted"
-					rc=2
+				if [ -n "${bssid1}" ] || \
+				printf '%s\n' "$(eval echo \"\${net${i}_blacklistBSSID:-}\")" | \
+				grep -qswF "${bssid2}"; then
+					warning="${warning:+"${warning}${LF}"}${i}"
+					if [ -z "${bssid1}" -a "${ssid1}" = "${WwanSsid}" ] || \
+					[ -z "${ssid1}" -a "${bssid1}" = "${WwanBssid}" ] || \
+					[ -n "${ssid1}" -a -n "${bssid1}" \
+					-a "${ssid1}" = "${WwanSsid}" \
+					-a "${bssid1}" = "${WwanBssid}" ]; then
+						[ -z "${Debug}" ] || \
+							_applog "Do-Scan: current hotspot" \
+								"$(HotspotName "${i}")" \
+								"is blacklisted"
+						rc=2
+					fi
+					[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
+					-a -z "${Debug}" ] || \
+						_applog "Do-Scan: Not selecting blacklisted hotspot" \
+							"$(HotspotName "${i}" "${bssid1:-"${bssid2}"}" \
+								"${ssid1:-"${ssid2:-"${BEL}"}"}")"
+					break
 				fi
-				[ \( ${Status} -eq ${DISABLED} -o -z "${WIfaceAP}" \) \
-				-a -z "${Debug}" ] || \
-					_applog "Do-Scan: Not selecting blacklisted hotspot" \
-						"$(HotspotName "${i}" "${bssid1}" \
-							"${ssid1:+"\"${ssid1}\""}")"
-				break
 			fi
 			if printf '%s\n' "${cdts}" | \
 			awk -v bssid="${bssid2}" \
@@ -1358,9 +1444,7 @@ Settle() {
 		local e="" i
 		[ ${Status} -eq ${DISABLED} \
 		-o \( -z "${WIfaceAP}" -a ${Status} -eq ${DISCONNECTED} \) ] && \
-		[ -n "${e:="$(set | \
-		sed -nre "\|^net[[:digit:]]+_blacklistexp='([[:digit:]]+)'| s||\1|p" | \
-		sort -n | head -qn 1)"}" ] && \
+		[ -n "${e:="$(BlackListExp "y" | head -qn 1)"}" ] && \
 		[ $((i=e+1-$(_UTCseconds))) -le ${Interval} ] || \
 			i=${Interval}
 		if [ ${i} -gt 0 ]; then
