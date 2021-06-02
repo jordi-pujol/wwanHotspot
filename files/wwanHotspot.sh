@@ -54,14 +54,12 @@ _list_remove() {
 	local l="${1}" \
 		i="${2}" \
 		s="${3:-"${TAB}"}" \
-		m="" v j=0
-	while [ $((j++)) ]; do
-		[ ${j} -ne ${i} ] || \
-			continue
-		v="$(_list_get "${l}" "${j}" "${s}")" || \
-			break
-		m="${m}${v}${s}"
-	done
+		m="" r=""
+	[ ${i} -le 1 ] || \
+		r="-$((i-1)),"
+	r="${r}$((i+1))-"
+	m="$(printf '%s' "$(eval echo \"\${${l}:-}\")" | \
+		cut -s -f "${r}" -d "${s}")"
 	[ -n "${m}" ] && \
 		eval ${l}=\"${m}\" || \
 		unset "${l}" || :
@@ -1360,12 +1358,12 @@ CheckNetworking() {
 				_msg "Networking of $(HotspotName) to" \
 					"the external network does work"
 				[ -z "${Debug}" ] || \
-					_applog "STA interface received" \
+					_applog "STA interface transferred" \
 					"${b} bytes in ${t} seconds," \
 					"$((b/t)) Bps"
 			else
 				[ -z "${Debug}" ] || \
-					_applog "STA interface received" \
+					_applog "STA interface transferred" \
 					"${b} bytes in ${t} seconds"
 			fi
 		fi
