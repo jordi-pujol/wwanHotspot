@@ -34,17 +34,17 @@ _unquote() {
 _list_add() {
 	local l="${1}" \
 		v="${2}" \
-		p
-	p="$(eval echo \"\${${l}:-}\")"
-	eval ${l}=\"${p:+"${p}${TAB}"}${v}\"
+		s="${3:-"${TAB}"}"
+	eval ${l}=\"$(eval echo \"\${${l}:-}\")${v}${s}\"
 }
 
 _list_get() {
 	local l="${1}" \
 		i="${2}" \
+		s="${3:-"${TAB}"}" \
 		v
-	v="$(printf '%s\t' "$(eval echo \"\${${l}:-}\")" | \
-		cut -s -f ${i})"
+	v="$(printf '%s' "$(eval echo \"\${${l}:-}\")" | \
+		cut -s -f ${i} -d "${s}")"
 	[ -n "${v}" ] && \
 		printf '%s\n' "${v}" || \
 		return ${ERR}
@@ -53,17 +53,18 @@ _list_get() {
 _list_remove() {
 	local l="${1}" \
 		i="${2}" \
+		s="${3:-"${TAB}"}" \
 		m="" v j=0
 	while [ $((j++)) ]; do
 		[ ${j} -ne ${i} ] || \
 			continue
-		v="$(_list_get "${l}" "${j}")" || \
+		v="$(_list_get "${l}" "${j}" "${s}")" || \
 			break
-		m="${m:+"${m}${TAB}"}${v}"
+		m="${m}${v}${s}"
 	done
 	[ -n "${m}" ] && \
 		eval ${l}=\"${m}\" || \
-		unset "${l}"
+		unset "${l}" || :
 }
 
 _UTCseconds() {
@@ -224,8 +225,8 @@ _exit() {
 
 IfaceTraffic() {
 	local statistics="/sys/class/net/${1:-"${WIface}"}/statistics/"
-	printf '%s\n' $(( $(cat "${statistics}rx_bytes") + \
-		$(cat "${statistics}tx_bytes") ))	2> /dev/null
+	printf '%s\n' $(($(cat "${statistics}rx_bytes")+ \
+		$(cat "${statistics}tx_bytes"))) 2> /dev/null
 }
 
 BlackListHotspot() {
@@ -234,22 +235,14 @@ BlackListHotspot() {
 		reason="${3}" \
 		msg
 	msg="Blacklisting $(HotspotName)"
-	if [ -z "$(eval echo \"\${net${Hotspot}_bssid:-}\")" ]; then
-		_list_add "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
-		_list_add "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
-		local exp=${NONE}
-		if [ ${expires} -gt ${NONE} ]; then
-			exp=$(( expires + $(_UTCseconds) ))
-			msg="${msg} for ${expires} seconds"
-		fi
-		_list_add "net${Hotspot}_blacklistexp" "${exp}"
-	else
-		eval net${Hotspot}_blacklisted=\"${cause}-$(_datetime)\" || :
-		if [ ${expires} -gt ${NONE} ]; then
-			eval net${Hotspot}_blacklistexp=\"$(( expires+$(_UTCseconds) ))\" || :
-			msg="${msg} for ${expires} seconds"
-		fi
+	_list_add "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
+	_list_add "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
+	local exp=${NONE}
+	if [ ${expires} -gt ${NONE} ]; then
+		exp=$((expires+$(_UTCseconds)))
+		msg="${msg} for ${expires} seconds"
 	fi
+	_list_add "net${Hotspot}_blacklistexp" "${exp}"
 	NetwFailures=${NONE}
 	ClrStatMsgs
 	LogPrio="warn" _log "${msg}"
@@ -266,8 +259,10 @@ BlackListExp() {
 	while read -r hotspot bl; do
 		i=0
 		for v in ${bl}; do
+			[ -n "${v}" ] || \
+				break
 			[ $((i++)) ]
-			[ "${v}" -ne 0 ] || \
+			[ ${v} -ne 0 ] || \
 				continue
 			[ -z "${alone}" ] && \
 				printf '%d %d %d\n' ${v} ${hotspot} ${i} || \
@@ -797,15 +792,15 @@ Report() {
 		fi
 		if echo "${m}" | \
 		grep -qsF '_blacklistexp'; then
-			printf '%s=' "${m}"
+			printf '%s=%s' "${m}" "'"
 			o="y"
 			for v in $(eval echo \"\${${m}:-}\"); do
 				[ -n "${o}" ] && \
 					o="" || \
-					printf ','
-				printf ' %d=%s' "${v}" "$(_datetime "--date=@${v}")"
+					printf ', '
+				printf '%d(%s)' "${v}" "$(_datetime "--date=@${v}")"
 			done
-			echo
+			echo "'"
 		else
 			echo "${m}=${v}"
 		fi

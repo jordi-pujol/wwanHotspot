@@ -1,6 +1,6 @@
 wwanHotspot v2.16
 
-  * Manage connections to multiple hotspots sharing the same SSID.
+  * Manage connections to multiple hotspots that share the same SSID.
     - Blacklist hotspots by BSSID
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Sat, 29 May 2021 06:25:23 +0200
