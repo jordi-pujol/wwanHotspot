@@ -31,7 +31,7 @@ _unquote() {
 		sed -re "s/^([\"](.*)[\"]|['](.*)['])$/\2\3/"
 }
 
-_list_add() {
+_list_append() {
 	local l="${1}" \
 		v="${2}" \
 		s="${3:-"${TAB}"}"
@@ -233,14 +233,14 @@ BlackListHotspot() {
 		reason="${3}" \
 		msg
 	msg="Blacklisting $(HotspotName)"
-	_list_add "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
-	_list_add "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
+	_list_append "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
+	_list_append "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
 	local exp=${NONE}
 	if [ ${expires} -gt ${NONE} ]; then
 		exp=$((expires+$(_UTCseconds)))
 		msg="${msg} for ${expires} seconds"
 	fi
-	_list_add "net${Hotspot}_blacklistexp" "${exp}"
+	_list_append "net${Hotspot}_blacklistexp" "${exp}"
 	NetwFailures=${NONE}
 	ClrStatMsgs
 	LogPrio="warn" _log "${msg}"
