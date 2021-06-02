@@ -231,11 +231,10 @@ BlackListHotspot() {
 	local cause="${1}" \
 		expires="${2}" \
 		reason="${3}" \
-		msg
+		exp=${NONE} msg
 	msg="Blacklisting $(HotspotName)"
 	_list_append "net${Hotspot}_blacklisted" "${cause}-$(_datetime)"
 	_list_append "net${Hotspot}_blacklistBSSID" "${WwanBssid}"
-	local exp=${NONE}
 	if [ ${expires} -gt ${NONE} ]; then
 		exp=$((expires+$(_UTCseconds)))
 		msg="${msg} for ${expires} seconds"
