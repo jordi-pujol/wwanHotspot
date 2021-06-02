@@ -273,7 +273,7 @@ BlackListExp() {
 }
 
 BlackListExpired() {
-	local d="" exp hotspot index bssid bssid1 \
+	local d="" exp hotspot index bssid \
 		msg rc=""
 	while read -r exp hotspot index && \
 	[ -n "${exp}" ] && \
@@ -293,7 +293,7 @@ BlackListExpired() {
 			[ -n "${WIfaceAP}" ] || \
 			[ ${Status} -ne ${DISABLED} -a ${Status} -ne ${DISCONNECTED} ] || \
 				ClrStatMsgs
-		rc=${ERR}
+		rc="y"
 		AddStatMsg "${msg}"
 	done << EOF
 $(BlackListExp)
