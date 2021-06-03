@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.16 $
+#  $Revision: 2.17 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -472,6 +472,28 @@ ConnectedSsid() {
 		rc=-1; exit
 	}
 	END{exit rc+1}'
+}
+
+ValidateSsidBssid() {
+	local ssid bssid rc=
+	if [ -z "${WwanSsid}" ] && \
+	ssid="$(ConnectedSsid)" && \
+	[ "${ssid}" != "${NULLSSID}" ]; then
+		rc="y"
+		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+	fi
+	if [ -z "${WwanBssid}" ] && \
+	bssid="$(ConnectedBssid)"; then
+		rc="y"
+		uci set wireless.@wifi-iface[${iface}].bssid="${bssid}"
+	fi
+	[ -n "${rc}" ] || \
+		return ${OK}
+	wifi down "${WDevice}"
+	wifi up "${WDevice}"
+	UpdateReport="y"
+	WatchWifi &
+	return ${ERR}
 }
 
 ImportHotspot() {
@@ -1301,6 +1323,12 @@ CheckNetworking() {
 	[ $((delay--)) -gt 0 ]; do
 		sleep 1
 	done
+	if [ -z "${Gateway}" ]; then
+		[ -z "${Debug}" ] || \
+			_applog "Error: no default route for $(HotspotName)." \
+			"Will not check networking."
+		return ${OK}
+	fi
 	[ -n "${CheckAddr}" ] || \
 		if CheckSrvr="$(printf '%s\n' "${check}" | \
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
@@ -1556,6 +1584,10 @@ WifiStatus() {
 						AddStatMsg "${msg}"
 					fi
 				fi
+				if [ -z "${WwanSsid}" -o -z "${WwanBssid}" ]; then
+					ValidateSsidBssid || \
+						continue
+				fi
 				NetwFailures=${NONE}
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
@@ -1616,10 +1648,6 @@ WifiStatus() {
 					[ ${ConnAttempts} -ge ${BlackList} ]; then
 						BlackListHotspot "connect" "${BlackListExpires}" \
 							"${msg}"
-						WwanSsid=""
-						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].ssid || :
-						WwanBssid="${NULLBSSID}"
-						uci -q delete wireless.@wifi-iface[${WIfaceSTA}].bssid || :
 					else
 						LogPrio="warn" _log "${msg}"
 						[ $((ConnAttempts++)) ]
