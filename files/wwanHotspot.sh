@@ -475,25 +475,25 @@ ConnectedSsid() {
 }
 
 ValidateSsidBssid() {
-	local ssid bssid rc=
+	local ssid bssid rc=""
 	if [ -z "${WwanSsid}" ] && \
 	ssid="$(ConnectedSsid)" && \
 	[ "${ssid}" != "${NULLSSID}" ]; then
 		rc="y"
-		uci set wireless.@wifi-iface[${iface}].ssid="${ssid}"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].ssid="${ssid}"
 	fi
 	if [ -z "${WwanBssid}" ] && \
 	bssid="$(ConnectedBssid)"; then
 		rc="y"
-		uci set wireless.@wifi-iface[${iface}].bssid="${bssid}"
+		uci set wireless.@wifi-iface[${WIfaceSTA}].bssid="${bssid}"
 	fi
-	[ -n "${rc}" ] || \
-		return ${OK}
-	wifi down "${WDevice}"
-	wifi up "${WDevice}"
-	UpdateReport="y"
-	WatchWifi &
-	return ${ERR}
+	if [ -n "${rc}" ]; then
+		wifi down "${WDevice}"
+		wifi up "${WDevice}"
+		UpdateReport="y"
+		WatchWifi &
+		return ${ERR}
+	fi
 }
 
 ImportHotspot() {
@@ -1317,12 +1317,14 @@ CheckNetworking() {
 	fi
 	Interval=${Sleep}
 	local delay=${Sleep} msg rc
-	while [ -z "${Gateway:="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
-	awk '$1 == "default" && \
-	$3 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $3; exit}')"}" ] && \
-	[ $((delay--)) -gt 0 ]; do
-		sleep 1
-	done
+	[ -n "${Gateway}" ] || \
+		while ! Gateway="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
+		awk '$1 == "default" && \
+		$3 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $3; rc=-1; exit}
+		END{exit rc+1}')" && \
+		[ $((delay--)) -gt 0 ]; do
+			sleep 1
+		done
 	if [ -z "${Gateway}" ]; then
 		[ -z "${Debug}" ] || \
 			_applog "Error: no default route for $(HotspotName)." \
@@ -1584,10 +1586,8 @@ WifiStatus() {
 						AddStatMsg "${msg}"
 					fi
 				fi
-				if [ -z "${WwanSsid}" -o -z "${WwanBssid}" ]; then
-					ValidateSsidBssid || \
-						continue
-				fi
+				ValidateSsidBssid || \
+					continue
 				NetwFailures=${NONE}
 				Gateway=""; CheckAddr=""; CheckInet=""; CheckTime=""
 				if CheckNetworking; then
