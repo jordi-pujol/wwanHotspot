@@ -5,6 +5,9 @@ wwanHotspot v2.17
     connection failure
     - on connection, deduce connected SSID and BSSID from iwinfo
     for the current hotspot
+  * wwanHotspot.sh, IsWwanDisconnected():
+    - checking better and faster the connection status.
+    Relying on the OS networking, command "ip route".
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 03 Jun 2021 10:22:43 +0200
 

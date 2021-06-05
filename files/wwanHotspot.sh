@@ -331,6 +331,21 @@ WatchWifi() {
 	done
 }
 
+IsWanConnected() {
+	local status
+	status="$(cat "/sys/class/net/${IfaceWan}/operstate" 2> /dev/null)" && \
+	[ -n "${status}" -a "${status}" != "down" ]
+}
+
+IsWwanConnected() {
+	[ -n "$(ip -4 route show default dev "${WIface}" 2> /dev/null)" ]
+}
+
+IsWwanDisconnected() {
+	IsWwanConnected || \
+		echo "y"
+}
+
 AnyOtherHotspot() {
 	local n=0
 	while [ $((n++)) -lt ${Hotspots} ]; do
@@ -546,19 +561,6 @@ ImportHotspot() {
 		"${add_cfg}" \
 		"#net_check='https://www.google.com/'" \
 		"AddHotspot" >> "/etc/config/${NAME}"
-}
-
-IsWanConnected() {
-	local status
-	status="$(cat "/sys/class/net/${IfaceWan}/operstate" 2> /dev/null)" && \
-	[ -n "${status}" -a "${status}" != "down" ]
-}
-
-IsWwanDisconnected() {
-	IsWifiActive "${NULLBSSID}" && \
-	sleep 5 && \
-	IsWifiActive "${NULLBSSID}" && \
-	echo "y" || :
 }
 
 PreBackupRotate() {
@@ -1321,16 +1323,15 @@ CheckNetworking() {
 		while ! Gateway="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
 		awk '$1 == "default" && \
 		$3 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $3; rc=-1; exit}
-		END{exit rc+1}')" && \
-		[ $((delay--)) -gt 0 ]; do
+		END{exit rc+1}')"; do
+			[ $((delay--)) -gt 0 ] || {
+				[ -z "${Debug}" ] || \
+					_applog "Error: no default route for $(HotspotName)." \
+					"Will not check networking."
+				return ${OK}
+			}
 			sleep 1
 		done
-	if [ -z "${Gateway}" ]; then
-		[ -z "${Debug}" ] || \
-			_applog "Error: no default route for $(HotspotName)." \
-			"Will not check networking."
-		return ${OK}
-	fi
 	[ -n "${CheckAddr}" ] || \
 		if CheckSrvr="$(printf '%s\n' "${check}" | \
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
