@@ -1,12 +1,12 @@
 wwanHotspot v2.17
 
   * wwanHotspot.sh, WifiStatus():
-   	- suppress clearing SSID and BSSID when blacklisting a hotspot for
+   	- don't clear SSID and BSSID when blacklisting a hotspot for
     connection failure
-    - on connection, deduce connected SSID and BSSID from iwinfo
-    for the current hotspot
+    - on connection, deduce connected SSID and BSSID for the current
+    hotspot from iwinfo
   * wwanHotspot.sh, IsWwanDisconnected():
-    - checking better and faster the connection status.
+    - better and faster way to check the connection status.
     Relying on the OS networking, command "ip route".
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Thu, 03 Jun 2021 10:22:43 +0200

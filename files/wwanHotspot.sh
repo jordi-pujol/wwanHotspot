@@ -337,12 +337,29 @@ IsWanConnected() {
 	[ -n "${status}" -a "${status}" != "down" ]
 }
 
-IsWwanConnected() {
-	[ -n "$(ip -4 route show default dev "${WIface}" 2> /dev/null)" ]
+WwanGateway() {
+	ip -4 route show default dev "${WIface}" 2> /dev/null | \
+		awk 'function isIP(s) {
+			return (s ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)
+		}
+		$1 == "default" && \
+		isIP($3) {print $3; rc=-1; exit}
+		END{exit rc+1}'
+}
+
+WwanIfaceIP() {
+	ip -4 route show dev "${WIface}" 2> /dev/null | \
+		awk 'function isIP(s) {
+			return (s ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)
+		}
+		$5 == "src" && \
+		isIP($6) {print $6; rc=-1; exit}
+		END{exit rc+1}'
 }
 
 IsWwanDisconnected() {
-	IsWwanConnected || \
+	[ -n "$(WwanGateway)" ] || \
+	[ -n "$(WwanIfaceIP)" ] || \
 		echo "y"
 }
 
@@ -1318,30 +1335,17 @@ CheckNetworking() {
 		return ${OK}
 	fi
 	Interval=${Sleep}
-	local delay=${Sleep} msg rc
+	local msg rc
 	[ -n "${Gateway}" ] || \
-		while ! Gateway="$(ip -4 route show default dev "${WIface}" 2> /dev/null | \
-		awk '$1 == "default" && \
-		$3 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $3; rc=-1; exit}
-		END{exit rc+1}')"; do
-			[ $((delay--)) -gt 0 ] || {
-				[ -z "${Debug}" ] || \
-					_applog "Error: no default route for $(HotspotName)." \
-					"Will not check networking."
-				return ${OK}
-			}
-			sleep 1
-		done
+		Gateway="$(WwanGateway)" || \
+		Gateway="$(WwanIfaceIP)" || :
 	[ -n "${CheckAddr}" ] || \
 		if CheckSrvr="$(printf '%s\n' "${check}" | \
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
 		[ -n "${CheckSrvr}" ]; then
 			CheckAddr="${check}"
 			if [ -z "$(which wget)" ] ||  \
-			! CheckInet="$(ip -o -4 addr show "${WIface}" 2> /dev/null | \
-			awk 'BEGIN{FS="[ \t\n/]+"}
-			$4 ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/ {print $4; rc=-1}
-			END{exit rc+1}')"; then
+			! CheckInet="$(WwanIfaceIP)"; then
 				[ "${CheckAddr:0:8}" = "https://" ] && \
 					CheckPort=443 || \
 					CheckPort=80
@@ -1441,7 +1445,7 @@ CheckNetworking() {
 	[ ${NetwFailures} -ge ${ReScanOnNetwFail} ]; then
 		ReScanningOnNetwFail || \
 			return ${ERR}
-		rs=${OK}
+		rs="y"
 	fi
 	if [ ${BlackListNetwork} -ne ${NONE} ] && \
 	[ ${NetwFailures} -ge ${BlackListNetwork} ]; then
