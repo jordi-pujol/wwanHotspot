@@ -352,13 +352,15 @@ WwanIfaceIP() {
 		awk 'function isIP(s) {
 			return (s ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)
 		}
-		$5 == "src" && \
-		isIP($6) {print $6; rc=-1; exit}
+		{for (i=1; i<NF; i++) {
+			if ($i == "src" && isIP($(i+1))) {
+				print $(i+1); rc=-1; exit}
+			}
+		}
 		END{exit rc+1}'
 }
 
 IsWwanDisconnected() {
-	[ -n "$(WwanGateway)" ] || \
 	[ -n "$(WwanIfaceIP)" ] || \
 		echo "y"
 }
