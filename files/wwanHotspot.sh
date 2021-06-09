@@ -297,31 +297,6 @@ $(BlackListExp)
 EOF
 }
 
-IsWifiActive() {
-	local bssid="${1:-}" \
-		ssid="${2:-}" \
-		mode="${3:-"Client"}"
-	[ -z "${ssid}" ] && \
-		ssid="${NULLSSID}" || \
-		ssid="\"${ssid}\""
-	local info ssid1 bssid1 mode1
-	info="$(iwinfo "${WIface}" info 2> /dev/null)"
-	ssid1="$(echo "${info}" | \
-			sed -nre '/^'"${WIface}"'[[:blank:]]+ESSID:[[:blank:]]+(.*)$/ \
-			{s//\1/p;q}')"
-	[ "${ssid}" = "${ssid1}" ] || \
-		return ${ERR}
-	bssid1="$(_toupper "$(echo "${info}" | \
-			sed -nre '/^[[:blank:]]+Access Point:[[:blank:]]+(.*)$/ \
-			{s//\1/p;q}')")"
-	[ "${bssid}" = "${bssid1}" ] || \
-		return ${ERR}
-	mode1="$(echo "${info}" | \
-			sed -nre '/^[[:blank:]]+Mode:[[:blank:]]+([^[:blank:]]+).*$/ \
-			{s//\1/p;q}')"
-	[ "${mode}" = "${mode1}" ]
-}
-
 WatchWifi() {
 	local c="${1:-"$((Sleep/2))"}" \
 		ifcarrier="/sys/class/net/${WIface}/carrier"
@@ -854,8 +829,7 @@ Report() {
 		grep -qsxF "${UCIDISABLED}" && \
 		echo "dis" || echo "en")" "abled"
 	printf '%s%s %s\n\n' "Hotspot Wifi connection is" \
-		"$(IsWifiActive "${WwanBssid:-}" "${WwanSsid:-}" || \
-		echo " not")" "active"
+		"$(test -n "$(WwanIfaceIP)" || echo " not")" "active"
 	if [ -n "${IfaceWan}" ]; then
 		printf '%s%s%s\n\n' "WAN interface is " \
 			"$(IsWanConnected || echo "dis")" "connected"
