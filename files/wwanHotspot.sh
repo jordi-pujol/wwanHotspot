@@ -317,8 +317,8 @@ WwanGateway() {
 		awk 'function isIP(s) {
 			return (s ~ /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/)
 		}
-		$1 == "default" && \
-		isIP($3) {print $3; rc=-1; exit}
+		$1 == "default" && isIP($3) {
+			print $3; rc=-1; exit}
 		END{exit rc+1}'
 }
 
@@ -1314,7 +1314,12 @@ CheckNetworking() {
 	local msg rc
 	[ -n "${Gateway}" ] || \
 		Gateway="$(WwanGateway)" || \
-		Gateway="$(WwanIfaceIP)" || :
+		Gateway="$(WwanIfaceIP)" || {
+			[ -z "${Debug}" ] || \
+				_applog "Error: can't find IP addresses for $(HotspotName)." \
+					"Will not check networking."
+			return ${OK}
+		}
 	[ -n "${CheckAddr}" ] || \
 		if CheckSrvr="$(printf '%s\n' "${check}" | \
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
