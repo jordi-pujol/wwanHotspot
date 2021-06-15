@@ -1287,15 +1287,13 @@ CheckNetw() {
 	{ [ "${Debug}" = "xtrace" ] && \
 		exec >&2 || \
 		exec > /dev/null 2>&1; } 2> /dev/null
-	if [ -n "${CheckSrvr}" ]; then
-		if [ -n "${CheckInet}" ]; then
+	if [ -n "${CheckInet}" ]; then
 			wget -nv --spider -T ${PingWait} --no-check-certificate \
 			--bind-address "${CheckInet}" "${CheckAddr}" 2>&1 | \
 			grep -sF "200 OK"
-		else
-			printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
-				nc "${CheckSrvr}" ${CheckPort}
-		fi
+	elif [ -n "${CheckSrvr}" ]; then
+		printf 'GET %s HTTP/1.0\n\n' "${CheckAddr}" | \
+			nc "${CheckSrvr}" ${CheckPort}
 	else
 		ping -4 -W ${PingWait} -c 3 -I "${WIface}" "${CheckAddr}"
 	fi
