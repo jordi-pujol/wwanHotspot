@@ -1325,8 +1325,7 @@ CheckNetworking() {
 		sed -nre '\|^http[s]?://([^/]+).*| s||\1|p')" && \
 		[ -n "${CheckSrvr}" ]; then
 			CheckAddr="${check}"
-			if [ -z "$(which wget)" ] ||  \
-			! CheckInet="$(WwanIfaceIP)"; then
+			if [ -z "$(which wget)" ]; then
 				[ "${CheckAddr:0:8}" = "https://" ] && \
 					CheckPort=443 || \
 					CheckPort=80
@@ -1339,6 +1338,7 @@ CheckNetworking() {
 					AddStatMsg "Error:" "${msg}"
 				fi
 			else
+				CheckInet="$(WwanIfaceIP)"
 				[ -z "${Debug}" ] || \
 					_applog "check networking, wget \"${CheckAddr}\""
 			fi
