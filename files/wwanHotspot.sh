@@ -1288,7 +1288,7 @@ CheckNetw() {
 		exec >&2 || \
 		exec > /dev/null 2>&1; } 2> /dev/null
 	if [ -n "${CheckInet}" ]; then
-			wget -nv --spider -T ${PingWait} --no-check-certificate \
+		wget -nv --spider -T ${PingWait} --no-check-certificate \
 			--bind-address "${CheckInet}" "${CheckAddr}" 2>&1 | \
 			grep -sF "200 OK"
 	elif [ -n "${CheckSrvr}" ]; then
