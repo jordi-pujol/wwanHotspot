@@ -314,23 +314,32 @@ IsWanConnected() {
 
 WwanGateway() {
 	ip -4 route show default dev "${WIface}" 2> /dev/null | \
-		awk 'function isIP(s) {
-			return (s ~ /^((25[0-5]|2[0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])$/)
+		awk 'function isIP(s, a, i) {
+			split(s, a, ".")
+			if (length(a) != 4) return
+			for (i in a)
+				if (a[i] !~ /^[[:digit:]]+$/ || a[i] > 255)
+					return
+			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
 		$1 == "default" && isIP($3) {
-			print $3; rc=-1; exit}
+			print $3; rc=-1; exit }
 		END{exit rc+1}'
 }
 
 WwanIfaceIP() {
 	ip -4 route show dev "${WIface}" 2> /dev/null | \
-		awk 'function isIP(s) {
-			return (s ~ /^((25[0-5]|2[0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|[1][0-9][0-9]|[1-9][0-9]|[0-9])$/)
+		awk 'function isIP(s, a, i) {
+			split(s, a, ".")
+			if (length(a) != 4) return
+			for (i in a)
+				if (a[i] !~ /^[[:digit:]]+$/ || a[i] > 255)
+					return
+			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
-		{for (i=1; i<NF; i++) {
+		{for (i=1; i<NF; i++)
 			if ($i == "src" && isIP($(i+1))) {
-				print $(i+1); rc=-1; exit}
-			}
+				print $(i+1); rc=-1; exit }
 		}
 		END{exit rc+1}'
 }
