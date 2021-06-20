@@ -322,8 +322,10 @@ WwanGateway() {
 					return
 			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
-		$1 == "default" && isIP($3) {
-			print $3; rc=-1; exit }
+		$1 == "default" {
+			ip=isIP($3)
+			if (ip) {print ip; rc=-1; exit}
+		}
 		END{exit rc+1}'
 }
 
@@ -338,8 +340,10 @@ WwanIfaceIP() {
 			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
 		{for (i=1; i<NF; i++)
-			if ($i == "src" && isIP($(i+1))) {
-				print $(i+1); rc=-1; exit }
+			if ($i == "src") {
+				ip=isIP($(i+1))
+				if (ip) {print ip; rc=-1; exit}
+			}
 		}
 		END{exit rc+1}'
 }
