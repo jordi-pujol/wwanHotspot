@@ -1,3 +1,11 @@
+wwanHotspot v2.18
+
+  * wwanHotspot.sh:
+    - awk split()
+    returns the number of fields.
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 18 Jun 2021 19:58:00 +0200
+
 wwanHotspot v2.17
 
   * wwanHotspot.sh, WifiStatus():

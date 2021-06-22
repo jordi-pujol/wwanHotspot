@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.17 $
+#  $Revision: 2.18 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -315,16 +315,14 @@ IsWanConnected() {
 WwanGateway() {
 	ip -4 route show default dev "${WIface}" 2> /dev/null | \
 		awk 'function isIP(s, a, i) {
-			split(s, a, ".")
-			if (length(a) != 4) return
+			if (split(s, a, ".") != 4) return
 			for (i in a)
 				if (a[i] !~ /^[[:digit:]]+$/ || a[i] > 255)
 					return
 			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
 		$1 == "default" {
-			ip=isIP($3)
-			if (ip) {print ip; rc=-1; exit}
+			if (ip=isIP($3)) {print ip; rc=-1; exit}
 		}
 		END{exit rc+1}'
 }
@@ -332,18 +330,15 @@ WwanGateway() {
 WwanIfaceIP() {
 	ip -4 route show dev "${WIface}" 2> /dev/null | \
 		awk 'function isIP(s, a, i) {
-			split(s, a, ".")
-			if (length(a) != 4) return
+			if (split(s, a, ".") != 4) return
 			for (i in a)
 				if (a[i] !~ /^[[:digit:]]+$/ || a[i] > 255)
 					return
 			return sprintf("%d.%d.%d.%d", a[1], a[2], a[3], a[4])
 		}
 		{for (i=1; i<NF; i++)
-			if ($i == "src") {
-				ip=isIP($(i+1))
-				if (ip) {print ip; rc=-1; exit}
-			}
+			if ($i == "src")
+				if (ip=isIP($(i+1))) {print ip; rc=-1; exit}
 		}
 		END{exit rc+1}'
 }
