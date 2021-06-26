@@ -41,13 +41,12 @@ _list_append() {
 _list_get() {
 	local l="${1}" \
 		i="${2}" \
-		s="${3:-"${TAB}"}" \
-		v
-	v="$(printf '%s' "$(eval echo \"\${${l}:-}\")" | \
-		cut -s -f ${i} -d "${s}")"
-	[ -n "${v}" ] && \
-		printf '%s\n' "${v}" || \
-		return ${ERR}
+		s="${3:-"${TAB}"}"
+	printf '%s' "$(eval echo \"\${${l}:-}\")" | \
+		awk -v i="${i}" -v s="${s}" \
+		'BEGIN{FS=s}
+		i < NF {print $i; rc=-1; exit}
+		END{exit rc+1}'
 }
 
 _list_remove() {
