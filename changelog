@@ -3,6 +3,8 @@ wwanHotspot v2.18
   * wwanHotspot.sh:
     - awk split()
     returns the number of fields.
+  * wwanHotspot.sh, list management:
+    - set a default separator
 
  -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Fri, 18 Jun 2021 19:58:00 +0200
 

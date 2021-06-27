@@ -34,15 +34,15 @@ _unquote() {
 _list_append() {
 	local l="${1}" \
 		v="${2}" \
-		s="${3:-"${TAB}"}"
-	eval ${l}=\"$(eval echo \"\${${l}:-}\")${v}${s}\"
+		s="${3:-"${SEP}"}"
+	eval ${l}=\"$(eval printf '%s' \"\${${l}:-}\")${v}${s}\"
 }
 
 _list_get() {
 	local l="${1}" \
 		i="${2}" \
-		s="${3:-"${TAB}"}"
-	printf '%s' "$(eval echo \"\${${l}:-}\")" | \
+		s="${3:-"${SEP}"}"
+	printf '%s\n' "$(eval printf '%s' \"\${${l}:-}\")" | \
 		awk -v i="${i}" -v s="${s}" \
 		'BEGIN{FS=s}
 		i < NF {print $i; rc=-1; exit}
@@ -52,12 +52,12 @@ _list_get() {
 _list_remove() {
 	local l="${1}" \
 		i="${2}" \
-		s="${3:-"${TAB}"}" \
+		s="${3:-"${SEP}"}" \
 		m="" r=""
 	[ ${i} -le 1 ] || \
 		r="-$((i-1)),"
 	r="${r}$((i+1))-"
-	m="$(printf '%s' "$(eval echo \"\${${l}:-}\")" | \
+	m="$(printf '%s' "$(eval printf '%s' \"\${${l}:-}\")" | \
 		cut -s -f "${r}" -d "${s}")"
 	[ -n "${m}" ] && \
 		eval ${l}=\"${m}\" || \
@@ -254,7 +254,7 @@ BlackListExp() {
 	sed -nre "\|^net([[:digit:]]+)_blacklistexp='(.*)'$| s||\1 \2|p" | \
 	while read -r hotspot bl; do
 		i=0
-		for v in ${bl}; do
+		for v in $(printf '%s' "${bl}" | tr "${SEP}" ' '); do
 			[ -n "${v}" ] || \
 				break
 			[ $((i++)) ]
@@ -816,11 +816,13 @@ Report() {
 		grep -qsF '_blacklistexp'; then
 			printf '%s=%s' "${m}" "'"
 			o="y"
-			for v in $(eval echo \"\${${m}:-}\"); do
+			for v in $(eval echo \"\${${m}:-}\" | tr "${SEP}" ' '); do
 				[ -n "${o}" ] && \
 					o="" || \
 					printf ', '
-				printf '%d(%s)' "${v}" "$(_datetime "--date=@${v}")"
+				printf '%d (%s) ' "${v}" "$([ ${v} -eq 0 ] && \
+					echo "Never" || \
+					_datetime "--date=@${v}")"
 			done
 			echo "'"
 		else
@@ -1502,7 +1504,7 @@ WifiStatus() {
 	readonly NAME LOGFILE="/var/log/${NAME}" \
 		STATFILE="/var/log/${NAME}.stat" \
 		OK=0 ERR=1 UCIDISABLED=1 \
-		LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' \
+		LF=$'\n' TAB=$'\t' BEL=$'\x07' SPACE=' \t\n\r' SEP='|' \
 		HIDDENSSID="\x00\x00\x00\x00\x00\x00\x00\x00\x00" \
 		NULLSSID="unknown" NULLBSSID="00:00:00:00:00:00" \
 		NONE=0 DISCONNECTED=1 CONNECTING=2 DISABLED=3 CONNECTED=4
