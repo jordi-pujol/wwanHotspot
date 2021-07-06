@@ -65,7 +65,7 @@ _list_remove() {
 		s="${3:-"${SEP}"}" \
 		m="" r=""
 	[ 1 -le ${i} -a ${i} -le $(_list_count "${l}" "${s}") ] || \
-		return 1
+		return ${ERR}
 	[ ${i} -le 1 ] || \
 		r="-$((i-1)),"
 	r="${r}$((i+1))-"
