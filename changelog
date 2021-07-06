@@ -1,3 +1,12 @@
+wwanHotspot v2.19
+
+  * wwanHotspot.sh:
+    - improve list management
+  * wwanHotspot.sh, WatchWifi():
+    - fixed maximum wait interval; allways ${Sleep} seconds
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 28 Jun 2021 08:20:32 +0200
+
 wwanHotspot v2.18
 
   * wwanHotspot.sh:

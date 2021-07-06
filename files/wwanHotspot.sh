@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.18 $
+#  $Revision: 2.19 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -31,6 +31,16 @@ _unquote() {
 		sed -re "s/^([\"](.*)[\"]|['](.*)['])$/\2\3/"
 }
 
+_list_count() {
+	local l="${1}" \
+		s="${2:-"${SEP}"}"
+	printf '%s\n' "$(eval printf '%s' \"\${${l}:-}\")" | \
+		awk -v s="${s}" \
+		'BEGIN{FS=s}
+		1 < NF {n=NF-1}
+		END{print n+0}'
+}
+
 _list_append() {
 	local l="${1}" \
 		v="${2}" \
@@ -45,7 +55,7 @@ _list_get() {
 	printf '%s\n' "$(eval printf '%s' \"\${${l}:-}\")" | \
 		awk -v i="${i}" -v s="${s}" \
 		'BEGIN{FS=s}
-		i < NF {print $i; rc=-1; exit}
+		0 < i && i < NF {print $i; rc=-1; exit}
 		END{exit rc+1}'
 }
 
@@ -54,6 +64,8 @@ _list_remove() {
 		i="${2}" \
 		s="${3:-"${SEP}"}" \
 		m="" r=""
+	[ 1 -le ${i} -a ${i} -le $(_list_count "${l}" "${s}") ] || \
+		return 1
 	[ ${i} -le 1 ] || \
 		r="-$((i-1)),"
 	r="${r}$((i+1))-"
@@ -276,10 +288,10 @@ BlackListExpired() {
 	[ ${d:="$(_UTCseconds)"} -ge ${exp} ]; do
 		bssid="$(eval echo \"\${net${hotspot}_bssid:-}\")"
 		bssid="${bssid:-"$(_list_get "net${hotspot}_blacklistBSSID" \
-			${index})"}" || :
-		_list_remove "net${hotspot}_blacklisted" ${index}
-		_list_remove "net${hotspot}_blacklistexp" ${index}
-		_list_remove "net${hotspot}_blacklistBSSID" ${index}
+			${index} || :)"}"
+		_list_remove "net${hotspot}_blacklisted" ${index} || :
+		_list_remove "net${hotspot}_blacklistexp" ${index} || :
+		_list_remove "net${hotspot}_blacklistBSSID" ${index} || :
 		_msg "Blacklisting has expired for" \
 			"$(HotspotName "${hotspot}" \
 				"${bssid:-"${BEL}"}" \
@@ -297,7 +309,7 @@ EOF
 }
 
 WatchWifi() {
-	local c="${1:-"$((Sleep/2))"}" \
+	local c=${Sleep} \
 		ifcarrier="/sys/class/net/${WIface}/carrier"
 	while [ "$(cat "${ifcarrier}" 2> /dev/null)" != "1" ] && \
 	[ $((c--)) -gt 0 ]; do
@@ -856,12 +868,12 @@ CurrentHotspot() {
 			awk -v ssid="${WwanSsid}" \
 			-v bssid="${WwanBssid}" \
 			'BEGIN{FS="\t"}
-			$1 == bssid && ( $2 == ssid || ! $2 ) {n = NR; exit}
+			$1 == bssid && ( $2 == ssid || ! $2 ) {n=NR; exit}
 			END{print n+0; exit (n+0 == 0)}')" || \
 	Hotspot="$(printf '%s\n' "${Ssids}" | \
 			awk -v ssid="${WwanSsid}" \
 			'BEGIN{FS="\t"}
-			! $1 && $2 == ssid {n = NR; exit}
+			! $1 && $2 == ssid {n=NR; exit}
 			END{print n+0}')"
 }
 
@@ -888,7 +900,7 @@ Scanning() {
 			LogPrio="err"
 		_log "Can't scan wifi, restarting the network"
 		/etc/init.d/network reload
-		WatchWifi ${Sleep}
+		WatchWifi
 	done
 	return ${ERR}
 }
@@ -1222,7 +1234,7 @@ HotspotLookup() {
 		msg="Connecting to $(HotspotName)..."
 		_log "${msg}"
 		AddStatMsg "${msg}"
-		WatchWifi ${Sleep} &
+		WatchWifi &
 	elif [ -n "${WwanDisabled}" ]; then
 		WwanReset 0
 		TryConnection=2
