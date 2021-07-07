@@ -31,16 +31,6 @@ _unquote() {
 		sed -re "s/^([\"](.*)[\"]|['](.*)['])$/\2\3/"
 }
 
-_list_count() {
-	local l="${1}" \
-		s="${2:-"${SEP}"}"
-	printf '%s\n' "$(eval printf '%s' \"\${${l}:-}\")" | \
-		awk -v s="${s}" \
-		'BEGIN{FS=s}
-		1 < NF {n=NF-1}
-		END{print n+0}'
-}
-
 _list_append() {
 	local l="${1}" \
 		v="${2}" \
@@ -64,7 +54,7 @@ _list_remove() {
 		i="${2}" \
 		s="${3:-"${SEP}"}" \
 		m="" r=""
-	[ 1 -le ${i} -a ${i} -le $(_list_count "${l}" "${s}") ] || \
+	_list_get "${l}" "${i}" "${s}" > /dev/null || \
 		return ${ERR}
 	[ ${i} -le 1 ] || \
 		r="-$((i-1)),"
