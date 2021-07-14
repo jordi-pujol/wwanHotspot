@@ -3,7 +3,7 @@
 #  wwanHotspot
 #
 #  Wireless WAN Hotspot management application for OpenWrt routers.
-#  $Revision: 2.19 $
+#  $Revision: 2.20 $
 #
 #  Copyright (C) 2017-2021 Jordi Pujol <jordipujolp AT gmail DOT com>
 #
@@ -106,19 +106,18 @@ _msg() {
 	msg="${@}"
 }
 
-_integer_value() {
+_check_int_val() {
 	local n="${1}" \
 		d="${2}" \
-		v 
-	if v="$(2> /dev/null printf '%d' "$(printf '%s' "${n}" | \
-	sed -nre '/^[[:digit:]]+$/p;q')")"; then
-		echo ${v}
-	else
+		v w
+	eval w=\"\${${n}:-}\"
+	if ! let v="${w}" 2> /dev/null && [ ${?} -gt 1 ]; then
 		_applog "Config error:" \
-			"Invalid integer value \"${n}\"," \
+			"Invalid integer value \"${w}\" for \"${n}\"," \
 			"assuming default ${d}"
-		echo ${d}
+		v=${d}
 	fi
+	let ${n}=${v}
 }
 
 _pids_active() {
@@ -632,25 +631,25 @@ LoadConfig() {
 		exec >> "${LOGFILE}" 2>&1
 	fi
 
-	LogRotate="$(_integer_value "${LogRotate}" 3)"
+	_check_int_val "LogRotate" 3
 	BackupRotate || :
 
 	LogPrio="info" _log "${msg}"
 
 	ScanAuto="${ScanAuto:-}"
 	ReScan="${ReScan:-}"
-	ReScanOnNetwFail="$(_integer_value "${ReScanOnNetwFail}" 1)"
-	Sleep="$(_integer_value "${Sleep}" 20)"
-	SleepInactive="$(_integer_value "${SleepInactive}" $((Sleep*3)) )"
-	SleepDsc="$(_integer_value "${SleepDsc}" $((Sleep*3)) )"
-	SleepScanAuto="$(_integer_value "${SleepScanAuto}" $((Sleep*15)) )"
-	BlackList="$(_integer_value "${BlackList}" 3)"
-	BlackListExpires="$(_integer_value "${BlackListExpires}" ${NONE})"
-	BlackListNetwork="$(_integer_value "${BlackListNetwork}" 3)"
-	BlackListNetworkExpires="$(_integer_value "${BlackListNetworkExpires}" $((10*60)))"
-	PingWait="$(_integer_value "${PingWait}" 7)"
-	MinTrafficBps="$(_integer_value "${MinTrafficBps}" 1024)"
-	ReportUpdtLapse="$(_integer_value "${ReportUpdtLapse}" $((6*SleepScanAuto)))"
+	_check_int_val "ReScanOnNetwFail" 1
+	_check_int_val "Sleep" 20
+	_check_int_val "SleepInactive" "Sleep*3"
+	_check_int_val "SleepDsc" "Sleep*3"
+	_check_int_val "SleepScanAuto" "Sleep*15"
+	_check_int_val "BlackList" 3
+	_check_int_val "BlackListExpires" ${NONE}
+	_check_int_val "BlackListNetwork" 3
+	_check_int_val "BlackListNetworkExpires" "10*60"
+	_check_int_val "PingWait" 7
+	_check_int_val "MinTrafficBps" 1024
+	_check_int_val "ReportUpdtLapse" "6*SleepScanAuto"
 	ImportAuto="${ImportAuto:-}"
 
 	IfaceWan="$(uci -q get network.wan.ifname)" || :

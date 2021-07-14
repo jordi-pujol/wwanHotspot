@@ -1,3 +1,17 @@
+wwanHotspot v2.20
+
+  * wwanHotspot.sh, _check_int_val():
+    check integer numbers and set corresponding variable value
+  * wwanHotspot.config:
+    - calculate arithmetic expressions for variables that are integer
+    type, use integer numbers only and variable names.
+    Basic arithmetic operators, (see busybox's let command):
+    The addition(+), subtraction(-), multiplication(*), division(/),
+    Exponentiation(**) and modulus(%) operators can be used in the
+    expression that will be calculated by the let command. 
+
+ -- Jordi Pujol Palomer <jordipujolp@gmail.com>  Mon, 28 Jun 2021 08:20:32 +0200
+
 wwanHotspot v2.19
 
   * wwanHotspot.sh:
